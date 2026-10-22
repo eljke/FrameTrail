@@ -16,7 +16,7 @@ final class ServicesTests: XCTestCase {
                 """)
             }
             return .json("""
-            {"resultCount":1,"results":[{"wrapperType":"track","kind":"feature-movie","trackId":1234,"trackName":"Sample Film","releaseDate":"2024-05-16T07:00:00Z","longDescription":"A film synopsis.","trackViewUrl":"https://itunes.apple.com/movie/id1234"}]}
+            {"resultCount":1,"results":[{"wrapperType":"track","kind":"feature-movie","trackId":1234,"trackName":"Sample Film","releaseDate":"2024-05-16T07:00:00Z","longDescription":"A film synopsis.","artworkUrl100":"https://example.org/promotional-artwork.jpg","trackViewUrl":"https://itunes.apple.com/movie/id1234"}]}
             """)
         }
         let service = CatalogService(http: client(), tokenProvider: { nil })
@@ -25,6 +25,7 @@ final class ServicesTests: XCTestCase {
         XCTAssertEqual(titles.first(where: { $0.kind == .series })?.overview, "A family story & mystery.")
         XCTAssertEqual(titles.first(where: { $0.kind == .movie })?.year, 2024)
         XCTAssertNil(titles.first?.posterURL)
+        XCTAssertNil(titles.first(where: { $0.kind == .movie })?.posterURL)
     }
 
     func testOneUnavailableProviderStillReturnsOtherResults() async throws {

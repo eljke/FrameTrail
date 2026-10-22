@@ -136,13 +136,12 @@ private struct ITunesMovie: Decodable, Sendable {
     let trackName: String?
     let releaseDate: String?
     let longDescription: String?
-    let artworkUrl100: URL?
     let trackViewUrl: URL?
     var mediaTitle: MediaTitle? {
         guard let trackId, let trackName else { return nil }
         return MediaTitle(id: "itunes:\(trackId)", title: trackName, kind: .movie,
                           year: releaseDate.flatMap { Int($0.prefix(4)) }, overview: longDescription ?? "",
-                          posterURL: artworkUrl100, sourceURL: trackViewUrl, provider: "Apple iTunes", providerID: String(trackId))
+                          sourceURL: trackViewUrl, provider: "Apple iTunes", providerID: String(trackId))
     }
 }
 struct TMDBPage: Decodable, Sendable {

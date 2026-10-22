@@ -33,6 +33,11 @@ actor TMDBAuthService {
         let token = try SourceText.validatedTMDBToken(token)
         let previous = try KeychainStore.string(for: CatalogService.tmdbTokenKey)
         guard previous != token else { return }
+        if let token {
+            let url = try HTTPClient.url("https://api.themoviedb.org/3/authentication")
+            let result = try await http.decode(AuthenticationValidation.self, request: HTTPClient.request(url: url, bearer: token))
+            guard result.success else { throw ServiceError.http(401) }
+        }
         if try KeychainStore.string(for: sessionKey) != nil { try await logout() }
         try KeychainStore.set(token, for: CatalogService.tmdbTokenKey)
         pendingRequestToken = nil
@@ -158,3 +163,4 @@ private struct AccountResponse: Decodable, Sendable {
     let username: String
     let name: String?
 }
+private struct AuthenticationValidation: Decodable, Sendable { let success: Bool }

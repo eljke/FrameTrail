@@ -46,7 +46,7 @@ actor HTTPClient {
         configuration.timeoutIntervalForResource = 45
         configuration.urlCache = nil
         configuration.httpMaximumConnectionsPerHost = 4
-        session = URLSession(configuration: configuration)
+        self.session = URLSession(configuration: configuration)
     }
 
     func decode<T: Decodable & Sendable>(_ type: T.Type, request: URLRequest) async throws -> T {

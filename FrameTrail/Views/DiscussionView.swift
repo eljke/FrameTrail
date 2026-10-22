@@ -1,0 +1,180 @@
+import SwiftUI
+import FrameTrailCore
+
+struct DiscussionView: View {
+    let title: MediaTitle
+    var initialEpisodes: [Episode] = []
+    @Environment(LibraryStore.self) private var library
+    @Environment(AppModel.self) private var model
+    @State private var question = ""
+    @State private var strict = false
+    @State private var busy = false
+    @State private var error: String?
+    @State private var sourceSearch = ""
+    @State private var task: Task<Void, Never>?
+    @State private var activeRequestID: UUID?
+
+    private var entry: LibraryEntry { library.entry(for: title.id) ?? LibraryEntry(title: title) }
+    private var context: GroundedContext {
+        SpoilerContextBuilder.build(title: title, episodes: entry.episodes, progress: entry.progress,
+                                    facts: entry.facts, question: strict ? sourceSearch : question, maxCharacters: 9_000)
+    }
+    private var availability: AssistantAvailability { model.assistant.availability(localeIdentifier: model.localeIdentifier) }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    InfoCard(symbol: entry.progress.finished ? "checkmark.seal" : "eye.slash", title: entry.progress.finished ? "Обсуждение после просмотра" : "В пределах просмотренного", text: context.coverage)
+                    Picker("Режим", selection: $strict) {
+                        Text("Обсуждение").tag(false)
+                        Text("Источники").tag(true)
+                    }.pickerStyle(.segmented)
+                    if strict {
+                        TextField("Найти в материалах", text: $sourceSearch).textFieldStyle(.roundedBorder)
+                            .onChange(of: sourceSearch) { _, value in if value.count > 1_000 { sourceSearch = String(value.prefix(1_000)) } }
+                        evidenceList
+                    } else {
+                        if !availability.isAvailable { ErrorNotice(message: availability.message) }
+                        Text("Язык ответа: \(model.localeIdentifier == "ru_RU" ? "русский" : "English"). Модель может ошибиться или вспомнить сведения вне источников. Для строгого режима открой «Источники».")
+                            .font(.caption).foregroundStyle(Theme.muted)
+                        if entry.chat.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("С чего начнём?").font(.headline)
+                                ForEach(suggestions, id: \.self) { suggestion in
+                                    Button { question = suggestion } label: {
+                                        HStack { Text(suggestion).font(.subheadline).multilineTextAlignment(.leading); Spacer(); Image(systemName: "arrow.down.left") }
+                                            .padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+                                    }.buttonStyle(.plain)
+                                }
+                            }
+                        }
+                        ForEach(entry.chat) { turn in
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label(turn.role == .user ? "Ты" : "FrameTrail · локально", systemImage: turn.role == .user ? "person.crop.circle" : "sparkles")
+                                    .font(.caption.bold()).foregroundStyle(turn.role == .user ? Theme.muted : Theme.accent)
+                                Text(turn.text).font(.body).textSelection(.enabled)
+                            }
+                            .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                            .background(turn.role == .user ? Color.clear : Theme.card, in: RoundedRectangle(cornerRadius: 16))
+                        }
+                        if busy { HStack { ProgressView(); Text("Обдумываю на iPhone…").font(.footnote).foregroundStyle(Theme.muted) } }
+                        if let error { ErrorNotice(message: error) }
+                        DisclosureGroup("На каких материалах основан ответ") { evidenceList.padding(.top, 10) }
+                            .font(.footnote).tint(Theme.accent)
+                    }
+                }.padding(20)
+            }
+            if !strict {
+                HStack(alignment: .bottom, spacing: 12) {
+                    TextField("Спроси об истории…", text: $question, axis: .vertical)
+                        .lineLimit(1...5).padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
+                        .onChange(of: question) { _, value in if value.count > 1_000 { question = String(value.prefix(1_000)) } }
+                        .accessibilityIdentifier("assistantQuestion")
+                    if busy {
+                        Button { stopResponse() } label: { Image(systemName: "stop.circle.fill").font(.title) }.accessibilityLabel("Остановить ответ")
+                    } else {
+                        Button { startResponse() } label: { Image(systemName: "arrow.up.circle.fill").font(.largeTitle) }
+                            .disabled(question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !availability.isAvailable || !context.hasEvidence)
+                            .accessibilityLabel("Отправить вопрос")
+                    }
+                }.padding(16).background(Theme.background)
+            }
+        }
+        .background(Theme.background)
+        .navigationTitle("Обсуждение").navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            Menu {
+                Button("Очистить обсуждение", role: .destructive) { stopResponse(); library.clearChat(for: title.id) }
+            } label: { Image(systemName: "ellipsis.circle") }
+        }
+        .task { _ = prepareEntry() }
+        .onChange(of: library.activeAccountID) { _, _ in stopResponse() }
+        .onChange(of: entry.progress) { _, _ in stopResponse() }
+        .onDisappear { stopResponse() }
+    }
+
+    private var suggestions: [String] {
+        if model.localeIdentifier == "ru_RU" {
+            return entry.progress.finished ? ["Кратко резюмируй историю", "Объясни концовку, отделяя факты от интерпретаций", "Какие вопросы стоит обсудить после просмотра?"] : ["Напомни важные события просмотренных серий", "Что известно о мотивах героев на этом этапе?"]
+        }
+        return entry.progress.finished ? ["Summarize the story briefly", "Explain the ending; separate facts from interpretation", "What questions are worth discussing after watching?"] : ["Remind me of the important events so far", "What do we know about the characters' motives so far?"]
+    }
+
+    @ViewBuilder private var evidenceList: some View {
+        if context.evidence.isEmpty {
+            Text("Пока нет материалов в разрешённых границах. Отметь просмотренные серии или добавь собственный текст в карточке произведения.")
+                .font(.footnote).foregroundStyle(Theme.muted)
+        }
+        ForEach(context.evidence) { fact in
+            VStack(alignment: .leading, spacing: 8) {
+                Text(fact.id).font(.caption2.monospaced()).foregroundStyle(Theme.accent)
+                Text(fact.text).font(.footnote).textSelection(.enabled)
+                if let url = fact.sourceURL { Link("Открыть источник", destination: url).font(.caption) }
+                else { Text("Материал пользователя").font(.caption2).foregroundStyle(Theme.muted) }
+            }.padding(14).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
+    private func startResponse() {
+        let text = question.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !busy, !text.isEmpty else { return }
+        let requestID = UUID()
+        activeRequestID = requestID
+        busy = true
+        error = nil
+        task = Task { await respond(to: text, requestID: requestID) }
+    }
+
+    private func stopResponse() {
+        activeRequestID = nil
+        task?.cancel()
+        task = nil
+        busy = false
+    }
+
+    private func prepareEntry() -> LibraryEntry? {
+        let existing = library.entry(for: title.id)
+        var saved = existing ?? LibraryEntry(title: title)
+        if existing == nil {
+            saved.episodes = initialEpisodes
+            library.update(saved)
+            if let failure = library.lastError { error = failure; return nil }
+        }
+        return library.entry(for: title.id)
+    }
+
+    private func respond(to text: String, requestID: UUID) async {
+        guard activeRequestID == requestID else { return }
+        defer {
+            if activeRequestID == requestID {
+                busy = false
+                activeRequestID = nil
+                task = nil
+            }
+        }
+        guard let snapshot = prepareEntry() else { return }
+        let accountID = library.activeAccountID
+        let localeIdentifier = model.localeIdentifier
+        let packet = SpoilerContextBuilder.build(title: title, episodes: snapshot.episodes, progress: snapshot.progress, facts: snapshot.facts, question: text, maxCharacters: 9_000)
+        guard packet.hasEvidence else { error = "Для ответа нужны материалы в пределах просмотренного."; return }
+        do {
+            let response = try await model.assistant.respond(question: text, context: packet, history: snapshot.chat, localeIdentifier: localeIdentifier)
+            try Task.checkCancellation()
+            guard activeRequestID == requestID, accountID == library.activeAccountID,
+                  localeIdentifier == model.localeIdentifier, let current = library.entry(for: title.id),
+                  current.progress == snapshot.progress, current.chat == snapshot.chat,
+                  current.facts == snapshot.facts, current.episodes == snapshot.episodes else { return }
+            var changed = current
+            changed.chat.append(ChatTurn(role: .user, text: text))
+            changed.chat.append(ChatTurn(role: .assistant, text: response))
+            changed.chat = Array(changed.chat.suffix(80))
+            changed.updatedAt = Date()
+            library.update(changed)
+            if let failure = library.lastError { error = failure }
+            else if question.trimmingCharacters(in: .whitespacesAndNewlines) == text { question = "" }
+        } catch is CancellationError {} catch {
+            if activeRequestID == requestID { self.error = error.localizedDescription }
+        }
+    }
+}
