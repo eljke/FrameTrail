@@ -23,6 +23,15 @@ struct SettingsView: View {
 
     private var modelStatus: AssistantAvailability { model.assistant.availability(localeIdentifier: model.localeIdentifier) }
 
+    private static let versionLabel: String = {
+        let bundle = Bundle.main
+        let release = bundle.url(forResource: "VERSION", withExtension: nil)
+            .flatMap { try? String(contentsOf: $0, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) }
+        let version = release ?? bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+        let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
+        return "\(version) · сборка \(build)"
+    }()
+
     var body: some View {
         @Bindable var model = model
         Form {
@@ -31,7 +40,7 @@ struct SettingsView: View {
                     Image(systemName: "film.stack.fill").font(.largeTitle).foregroundStyle(Theme.accent)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("FrameTrail").font(.title2.bold())
-                        Text("1.0.0 · Beta 1").font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("appVersion")
+                        Text(Self.versionLabel).font(.caption).foregroundStyle(.secondary).accessibilityIdentifier("appVersion")
                     }
                 }.padding(.vertical, 8)
             }
@@ -72,7 +81,7 @@ struct SettingsView: View {
                 if busy { ProgressView() }
             } header: { Text("Аккаунт") }
             Section {
-                Label(model.hasCatalogToken ? "TMDB подключён" : "Работают TVmaze и каталог iTunes", systemImage: model.hasCatalogToken ? "checkmark.circle" : "globe")
+                Label(model.hasCatalogToken ? "TMDB подключён" : "Работают TVmaze и Wikidata", systemImage: model.hasCatalogToken ? "checkmark.circle" : "globe")
                 SecureField("TMDB API Read Access Token", text: $apiToken)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
                 Button(apiToken.isEmpty ? "Удалить токен TMDB" : "Сохранить токен") { Task { await saveToken() } }
@@ -252,7 +261,7 @@ private struct AttributionView: View {
                 Text("This product uses the TMDB API but is not endorsed or certified by TMDB.").font(.footnote)
                 Image("TMDBLogo").resizable().scaledToFit().frame(width: 100, height: 73).accessibilityLabel("TMDB")
                 Link("TVmaze · CC BY-SA", destination: URL(string: "https://www.tvmaze.com/api")!)
-                Link("iTunes Search API", destination: URL(string: "https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/")!)
+                Link("Wikidata · CC0", destination: URL(string: "https://www.wikidata.org/wiki/Wikidata:Licensing")!)
             }
             Section("Сюжетные материалы") {
                 Text("Материалы Wikipedia распространяются по CC BY-SA 4.0. Пересказ и выбранные фрагменты могут быть сокращены; ссылка на исходную редакцию доступна возле материала. Пользовательские тексты хранятся только в его библиотеке.").font(.footnote)

@@ -15,8 +15,10 @@ final class ServicesTests: XCTestCase {
                 [{"score":0.97,"show":{"id":82,"name":"Sample Show","url":"https://www.tvmaze.com/shows/82/sample","premiered":"2011-04-17","summary":"<p>A <b>family</b> story &amp; mystery.</p>","image":null}}]
                 """)
             }
+            let action = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "action" })?.value
+            if action == "wbsearchentities" { return .json("{\"search\":[{\"id\":\"Q1234\",\"label\":\"Sample Film\"}]}") }
             return .json("""
-            {"resultCount":1,"results":[{"wrapperType":"track","kind":"feature-movie","trackId":1234,"trackName":"Sample Film","releaseDate":"2024-05-16T07:00:00Z","longDescription":"A film synopsis.","artworkUrl100":"https://example.org/promotional-artwork.jpg","trackViewUrl":"https://itunes.apple.com/movie/id1234"}]}
+            {"entities":{"Q1234":{"labels":{"en":{"language":"en","value":"Sample Film"}},"descriptions":{"en":{"language":"en","value":"A film synopsis."}},"claims":{"P31":[{"rank":"normal","mainsnak":{"datavalue":{"type":"wikibase-entityid","value":{"entity-type":"item","numeric-id":11424,"id":"Q11424"}}}}],"P577":[{"mainsnak":{"datavalue":{"value":{"time":"+2024-05-16T00:00:00Z","precision":11}}}}]}}}}
             """)
         }
         let service = CatalogService(http: client(), tokenProvider: { nil })
@@ -24,6 +26,8 @@ final class ServicesTests: XCTestCase {
         XCTAssertEqual(Set(titles.map(\.kind)), [.series, .movie])
         XCTAssertEqual(titles.first(where: { $0.kind == .series })?.overview, "A family story & mystery.")
         XCTAssertEqual(titles.first(where: { $0.kind == .movie })?.year, 2024)
+        XCTAssertEqual(titles.first(where: { $0.kind == .movie })?.sourceURL?.absoluteString, "https://www.wikidata.org/wiki/Q1234")
+        XCTAssertEqual(titles.first(where: { $0.kind == .movie })?.originalTitle, "Sample Film")
         XCTAssertNil(titles.first?.posterURL)
         XCTAssertNil(titles.first(where: { $0.kind == .movie })?.posterURL)
     }
@@ -31,12 +35,55 @@ final class ServicesTests: XCTestCase {
     func testOneUnavailableProviderStillReturnsOtherResults() async throws {
         ServiceURLProtocol.setHandler { request in
             if request.url?.host == "api.tvmaze.com" { return .json("{}", status: 503) }
+            let action = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "action" })?.value
+            if action == "wbsearchentities" { return .json("{\"search\":[{\"id\":\"Q1234\",\"label\":\"Available Film\"}]}") }
             return .json("""
-            {"results":[{"trackId":1234,"trackName":"Available Film","releaseDate":"2022-01-01T00:00:00Z"}]}
+            {"entities":{"Q1234":{"claims":{"P31":[{"mainsnak":{"datavalue":{"value":{"id":"Q11424"}}}}]}}}}
             """)
         }
         let titles = try await CatalogService(http: client(), tokenProvider: { nil }).search(query: "Available")
         XCTAssertEqual(titles.map(\.title), ["Available Film"])
+    }
+
+    func testWikidataFiltersByFilmClaimsRatherThanDescriptionWords() async throws {
+        ServiceURLProtocol.setHandler { request in
+            if request.url?.host == "api.tvmaze.com" { return .json("[]") }
+            let action = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first(where: { $0.name == "action" })?.value
+            if action == "wbsearchentities" {
+                return .json("{\"search\":[{\"id\":\"Q1\",\"label\":\"Feature\"},{\"id\":\"Q2\",\"label\":\"Film Director\"},{\"id\":\"Q3\",\"label\":\"Unclassified film\"},{\"id\":\"Q4\",\"label\":\"Old classification\"}]}")
+            }
+            return .json("""
+            {"entities":{
+              "Q1":{"claims":{"P31":[{"mainsnak":{"datavalue":{"value":{"id":"Q24869"}}}}]}},
+              "Q2":{"descriptions":{"en":{"value":"film actor and director"}},"claims":{"P31":[{"mainsnak":{"datavalue":{"value":{"id":"Q5"}}}}]}},
+              "Q3":{"descriptions":{"en":{"value":"a film with missing classification"}}},
+              "Q4":{"claims":{"P31":[{"rank":"deprecated","mainsnak":{"datavalue":{"value":{"id":"Q11424"}}}}]}}
+            }}
+            """)
+        }
+        let titles = try await CatalogService(http: client(), tokenProvider: { nil }).search(query: "Film")
+        XCTAssertEqual(titles.map(\.id), ["wikidata:Q1"])
+    }
+
+    func testWikidataRussianSearchHandlesMissingOptionalMetadata() async throws {
+        ServiceURLProtocol.setHandler { request in
+            if request.url?.host == "api.tvmaze.com" { return .json("[]") }
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems
+            XCTAssertEqual(request.value(forHTTPHeaderField: "User-Agent"), "FrameTrail/1.0 (+https://github.com/eljke/FrameTrail)")
+            if query?.first(where: { $0.name == "action" })?.value == "wbsearchentities" {
+                XCTAssertEqual(query?.first(where: { $0.name == "language" })?.value, "ru")
+                XCTAssertEqual(query?.first(where: { $0.name == "uselang" })?.value, "en")
+                return .json("{\"search\":[{\"id\":\"Q1\",\"label\":\"Фильм\"}]}")
+            }
+            XCTAssertEqual(query?.first(where: { $0.name == "props" })?.value, "claims|labels|descriptions")
+            return .json("{\"entities\":{\"Q1\":{\"claims\":{\"P31\":[{\"mainsnak\":{\"datavalue\":{\"value\":{\"id\":\"Q11424\"}}}}]}}}}")
+        }
+        let titles = try await CatalogService(http: client(), tokenProvider: { nil }).search(query: "Фильм")
+        XCTAssertEqual(titles.first?.title, "Фильм")
+        XCTAssertNil(titles.first?.year)
+        XCTAssertNil(titles.first?.originalTitle)
+        XCTAssertNil(titles.first?.posterURL)
+        XCTAssertEqual(titles.first?.overview, "")
     }
 
     func testEpisodeMappingExcludesUnnumberedSpecials() async throws {
@@ -164,11 +211,11 @@ final class ServicesTests: XCTestCase {
             XCTAssertEqual(query?.first(where: { $0.name == "section" })?.value, "2")
             return .json("{\"parse\":{\"revid\":123456,\"text\":{\"*\":\"<p>A character returns home.</p>\"}}}")
         }
-        let title = MediaTitle(id: "itunes:1", title: "Sample Film", kind: .movie, year: 2024, provider: "Apple iTunes", providerID: "1")
+        let title = MediaTitle(id: "wikidata:Q1", title: "Sample Film", kind: .movie, year: 2024, provider: "Wikidata", providerID: "Q1")
         let facts = try await WikiPlotService(http: client()).plot(for: title, finished: true)
-        XCTAssertEqual(facts.map(\.text), ["A character returns home."])
-        XCTAssertEqual(facts.first?.sourceURL?.absoluteString, "https://en.wikipedia.org/w/index.php?oldid=123456")
-        XCTAssertEqual(facts.first?.titleID, title.id)
+        XCTAssertEqual(facts.map(\.text).joined(separator: " ").split(whereSeparator: \.isWhitespace).joined(separator: " "), "A character returns home.")
+        XCTAssertTrue(facts.allSatisfy { $0.sourceURL?.absoluteString == "https://en.wikipedia.org/w/index.php?oldid=123456" })
+        XCTAssertTrue(facts.allSatisfy { $0.titleID == title.id })
     }
 
     func testPlotResearchNeverDownloadsAnUnfinishedFilm() async throws {
@@ -176,7 +223,7 @@ final class ServicesTests: XCTestCase {
             XCTFail("Research must not download a full plot before completion")
             return .json("{}")
         }
-        let title = MediaTitle(id: "itunes:1", title: "Sample Film", kind: .movie, provider: "Apple iTunes", providerID: "1")
+        let title = MediaTitle(id: "wikidata:Q1", title: "Sample Film", kind: .movie, provider: "Wikidata", providerID: "Q1")
         do {
             _ = try await WikiPlotService(http: client()).plot(for: title, finished: false)
             XCTFail("Completion must be explicit")

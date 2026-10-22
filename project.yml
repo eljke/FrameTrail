@@ -23,6 +23,8 @@ targets:
       - path: FrameTrail
         excludes:
           - Info.plist
+      - path: VERSION
+        buildPhase: resources
     dependencies:
       - package: FrameTrailCore
         product: FrameTrailCore

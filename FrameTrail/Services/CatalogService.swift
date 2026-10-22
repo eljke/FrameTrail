@@ -96,11 +96,21 @@ actor CatalogService {
     }
 
     private func searchMovies(_ query: String) async throws -> [MediaTitle] {
-        let url = try HTTPClient.url("https://itunes.apple.com/search", query: [
-            .init(name: "term", value: String(query.prefix(200))), .init(name: "entity", value: "movie"),
-            .init(name: "limit", value: "25"), .init(name: "country", value: "us")
+        let language = query.range(of: "[\\p{IsCyrillic}]", options: .regularExpression) == nil ? "en" : "ru"
+        let url = try HTTPClient.url("https://www.wikidata.org/w/api.php", query: [
+            .init(name: "action", value: "wbsearchentities"), .init(name: "search", value: String(query.prefix(200))),
+            .init(name: "language", value: language), .init(name: "uselang", value: "en"),
+            .init(name: "type", value: "item"), .init(name: "limit", value: "15"), .init(name: "format", value: "json")
         ])
-        return try await http.decode(ITunesPage.self, request: HTTPClient.request(url: url)).results.compactMap(\.mediaTitle)
+        let page = try await http.decode(WikidataSearch.self, request: HTTPClient.request(url: url))
+        guard !page.search.isEmpty else { return [] }
+        let detailsURL = try HTTPClient.url("https://www.wikidata.org/w/api.php", query: [
+            .init(name: "action", value: "wbgetentities"), .init(name: "ids", value: page.search.map(\.id).joined(separator: "|")),
+            .init(name: "props", value: "claims|labels|descriptions"), .init(name: "languages", value: "en|ru"),
+            .init(name: "format", value: "json")
+        ])
+        let details = try await http.decode(WikidataEntities.self, request: HTTPClient.request(url: detailsURL))
+        return page.search.compactMap { hit in details.entities[hit.id]?.mediaTitle(for: hit) }
     }
 }
 
@@ -130,18 +140,34 @@ private struct MazeEpisode: Decodable, Sendable {
         return Episode(id: "tvmaze-episode:\(id)", season: season, number: number, name: name, summary: SourceText.plain(summary), sourceURL: url)
     }
 }
-private struct ITunesPage: Decodable, Sendable { let results: [ITunesMovie] }
-private struct ITunesMovie: Decodable, Sendable {
-    let trackId: Int?
-    let trackName: String?
-    let releaseDate: String?
-    let longDescription: String?
-    let trackViewUrl: URL?
-    var mediaTitle: MediaTitle? {
-        guard let trackId, let trackName else { return nil }
-        return MediaTitle(id: "itunes:\(trackId)", title: trackName, kind: .movie,
-                          year: releaseDate.flatMap { Int($0.prefix(4)) }, overview: longDescription ?? "",
-                          sourceURL: trackViewUrl, provider: "Apple iTunes", providerID: String(trackId))
+private struct WikidataSearch: Decodable, Sendable {
+    let search: [Hit]
+    struct Hit: Decodable, Sendable { let id: String; let label: String? }
+}
+private struct WikidataEntities: Decodable, Sendable { let entities: [String: WikidataEntity] }
+private struct WikidataText: Decodable, Sendable { let value: String }
+private struct WikidataEntity: Decodable, Sendable {
+    let labels: [String: WikidataText]?
+    let descriptions: [String: WikidataText]?
+    let claims: Claims?
+    struct Claims: Decodable, Sendable { let P31: [Claim]?; let P577: [Claim]? }
+    struct Claim: Decodable, Sendable {
+        let rank: String?
+        let mainsnak: Snak
+    }
+    struct Snak: Decodable, Sendable { let datavalue: DataValue? }
+    struct DataValue: Decodable, Sendable { let value: Value }
+    struct Value: Decodable, Sendable { let id: String?; let time: String? }
+
+    func mediaTitle(for hit: WikidataSearch.Hit) -> MediaTitle? {
+        let filmTypes: Set<String> = ["Q11424", "Q24869"]
+        guard claims?.P31?.contains(where: { $0.rank != "deprecated" && $0.mainsnak.datavalue?.value.id.map(filmTypes.contains) == true }) == true,
+              let name = hit.label ?? labels?["en"]?.value ?? labels?["ru"]?.value else { return nil }
+        let date = claims?.P577?.first(where: { $0.rank != "deprecated" && $0.mainsnak.datavalue?.value.time != nil })?.mainsnak.datavalue?.value.time
+        let year = date.flatMap { $0.hasPrefix("+") ? Int($0.dropFirst().prefix(4)) : nil }
+        return MediaTitle(id: "wikidata:\(hit.id)", title: name, originalTitle: labels?["en"]?.value,
+                          kind: .movie, year: year, overview: descriptions?["en"]?.value ?? "",
+                          sourceURL: URL(string: "https://www.wikidata.org/wiki/\(hit.id)"), provider: "Wikidata", providerID: hit.id)
     }
 }
 struct TMDBPage: Decodable, Sendable {

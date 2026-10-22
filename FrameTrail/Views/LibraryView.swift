@@ -74,6 +74,7 @@ struct JournalView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 SectionCaption(eyebrow: "То, что осталось с тобой", title: "Дневник просмотра")
+                LibraryStatisticsView(entries: library.entries)
                 if records.isEmpty {
                     EmptyState(symbol: "text.book.closed", title: "Истории заканчиваются. Мысли остаются.", text: "После просмотра открой «Итог» в карточке фильма или сериала. Сохрани впечатления, вопросы и оценку.")
                 }
