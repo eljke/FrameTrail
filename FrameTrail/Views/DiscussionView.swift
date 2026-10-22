@@ -6,6 +6,7 @@ struct DiscussionView: View {
     var initialEpisodes: [Episode] = []
     @Environment(LibraryStore.self) private var library
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
     @State private var question = ""
     @State private var strict = false
     @State private var busy = false
@@ -35,7 +36,11 @@ struct DiscussionView: View {
                             .onChange(of: sourceSearch) { _, value in if value.count > 1_000 { sourceSearch = String(value.prefix(1_000)) } }
                         evidenceList
                     } else {
-                        if !availability.isAvailable { ErrorNotice(message: availability.message) }
+                        if !availability.isAvailable {
+                            ErrorNotice(message: availability.message)
+                            Button("Открыть настройки помощника") { model.selectedTab = 3 }
+                                .font(.footnote).foregroundStyle(Theme.accent)
+                        }
                         Text("Язык ответа: \(model.localeIdentifier == "ru_RU" ? "русский" : "English"). Модель может ошибиться или вспомнить сведения вне источников. Для строгого режима открой «Источники».")
                             .font(.caption).foregroundStyle(Theme.muted)
                         if entry.chat.isEmpty {
@@ -88,9 +93,13 @@ struct DiscussionView: View {
                 Button("Очистить обсуждение", role: .destructive) { stopResponse(); library.clearChat(for: title.id) }
             } label: { Image(systemName: "ellipsis.circle") }
         }
-        .task { _ = prepareEntry() }
+        .task { _ = prepareEntry(); await model.assistant.refreshAvailability() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await model.assistant.refreshAvailability() } }
+        }
         .onChange(of: library.activeAccountID) { _, _ in stopResponse() }
         .onChange(of: entry.progress) { _, _ in stopResponse() }
+        .onChange(of: model.localeIdentifier) { _, _ in stopResponse() }
         .onDisappear { stopResponse() }
     }
 
@@ -156,10 +165,16 @@ struct DiscussionView: View {
         guard let snapshot = prepareEntry() else { return }
         let accountID = library.activeAccountID
         let localeIdentifier = model.localeIdentifier
-        let packet = SpoilerContextBuilder.build(title: title, episodes: snapshot.episodes, progress: snapshot.progress, facts: snapshot.facts, question: text, maxCharacters: 9_000)
-        guard packet.hasEvidence else { error = "Для ответа нужны материалы в пределах просмотренного."; return }
         do {
-            let response = try await model.assistant.respond(question: text, context: packet, history: snapshot.chat, localeIdentifier: localeIdentifier)
+            let prepared = try await model.assistant.prepareQuestion(question: text, localeIdentifier: localeIdentifier)
+            try Task.checkCancellation()
+            guard activeRequestID == requestID, accountID == library.activeAccountID,
+                  localeIdentifier == model.localeIdentifier, let afterTranslation = library.entry(for: title.id),
+                  afterTranslation.progress == snapshot.progress, afterTranslation.chat == snapshot.chat,
+                  afterTranslation.facts == snapshot.facts, afterTranslation.episodes == snapshot.episodes else { return }
+            let packet = SpoilerContextBuilder.build(title: title, episodes: snapshot.episodes, progress: snapshot.progress, facts: snapshot.facts, question: prepared, maxCharacters: 9_000)
+            guard packet.hasEvidence else { error = "Для ответа нужны материалы в пределах просмотренного."; return }
+            let response = try await model.assistant.respond(question: text, context: packet, history: snapshot.chat, localeIdentifier: localeIdentifier, preparedQuestion: prepared)
             try Task.checkCancellation()
             guard activeRequestID == requestID, accountID == library.activeAccountID,
                   localeIdentifier == model.localeIdentifier, let current = library.entry(for: title.id),

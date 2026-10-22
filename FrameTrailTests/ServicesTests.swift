@@ -227,6 +227,19 @@ final class ServicesTests: XCTestCase {
         XCTAssertEqual(try SourceText.validatedTMDBToken("  abc.def-123  "), "abc.def-123")
     }
 
+    @MainActor func testTranslationPreservesCitationIdentifiersAndSourceURLs() {
+        let text = "A choice matters [tvmaze-episode:10:summary]. Read https://example.org/source?id=10 for details."
+        let segments = LocalTranslationService.translationSegments(text)
+        XCTAssertEqual(segments.map(\.text).joined(), text)
+        XCTAssertEqual(segments.filter(\.isProtected).map(\.text), ["[tvmaze-episode:10:summary]", "https://example.org/source?id=10"])
+    }
+
+    @MainActor func testTranslationSelectsRussianTextAndSkipsEnglish() {
+        XCTAssertTrue(LocalTranslationService.needsRussianTranslation("Почему герой ушёл домой?"))
+        XCTAssertFalse(LocalTranslationService.needsRussianTranslation("Why did the character leave?"))
+        XCTAssertFalse(LocalTranslationService.needsRussianTranslation("  "))
+    }
+
     private func client() -> HTTPClient {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [ServiceURLProtocol.self]

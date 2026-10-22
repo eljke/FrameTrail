@@ -19,7 +19,8 @@ final class AppModel {
     }
 
     init() {
-        localeIdentifier = UserDefaults.standard.string(forKey: "assistant.locale") ?? "en_US"
+        let defaultLocale = Locale.preferredLanguages.first?.hasPrefix("ru") == true ? "ru_RU" : "en_US"
+        localeIdentifier = UserDefaults.standard.string(forKey: "assistant.locale") ?? defaultLocale
     }
 
     var isUITesting: Bool { ProcessInfo.processInfo.arguments.contains("--uitesting") }

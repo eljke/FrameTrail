@@ -164,8 +164,9 @@ final class LibraryStore {
                     next.append(entry)
                 }
             }
-            try persist(next)
-            entries = next
+            let safe = clearingChatsOnRewind(next)
+            try persist(safe)
+            entries = safe
             lastError = nil
         } catch {
             lastError = error.localizedDescription
@@ -175,7 +176,7 @@ final class LibraryStore {
 
     private func commit(_ next: [LibraryEntry]) {
         do {
-            let scoped = Self.scopedEntries(next)
+            let scoped = Self.scopedEntries(clearingChatsOnRewind(next))
             try persist(scoped)
             entries = scoped
             lastError = nil
@@ -195,6 +196,19 @@ final class LibraryStore {
         #else
         try data.write(to: fileURL(accountID: activeAccountID), options: [.atomic])
         #endif
+    }
+
+    private func clearingChatsOnRewind(_ next: [LibraryEntry]) -> [LibraryEntry] {
+        let previous = Dictionary(uniqueKeysWithValues: entries.map { ($0.id, $0.progress) })
+        return next.map { entry in
+            guard let old = previous[entry.id] else { return entry }
+            let reduced = (old.finished && !entry.progress.finished)
+                || !old.watchedEpisodeIDs.isSubset(of: entry.progress.watchedEpisodeIDs)
+            guard reduced else { return entry }
+            var safe = entry
+            safe.chat = []
+            return safe
+        }
     }
 
     private func load(accountID: String) throws -> [LibraryEntry] {
@@ -295,7 +309,7 @@ final class LibraryStore {
                 guard reflection.titleID == entry.id, reflection.summary.count <= 30_000,
                       reflection.liked.count <= 100, reflection.questions.count <= 100,
                       reflection.liked.allSatisfy({ $0.count <= 5_000 }), reflection.questions.allSatisfy({ $0.count <= 5_000 }),
-                      reflection.rating.map({ (0...10).contains($0) }) ?? true,
+                      reflection.rating.map({ (1...10).contains($0) }) ?? true,
                       reflection.createdAt.timeIntervalSince1970.isFinite else {
                     throw LibraryStoreError.invalidData("некорректная запись впечатлений")
                 }

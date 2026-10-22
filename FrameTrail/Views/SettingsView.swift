@@ -2,10 +2,12 @@ import SwiftUI
 import SafariServices
 import UniformTypeIdentifiers
 import FrameTrailCore
+import Translation
 
 struct SettingsView: View {
     @Environment(AppModel.self) private var model
     @Environment(LibraryStore.self) private var library
+    @Environment(\.scenePhase) private var scenePhase
     @State private var apiToken = ""
     @State private var busy = false
     @State private var authorization: AuthorizationPage?
@@ -16,6 +18,8 @@ struct SettingsView: View {
     @State private var importing = false
     @State private var exportDocument = LibraryDocument(data: Data())
     @State private var clearMaterials = false
+    @State private var translationConfiguration: TranslationSession.Configuration?
+    @State private var preparationStep = 0
 
     private var modelStatus: AssistantAvailability { model.assistant.availability(localeIdentifier: model.localeIdentifier) }
 
@@ -36,9 +40,17 @@ struct SettingsView: View {
                 Text(modelStatus.message).font(.footnote).foregroundStyle(.secondary)
                 Picker("Язык ответов", selection: $model.localeIdentifier) {
                     Text("English").tag("en_US")
-                    Text("Русский").tag("ru_RU").disabled(!model.assistant.supports(locale: Locale(identifier: "ru_RU")))
+                    Text(model.assistant.usesRussianTranslation ? "Русский · перевод Apple" : "Русский").tag("ru_RU")
+                        .disabled(model.assistant.usesRussianTranslation && !model.assistant.translation.isSupported)
                 }
-                Text("Поддержку русского определяет установленная модель Apple. Если язык недоступен, ответы на нём не генерируются. Облачной подмены модели нет.")
+                if model.assistant.usesRussianTranslation {
+                    Text(model.assistant.translation.message).font(.footnote).foregroundStyle(.secondary)
+                    if model.assistant.translation.readiness == .downloadRequired {
+                        Button("Подготовить русский перевод") { beginTranslationPreparation() }.disabled(busy)
+                    }
+                    if preparationStep > 0 { ProgressView("Подготавливаю языки Apple…") }
+                }
+                Text("Если модель не поддерживает русский напрямую, вопрос и разрешённые источники переводятся на английский, ответ — обратно на русский. Всё выполняется на iPhone. Языки перевода загружаются отдельно, занимают системное место и доступны другим приложениям. Перевод может неточно передать имена и смысл; оригиналы источников сохранены.")
                     .font(.caption).foregroundStyle(.secondary)
             } header: { Text("Помощник на устройстве") }
             Section {
@@ -94,6 +106,11 @@ struct SettingsView: View {
         }
         .scrollContentBackground(.hidden).background(Theme.background)
         .navigationTitle("Настройки").navigationBarTitleDisplayMode(.inline)
+        .task { await model.assistant.refreshAvailability() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await model.assistant.refreshAvailability() } }
+        }
+        .translationTask(translationConfiguration) { session in await prepareTranslation(using: session) }
         .sheet(item: $authorization) { SafariPage(url: $0.url).ignoresSafeArea() }
         .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .json, defaultFilename: "FrameTrail-library") { result in
             if case .failure(let failure) = result { error = failure.localizedDescription }
@@ -134,6 +151,41 @@ struct SettingsView: View {
             self.error = error.localizedDescription
             do { try await model.refreshAccountState(library: library) }
             catch { self.error = error.localizedDescription }
+        }
+    }
+
+    private func beginTranslationPreparation() {
+        busy = true
+        error = nil
+        preparationStep = 1
+        translationConfiguration = .init(source: Locale.Language(identifier: "ru"), target: Locale.Language(identifier: "en"))
+    }
+
+    private func prepareTranslation(using session: TranslationSession) async {
+        let step = preparationStep
+        guard step > 0 else { return }
+        do {
+            try await session.prepareTranslation()
+            try Task.checkCancellation()
+            if step == 1 {
+                preparationStep = 2
+                translationConfiguration = .init(source: Locale.Language(identifier: "en"), target: Locale.Language(identifier: "ru"))
+                return
+            }
+            await model.assistant.refreshAvailability()
+            if model.assistant.translation.readiness == .installed {
+                model.localeIdentifier = "ru_RU"
+                notice = "Русский перевод готов. Вопросы и ответы обрабатываются локально."
+            }
+            preparationStep = 0
+            translationConfiguration = nil
+            busy = false
+        } catch {
+            self.error = error.localizedDescription
+            await model.assistant.refreshAvailability()
+            preparationStep = 0
+            translationConfiguration = nil
+            busy = false
         }
     }
 
@@ -198,7 +250,7 @@ private struct AttributionView: View {
             Section("Каталоги") {
                 Link("TMDB", destination: URL(string: "https://www.themoviedb.org")!)
                 Text("This product uses the TMDB API but is not endorsed or certified by TMDB.").font(.footnote)
-                Image("TMDBLogo").resizable().scaledToFit().frame(width: 100, height: 20).accessibilityLabel("TMDB")
+                Image("TMDBLogo").resizable().scaledToFit().frame(width: 100, height: 73).accessibilityLabel("TMDB")
                 Link("TVmaze · CC BY-SA", destination: URL(string: "https://www.tvmaze.com/api")!)
                 Link("iTunes Search API", destination: URL(string: "https://developer.apple.com/library/archive/documentation/AudioVideo/Conceptual/iTuneSearchAPI/")!)
             }

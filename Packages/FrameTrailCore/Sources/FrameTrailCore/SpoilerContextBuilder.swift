@@ -29,6 +29,8 @@ public struct GroundedContext: Codable, Sendable {
 
 /// Filters source material before retrieval. A model's own knowledge still needs
 /// independent handling; this filter only guarantees the scope of supplied evidence.
+/// A fact without titleID is assumed to be scoped to the supplied title by its caller.
+/// Importers should assign that scope before combining records from different titles.
 public enum SpoilerContextBuilder {
     public static func build(
         title: MediaTitle,
@@ -83,11 +85,11 @@ public enum SpoilerContextBuilder {
         var seen = Set<String>()
         candidates = candidates.filter { seen.insert($0.id).inserted }
         let queryTerms = terms(in: question)
-        let ranked = candidates.enumerated().sorted { lhs, rhs in
-            let leftScore = relevance(lhs.element.text, queryTerms: queryTerms)
-            let rightScore = relevance(rhs.element.text, queryTerms: queryTerms)
-            return leftScore == rightScore ? lhs.offset < rhs.offset : leftScore > rightScore
-        }.map(\.element)
+        let ranked = candidates.enumerated().map { item in
+            (offset: item.offset, fact: item.element, score: relevance(item.element.text, queryTerms: queryTerms))
+        }.sorted { lhs, rhs in
+            lhs.score == rhs.score ? lhs.offset < rhs.offset : lhs.score > rhs.score
+        }.map(\.fact)
 
         let scope = title.kind == .movie
             ? (progress.finished ? "Фильм просмотрен. Продолжения не входят в контекст." : "Фильм ещё не просмотрен.")
@@ -122,8 +124,8 @@ public enum SpoilerContextBuilder {
         if title.kind == .movie {
             scopeDescription = progress.finished ? "Completed movie. Sequels are excluded." : "Unfinished movie. Plot evidence is unavailable."
         } else {
-            scopeDescription = "Only watched episode IDs are allowed: " + allowedIDs.sorted().joined(separator: ", ")
-                + ". Unwatched episodes, sequels and the global series plot are excluded."
+            scopeDescription = "Only \(allowedIDs.count) explicitly completed episodes are allowed. Evidence is already filtered by episode ID. "
+                + "Unwatched episodes, sequels and the global series plot are excluded."
         }
         return GroundedContext(
             text: text,

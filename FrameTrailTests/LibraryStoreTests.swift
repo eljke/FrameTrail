@@ -236,6 +236,64 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertEqual(store.entry(for: "film")?.reflections, entry.reflections)
     }
 
+    func testProgressRewindClearsBroaderChatAtPersistenceBoundary() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        var entry = LibraryEntry(title: title("series", kind: .series))
+        entry.progress = WatchProgress(watchedEpisodeIDs: ["ep1", "ep2"])
+        entry.chat = [ChatTurn(role: .assistant, text: "The second episode reveals the killer.")]
+        store.update(entry)
+
+        entry.progress.watchedEpisodeIDs.remove("ep2")
+        store.update(entry)
+
+        XCTAssertTrue(try XCTUnwrap(store.entry(for: "series")).chat.isEmpty)
+        XCTAssertTrue(try XCTUnwrap(LibraryStore(directory: directory).entry(for: "series")).chat.isEmpty)
+    }
+
+    func testImportedRewindClearsChatAndExpansionPreservesIt() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        var entry = LibraryEntry(title: title("film"))
+        entry.progress.finished = true
+        entry.chat = [ChatTurn(role: .assistant, text: "A full ending discussion.")]
+        store.update(entry)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: store.exportData()) as? [String: Any])
+        var entries = try XCTUnwrap(object["entries"] as? [[String: Any]])
+        var progress = try XCTUnwrap(entries[0]["progress"] as? [String: Any])
+        progress["finished"] = false
+        entries[0]["progress"] = progress
+        entries[0]["updatedAt"] = Date().addingTimeInterval(60).timeIntervalSinceReferenceDate
+        object["entries"] = entries
+
+        try store.importData(JSONSerialization.data(withJSONObject: object))
+
+        XCTAssertFalse(try XCTUnwrap(store.entry(for: "film")).progress.finished)
+        XCTAssertTrue(try XCTUnwrap(store.entry(for: "film")).chat.isEmpty)
+        var expanded = try XCTUnwrap(store.entry(for: "film"))
+        expanded.progress.finished = true
+        expanded.chat = [ChatTurn(role: .user, text: "My new question.")]
+        store.update(expanded)
+        XCTAssertEqual(store.entry(for: "film")?.chat, expanded.chat)
+    }
+
+    func testInvalidRatingDoesNotChangeLibrary() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        store.add(title("film"))
+        let before = try store.exportData()
+        var entry = try XCTUnwrap(store.entry(for: "film"))
+        entry.reflections = [Reflection(titleID: "film", summary: "A review.", rating: 0)]
+
+        store.update(entry)
+
+        XCTAssertNotNil(store.lastError)
+        XCTAssertEqual(try store.exportData(), before)
+    }
+
     private func temporaryDirectory() -> URL {
         FileManager.default.temporaryDirectory.appendingPathComponent("FrameTrailTests-\(UUID().uuidString)", isDirectory: true)
     }

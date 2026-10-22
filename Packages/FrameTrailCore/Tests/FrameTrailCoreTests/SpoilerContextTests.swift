@@ -147,6 +147,35 @@ final class SpoilerContextTests: XCTestCase {
         XCTAssertEqual(context.evidence.count, 1)
     }
 
+    func testLargeShowsKeepScopeMetadataBounded() {
+        let episodes = (1...3_000).map { number in
+            Episode(id: "episode-\(number)", season: 1, number: number, name: "Episode \(number)")
+        }
+        let context = SpoilerContextBuilder.build(
+            title: series(), episodes: episodes,
+            progress: WatchProgress(watchedEpisodeIDs: Set(episodes.map(\.id))), facts: [], question: "", maxCharacters: 300
+        )
+
+        XCTAssertEqual(context.allowedEpisodeIDs.count, 3_000)
+        XCTAssertTrue(context.scopeDescription.contains("3000"))
+        XCTAssertLessThan(context.scopeDescription.count, 300)
+        XCTAssertLessThanOrEqual(context.text.count, 300)
+    }
+
+    func testForeignSeriesFactsAreExcludedEvenWhenEpisodeIDsMatch() {
+        let context = SpoilerContextBuilder.build(
+            title: series(), episodes: [episode("shared", number: 1, summary: "")],
+            progress: WatchProgress(watchedEpisodeIDs: ["shared"]),
+            facts: [
+                StoryFact(id: "own", text: "A safe event.", episodeID: "shared", titleID: "series:1"),
+                StoryFact(id: "foreign", text: "Another show's ending.", episodeID: "shared", titleID: "series:2")
+            ], question: "ending"
+        )
+
+        XCTAssertEqual(context.evidence.map(\.id), ["own"])
+        XCTAssertFalse(context.text.contains("Another show's ending"))
+    }
+
     private func movie(overview: String = "") -> MediaTitle {
         MediaTitle(id: "movie:1", title: "A Journey", kind: .movie, overview: overview, provider: "test", providerID: "1")
     }

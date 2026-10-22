@@ -192,7 +192,7 @@ struct TitleDetailView: View {
             let facts = try await model.plots.plot(for: title, finished: entry.progress.finished)
             guard accountID == library.activeAccountID, entry.progress.finished else { return }
             var changed = entry
-            changed.facts.removeAll { $0.id.hasPrefix("wiki:") }
+            changed.facts.removeAll { $0.id.hasPrefix("wikipedia:") }
             changed.facts.append(contentsOf: facts)
             save(changed)
             plotInfo = "Сюжет загружен. Источники можно открыть в обсуждении."
