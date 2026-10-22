@@ -85,11 +85,15 @@ public enum SpoilerContextBuilder {
         var seen = Set<String>()
         candidates = candidates.filter { seen.insert($0.id).inserted }
         let queryTerms = terms(in: question)
-        let ranked = candidates.enumerated().map { item in
-            (offset: item.offset, fact: item.element, score: relevance(item.element.text, queryTerms: queryTerms))
-        }.sorted { lhs, rhs in
-            lhs.score == rhs.score ? lhs.offset < rhs.offset : lhs.score > rhs.score
-        }.map(\.fact)
+        var scored: [(offset: Int, fact: StoryFact, score: Int)] = []
+        for (offset, fact) in candidates.enumerated() {
+            scored.append((offset: offset, fact: fact, score: relevance(fact.text, queryTerms: queryTerms)))
+        }
+        scored.sort { lhs, rhs in
+            if lhs.score == rhs.score { return lhs.offset < rhs.offset }
+            return lhs.score > rhs.score
+        }
+        let ranked: [StoryFact] = scored.map { $0.fact }
 
         let scope = title.kind == .movie
             ? (progress.finished ? "Фильм просмотрен. Продолжения не входят в контекст." : "Фильм ещё не просмотрен.")
