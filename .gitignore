@@ -16,3 +16,8 @@ DerivedData/
 Config.local.xcconfig
 __pycache__/
 *.pyc
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
