@@ -1,0 +1,125 @@
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select stable Xcode
+        run: echo "DEVELOPER_DIR=$(python3 scripts/select_xcode.py)" >> "$GITHUB_ENV"
+      - name: Show toolchain
+        run: xcodebuild -version
+      - name: Install XcodeGen
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+        run: |
+          if ! command -v xcodegen >/dev/null; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+      - name: Validate repository
+        run: |
+          python3 scripts/validate.py
+          python3 scripts/test_delivery.py
+      - name: Check tag version
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python3 scripts/validate.py --version "$RELEASE_TAG"
+      - name: Test core behavior
+        run: swift test --package-path Packages/FrameTrailCore
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Select iPhone simulator
+        run: echo "SIMULATOR_ID=$(python3 scripts/select_simulator.py)" >> "$GITHUB_ENV"
+      - name: Build and test on simulator
+        run: >-
+          xcodebuild -project FrameTrail.xcodeproj -scheme FrameTrail
+          -configuration Debug -sdk iphonesimulator
+          -destination "platform=iOS Simulator,id=$SIMULATOR_ID"
+          -derivedDataPath build/simulator
+          -resultBundlePath build/FrameTrailTests.xcresult
+          -parallel-testing-enabled NO
+          CODE_SIGNING_ALLOWED=NO test
+      - name: Export test screenshots
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ -d build/FrameTrailTests.xcresult ]; then
+            xcrun xcresulttool export attachments \
+              --path build/FrameTrailTests.xcresult --output-path build/test-attachments
+          fi
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: FrameTrail-tests
+          path: |
+            build/FrameTrailTests.xcresult
+            build/test-attachments
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Build unsigned device app
+        run: >-
+          xcodebuild -project FrameTrail.xcodeproj -scheme FrameTrail
+          -configuration Release -sdk iphoneos
+          -destination 'generic/platform=iOS'
+          -derivedDataPath build/device
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+      - name: Package IPA and verify size
+        run: |
+          VERSION="$(cat VERSION)"
+          python3 scripts/package_ipa.py \
+            --app build/device/Build/Products/Release-iphoneos/FrameTrail.app \
+            --version "$VERSION" --output dist --max-size-mb 40
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: FrameTrail-unsigned
+          path: |
+            dist/*.ipa
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: FrameTrail-unsigned
+          path: dist
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          PRERELEASE=()
+          if [[ "${RELEASE_TAG%%+*}" == *-* ]]; then
+            PRERELEASE=(--prerelease)
+          fi
+          gh release create "$RELEASE_TAG" dist/*.ipa dist/*.sha256 \
+            --verify-tag --title "FrameTrail ${RELEASE_TAG#v}" \
+            --generate-notes "${PRERELEASE[@]}" \
+            --notes 'Unsigned IPA for installation through AltStore or SideStore, which apply your own signature. Requires iOS 26 or later. On-device model availability depends on Apple Intelligence settings and supported languages. No model weights are bundled. Review the README for TMDB account setup, supported features, and beta limitations.'

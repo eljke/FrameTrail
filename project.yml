@@ -1,0 +1,76 @@
+name: FrameTrail
+options:
+  minimumXcodeGenVersion: 2.44.0
+  deploymentTarget:
+    iOS: "26.0"
+  xcodeVersion: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    IPHONEOS_DEPLOYMENT_TARGET: "26.0"
+packages:
+  FrameTrailCore:
+    path: Packages/FrameTrailCore
+targets:
+  FrameTrail:
+    type: application
+    platform: iOS
+    sources:
+      - path: FrameTrail
+        excludes:
+          - Info.plist
+    dependencies:
+      - package: FrameTrailCore
+        product: FrameTrailCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.eljke.frametrail
+        PRODUCT_NAME: FrameTrail
+        INFOPLIST_FILE: FrameTrail/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MACCATALYST: NO
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: NO
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks"
+  FrameTrailTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: FrameTrailTests
+    dependencies:
+      - target: FrameTrail
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.eljke.frametrail.tests
+        GENERATE_INFOPLIST_FILE: YES
+  FrameTrailUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: FrameTrailUITests
+    dependencies:
+      - target: FrameTrail
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.eljke.frametrail.uitests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  FrameTrail:
+    build:
+      targets:
+        FrameTrail: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - FrameTrailTests
+        - FrameTrailUITests
+      gatherCoverageData: true
+    archive:
+      config: Release
