@@ -41,9 +41,11 @@ final class FrameTrailSmokeTests: XCTestCase {
         writeReflection.tap()
 
         let summary = app.textViews["reflectionSummary"]
-        XCTAssertTrue(summary.waitForExistence(timeout: 5))
-        app.buttons["rating-8"].tap()
+        let rating = app.buttons["rating-8"]
+        XCTAssertTrue(rating.waitForExistence(timeout: 5))
+        rating.tap()
         reveal(summary, app: app)
+        XCTAssertTrue(summary.exists)
         summary.tap()
         let thought = "The ending reframes the earlier choices. I want to revisit the opening scene."
         summary.typeText(thought)
@@ -95,8 +97,8 @@ final class FrameTrailSmokeTests: XCTestCase {
         reveal(write, app: app)
         write.tap()
         let liked = app.textViews["reflectionLiked"]
-        XCTAssertTrue(liked.waitForExistence(timeout: 5))
         reveal(liked, app: app)
+        XCTAssertTrue(liked.exists)
         liked.tap()
         liked.typeText("The music stayed with me")
         XCTAssertTrue(app.buttons["saveReflection"].isEnabled)
