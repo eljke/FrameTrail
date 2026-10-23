@@ -141,7 +141,7 @@
 "Моя оценка" = "My rating";
 "Моя оценка и отзыв" = "My rating and review";
 "Моя оценка: %@/10" = "My rating: %@/10";
-"НЕДАВНО ОТКРЫВАЛИ" = "RECENTLY OPENED";
+"НЕДАВНО ОТКРЫВАЛИ" = "CONTINUE";
 "На каких материалах основан ответ" = "Sources for this answer";
 "На устройстве выполнен выход. Отозвать сессию на TMDB не удалось; при необходимости удали её в подключённых приложениях аккаунта TMDB." = "Signed out on this device. TMDB did not confirm session revocation; remove the connection in your TMDB account if needed.";
 "На устройстве: " = "Device: ";
@@ -428,7 +428,7 @@
 "Оригинальное имя" = "Original name";
 "Русское написание" = "Russian spelling";
 "Добавить имя" = "Add name";
-"Оставь русское написание пустым, чтобы использовать оригинал. Нажми на строку и смахни влево, чтобы удалить её." = "Leave the Russian spelling empty to keep the original. Swipe left on a row to delete it.";
+"Оставь русское написание пустым, чтобы использовать оригинал. Нажми на строку и смахни влево, чтобы удалить её." = "Leave the Russian spelling blank to keep the original. Swipe a row left to delete it.";
 "Имена и названия" = "Names and terms";
 "Действия с произведением" = "Title actions";
 "Некорректный словарь имён" = "Invalid name glossary";
