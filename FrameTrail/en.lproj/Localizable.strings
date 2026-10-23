@@ -441,3 +441,4 @@
 "Не удалось прочитать данные. Попробуй ещё раз или проверь формат файла." = "The data could not be read. Try again or check the file format.";
 "Файл слишком большой." = "This file is too large.";
 "Нет доступа к файлу. Выбери его заново." = "File access was denied. Select the file again.";
+"Введи название в поиске. Если его нет в каталоге, добавь вручную." = "Enter a title in Search. If it is missing from the catalog, add it manually.";

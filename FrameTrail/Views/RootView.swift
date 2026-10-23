@@ -57,16 +57,18 @@ struct DiscoverView: View {
                             }.padding(14).background(Theme.card, in: RoundedRectangle(cornerRadius: 20))
                         }.buttonStyle(.plain)
                     }
-                    Text(L10n.text("Популярное")).font(.title2.bold())
                     if library.entries.isEmpty && !model.isUITesting {
                         TipView(FirstTitleTip()) { _ in quickGuide = true }
                     }
                     if !model.featured.isEmpty {
+                        Text(L10n.text("Популярное")).font(.title2.bold())
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(alignment: .top, spacing: 16) {
                                 ForEach(model.featured) { title in NavigationLink(value: title) { TitleCard(title: title) }.buttonStyle(.plain) }
                             }
                         }
+                    } else {
+                        EmptyState(symbol: "magnifyingglass", title: L10n.text("Фильм или сериал"), text: L10n.text("Введи название в поиске. Если его нет в каталоге, добавь вручную."))
                     }
                     Button { manualEntry = true } label: { Label(L10n.text("Добавить вручную"), systemImage: "plus.circle") }
                         .accessibilityIdentifier("addManualTitle")
@@ -80,8 +82,9 @@ struct DiscoverView: View {
                         ForEach(results) { title in NavigationLink(value: title) { TitleCard(title: title) }.buttonStyle(.plain) }
                     }
                 }
-            }.padding(20)
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(20)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Theme.background)
         .navigationTitle("FrameTrail")
         .navigationBarTitleDisplayMode(.inline)

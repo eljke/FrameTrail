@@ -41,8 +41,9 @@ struct LibraryView: View {
                                     Text(model.displayTitle(entry.title).title).font(.headline).foregroundStyle(.white)
                                     Label(entry.progress.finished ? L10n.text("Досмотрено") : (entry.progress.watchedEpisodeIDs.isEmpty ? L10n.text("В планах") : L10n.text("Просмотрено серий: %@", String(describing: entry.progress.watchedEpisodeIDs.count))), systemImage: entry.progress.finished ? "checkmark.circle.fill" : "play.circle")
                                         .font(.caption).foregroundStyle(Theme.accent)
-                                    Text(L10n.text("Обсуждений: %@ · Итогов: %@", String(describing: entry.chat.filter { $0.role == .assistant }.count), String(describing: entry.reflections.count)))
-                                        .font(.caption2).foregroundStyle(Theme.muted)
+                                    if let rating = Reflection.latest(in: entry.reflections)?.rating {
+                                        Label("\(rating)/10", systemImage: "star.fill").font(.caption).foregroundStyle(Theme.accent)
+                                    }
                                 }
                                 Spacer(minLength: 0)
                                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(Theme.muted)
