@@ -51,6 +51,16 @@ final class ReflectionTests: XCTestCase {
         XCTAssertTrue(plan.batches.joined().contains("S1 E120,"))
     }
 
+    func testReviewPassagesCoverTheEndingOfLongPlots() throws {
+        let title = MediaTitle(id: "film", title: "Film", kind: .movie, provider: "local", providerID: "film")
+        let text = (1...50).map { "Event \($0) changes the characters and their plans." }.joined(separator: " ") + " The final revelation changes the meaning of their reunion."
+        let packet = SpoilerContextBuilder.forReview(title: title, episodes: [], progress: WatchProgress(finished: true), facts: [StoryFact(id: "plot", text: text, kind: "plot", titleID: title.id)], episodeID: nil)
+        let passages = ReviewPassages.candidates(in: packet)
+        XCTAssertEqual(passages.count, 12)
+        XCTAssertTrue(passages.last?.quote.contains("final revelation") == true)
+        XCTAssertTrue(passages.allSatisfy { text.contains($0.quote) })
+    }
+
     func testPreparedAnswersCannotInventPassagesOrUseOtherEpisodes() throws {
         let title = MediaTitle(id: "show", title: "Show", kind: .series, provider: "test", providerID: "show")
         let first = Episode(id: "e1", season: 1, number: 1, name: "First", summary: "Walter avoids a confrontation and returns home safely.")

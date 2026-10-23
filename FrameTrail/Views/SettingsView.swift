@@ -17,7 +17,6 @@ struct SettingsView: View {
     @State private var exporting = false
     @State private var importing = false
     @State private var exportDocument = LibraryDocument(data: Data())
-    @State private var clearMaterials = false
     @State private var translationConfiguration: TranslationSession.Configuration?
     @State private var preparationStep = 0
 
@@ -95,16 +94,13 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             } header: { Text("Расширенный каталог") }
             Section {
-                LabeledContent("Файлы библиотек", value: ByteCountFormatter.string(fromByteCount: Int64(library.bytesOnDisk), countStyle: .file))
-                LabeledContent("Историй в аккаунте", value: String(library.entries.count))
+                NavigationLink { StorageView() } label: { Label("Память", systemImage: "internaldrive") }
+                    .accessibilityIdentifier("storageSettings")
                 Button("Экспортировать библиотеку") {
                     do { exportDocument = LibraryDocument(data: try library.exportData()); exporting = true }
                     catch { self.error = error.localizedDescription }
                 }
                 Button("Импортировать резервную копию") { importing = true }
-                Button("Очистить загруженные материалы", role: .destructive) { clearMaterials = true }
-                Text("Очистка удаляет тексты и список серий. Прогресс, обсуждения и личные итоги сохраняются. Системная модель Apple хранится отдельно и не включена в приложение.")
-                    .font(.caption).foregroundStyle(.secondary)
             } header: { Text("Данные и место") }
             Section {
                 Label("Диалоги обрабатываются на iPhone", systemImage: "iphone.gen3")
@@ -142,12 +138,6 @@ struct SettingsView: View {
                 notice = "Библиотека восстановлена. Новые записи объединены с текущими по дате изменения."
                 error = nil
             } catch { self.error = error.localizedDescription }
-        }
-        .confirmationDialog("Удалить загруженные тексты и список серий? Личные записи и прогресс останутся.", isPresented: $clearMaterials, titleVisibility: .visible) {
-            Button("Очистить материалы", role: .destructive) {
-                library.clearDownloadedMaterials()
-                URLCache.shared.removeAllCachedResponses()
-            }
         }
     }
 

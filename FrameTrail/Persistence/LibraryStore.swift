@@ -179,6 +179,12 @@ final class LibraryStore {
         commit(next)
     }
 
+    var downloadedMaterialBytes: Int {
+        let encoder = JSONEncoder()
+        return ((try? encoder.encode(entries.map(\.episodes)).count) ?? 0)
+            + ((try? encoder.encode(entries.map(\.facts)).count) ?? 0)
+    }
+
     func clearDownloadedMaterials() {
         var next = entries
         for index in next.indices {

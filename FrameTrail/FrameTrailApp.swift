@@ -7,6 +7,7 @@ struct FrameTrailApp: App {
     @State private var model = AppModel()
 
     init() {
+        URLCache.shared = URLCache(memoryCapacity: 8 * 1024 * 1024, diskCapacity: 16 * 1024 * 1024, diskPath: "FrameTrailImages")
         let testDirectory = ProcessInfo.processInfo.arguments.contains("--uitesting")
             ? FileManager.default.temporaryDirectory.appendingPathComponent("FrameTrail-" + UUID().uuidString, isDirectory: true)
             : nil

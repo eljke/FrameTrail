@@ -60,6 +60,15 @@ final class FrameTrailSmokeTests: XCTestCase {
         tabs.buttons["Настройки"].tap()
         XCTAssertTrue(tabs.buttons["Настройки"].isSelected)
         capture("05-settings", app: app)
+        let storage = app.buttons["storageSettings"]
+        reveal(storage, app: app)
+        storage.tap()
+        let clean = app.buttons["clearImageCache"]
+        XCTAssertTrue(clean.waitForExistence(timeout: 5))
+        reveal(clean, app: app)
+        clean.tap()
+        XCTAssertTrue(app.staticTexts["cacheCleanupResult"].waitForExistence(timeout: 5))
+        capture("09-storage", app: app)
     }
 
     @MainActor
@@ -132,6 +141,7 @@ final class FrameTrailSmokeTests: XCTestCase {
         let rating = app.buttons["rating-9"]
         XCTAssertTrue(rating.waitForExistence(timeout: 5))
         rating.tap()
+        capture("08-episode-rating", app: app)
         let disliked = app.textViews["reflectionDisliked"]
         reveal(disliked, app: app)
         disliked.tap()

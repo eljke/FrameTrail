@@ -5,6 +5,7 @@ import FrameTrailCore
 struct SourceImportView: View {
     let title: MediaTitle
     let episodes: [Episode]
+    var initialEpisodeID: String? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(LibraryStore.self) private var library
     @State private var text = ""
@@ -64,6 +65,9 @@ struct SourceImportView: View {
                 } catch { self.error = error.localizedDescription }
             }
             .onChange(of: library.activeAccountID) { _, _ in dismiss() }
+            .onAppear {
+                if let initialEpisodeID, episodes.contains(where: { $0.id == initialEpisodeID }) { episodeID = initialEpisodeID }
+            }
         }
     }
 

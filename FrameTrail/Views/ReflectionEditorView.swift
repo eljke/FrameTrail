@@ -22,6 +22,8 @@ struct ReflectionEditorView: View {
     @State private var generationTask: Task<Void, Never>?
     @State private var generationID: UUID?
     @State private var skippedInterview = false
+    @State private var importingSource = false
+    @State private var sourceNotice: String?
 
     private var scopeID: String? { reflection?.episodeID ?? episode?.id }
     private var scopeSeason: Int? { reflection?.episodeSeason ?? episode?.season }
@@ -34,6 +36,10 @@ struct ReflectionEditorView: View {
     private var targetName: String {
         guard let scopeSeason, let scopeNumber else { return title.title + (title.kind == .movie ? " · whole film" : " · series overall") }
         return "\(title.title) · S\(scopeSeason) E\(scopeNumber) only"
+    }
+    private var reviewContext: GroundedContext {
+        let entry = library.entry(for: title.id) ?? LibraryEntry(title: title)
+        return SpoilerContextBuilder.forReview(title: title, episodes: entry.episodes, progress: entry.progress, facts: entry.facts, episodeID: scopeID)
     }
 
     var body: some View {
@@ -110,18 +116,32 @@ struct ReflectionEditorView: View {
             .onChange(of: currentProgress) { _, _ in stopInterview(); interview = nil }
             .onChange(of: model.localeIdentifier) { _, _ in stopInterview(); interview = nil }
             .onDisappear { stopInterview() }
+            .sheet(isPresented: $importingSource) {
+                SourceImportView(title: title, episodes: library.entry(for: title.id)?.episodes ?? [], initialEpisodeID: scopeID)
+            }
         }
     }
 
     private var interviewSection: some View {
         Section {
+            let context = reviewContext
+            if context.hasEvidence {
+                Label(context.evidence.allSatisfy { ["overview", "summary"].contains($0.kind) } ? "Основа — краткая аннотация" : "Есть дополнительные материалы", systemImage: "text.book.closed")
+                    .font(.subheadline)
+                Text("События просмотренного можно обсуждать открыто. Аннотация может не содержать развязку: варианты затронут только то, что есть в источниках.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Text("Для сюжетных вариантов пока нет материалов. Свои впечатления и оценку можно сохранить сразу.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Button("Добавить подробности или субтитры") { stopInterview(); importingSource = true }
             Button {
                 skippedInterview = false
                 startInterview()
-            } label: { Label(interview == nil ? "Вопросы о впечатлениях" : "Уточнить вопросы с учётом ответов", systemImage: "sparkles") }
+            } label: { Label(interview == nil ? "Разобрать сюжет и впечатления" : "Уточнить варианты с учётом ответов", systemImage: "sparkles") }
                 .disabled(generating || !canInterview || !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable)
             if generating {
-                HStack { ProgressView(); Text("Готовлю вопросы на iPhone…").font(.footnote) }
+                HStack { ProgressView(); Text("Проверяю материалы и готовлю варианты…").font(.footnote) }
                 Button("Остановить") { stopInterview() }
             }
             Button(skippedInterview ? "Вопросы пропущены" : "Пропустить вопросы") {
@@ -131,6 +151,7 @@ struct ReflectionEditorView: View {
             }.disabled(skippedInterview)
             Text("Можно выбрать несколько вариантов, добавить свой или пропустить вопросы и сохранить только оценку. Выбранные ответы сохранятся как твои впечатления.")
                 .font(.caption).foregroundStyle(.secondary)
+            if let sourceNotice { Text(sourceNotice).font(.caption).foregroundStyle(.secondary) }
             Text(model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable
                  ? "Варианты основаны на материалах выбранной истории или серии. Свои впечатления можно вписать ниже."
                  : "Оценки и заметки доступны вручную. Для вопросов помощника подготовь локальную модель и язык в настройках.")
@@ -159,10 +180,30 @@ struct ReflectionEditorView: View {
         error = nil
         let accountID = library.activeAccountID
         let locale = model.localeIdentifier
-        let packet = SpoilerContextBuilder.forReview(title: title, episodes: entry.episodes, progress: entry.progress, facts: entry.facts, episodeID: scopeID)
         generationTask = Task {
             defer { if generationID == id { generating = false; generationTask = nil; generationID = nil } }
             do {
+                let hasPlot = entry.facts.contains { $0.kind == "plot" && $0.episodeID == scopeID }
+                if !hasPlot && (title.kind == .movie || scopeID != nil) {
+                    do {
+                        let facts: [StoryFact]
+                        if let scopeID, let episode = entry.episodes.first(where: { $0.id == scopeID }) {
+                            facts = try await model.plots.plot(for: title, episode: episode, progress: entry.progress)
+                        } else {
+                            facts = try await model.plots.plot(for: title, finished: entry.progress.finished)
+                        }
+                        try Task.checkCancellation()
+                        guard generationID == id, library.activeAccountID == accountID, currentProgress == entry.progress else { return }
+                        var changed = library.entry(for: title.id) ?? entry
+                        changed.facts.append(contentsOf: facts.filter { fact in !changed.facts.contains(where: { $0.id == fact.id }) })
+                        changed.updatedAt = Date()
+                        library.update(changed)
+                        sourceNotice = library.lastError ?? "Загружен подробный сюжет Wikipedia. Варианты могут затрагивать развязку просмотренного."
+                    } catch is CancellationError { throw CancellationError() }
+                    catch { sourceNotice = "Подробный пересказ не загружен. Использую доступные материалы; развязки в краткой аннотации может не быть. Можно добавить свой текст или субтитры." }
+                }
+                try Task.checkCancellation()
+                let packet = reviewContext
                 let result = try await model.assistant.reviewQuestions(target: targetName, context: packet, rating: rating == 0 ? nil : rating, liked: liked, disliked: disliked, localeIdentifier: locale)
                 try Task.checkCancellation()
                 guard generationID == id, library.activeAccountID == accountID,

@@ -53,16 +53,19 @@ public enum ReviewPassages {
     public static func candidates(in context: GroundedContext) -> [ReviewPassage] {
         var result: [ReviewPassage] = []
         for fact in context.evidence {
-            let parts = fact.text.components(separatedBy: CharacterSet(charactersIn: ".!?\n"))
+            let sourceText = fact.kind == "summary"
+                ? fact.text.replacingOccurrences(of: "^S[0-9]+E[0-9]+: ", with: "", options: .regularExpression)
+                : fact.text
+            let parts = sourceText.components(separatedBy: CharacterSet(charactersIn: ".!?\n"))
             for (index, part) in parts.enumerated() {
                 let text = part.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard text.count >= 25 else { continue }
                 let quote = String(text.prefix(220))
                 if result.contains(where: { $0.quote == quote }) { continue }
                 result.append(ReviewPassage(id: "p\(result.count)", quote: quote, source: fact, ordinal: index))
-                if result.count == 12 { return result }
             }
         }
-        return result
+        guard result.count > 12 else { return result }
+        return (0..<12).map { result[$0 * (result.count - 1) / 11] }
     }
 }

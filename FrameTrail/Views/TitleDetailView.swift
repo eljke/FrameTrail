@@ -167,6 +167,7 @@ struct TitleDetailView: View {
                     Menu {
                         Button("Просмотрено всё до этой серии") { markThrough(episode) }
                         Button("Оценить серию и впечатления") { episodeToReview = episode }.disabled(!watched)
+                        Button("Загрузить подробный сюжет серии") { Task { await loadEpisodePlot(episode) } }.disabled(!watched || loadingPlot)
                     } label: { Image(systemName: "ellipsis").padding(6).foregroundStyle(Theme.muted) }.accessibilityLabel("Действия с серией")
                 }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
             }
@@ -210,6 +211,23 @@ struct TitleDetailView: View {
         var changed = entry
         changed.progress.watchedEpisodeIDs.formUnion(availableEpisodes.filter { $0.season < episode.season || ($0.season == episode.season && $0.number <= episode.number) }.map(\.id))
         save(changed)
+    }
+
+    private func loadEpisodePlot(_ episode: Episode) async {
+        loadingPlot = true
+        error = nil
+        defer { loadingPlot = false }
+        let accountID = library.activeAccountID
+        do {
+            let facts = try await model.plots.plot(for: title, episode: episode, progress: entry.progress)
+            try Task.checkCancellation()
+            guard accountID == library.activeAccountID, entry.progress.watchedEpisodeIDs.contains(episode.id) else { return }
+            var changed = entry
+            changed.facts.removeAll { $0.kind == "plot" && $0.episodeID == episode.id }
+            changed.facts.append(contentsOf: facts)
+            save(changed)
+            plotInfo = "Загружен сюжет S\(episode.season) E\(episode.number). Он доступен для обсуждения и вариантов впечатлений."
+        } catch is CancellationError {} catch { self.error = error.localizedDescription }
     }
 
     private func loadPlot() async {

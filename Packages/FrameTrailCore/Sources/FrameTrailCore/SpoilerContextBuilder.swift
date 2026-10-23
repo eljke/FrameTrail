@@ -38,7 +38,7 @@ public enum SpoilerContextBuilder {
             let allowed: Set<String> = progress.watchedEpisodeIDs.contains(episodeID) ? [episodeID] : []
             boundary = WatchProgress(watchedEpisodeIDs: allowed)
         }
-        return build(title: title, episodes: episodes, progress: boundary, facts: facts, question: "", maxCharacters: 3_000)
+        return build(title: title, episodes: episodes, progress: boundary, facts: facts, question: "", maxCharacters: 30_000)
     }
 
     public static func build(
