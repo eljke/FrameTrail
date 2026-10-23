@@ -28,6 +28,7 @@ struct ReflectionEditorView: View {
     @State private var applyRatingToEpisodes = false
     @State private var overwriteEpisodeRatings = false
     @State private var confirmOverwrite = false
+    @State private var showImpressions = false
 
     private var scopeID: String? { reflection?.episodeID ?? episode?.id }
     private var scopeSeason: Int? { reflection?.episodeSeason ?? episode?.season }
@@ -82,14 +83,18 @@ struct ReflectionEditorView: View {
                         }
                     } footer: { Text("Только просмотренные серии выбранного сезона или сериала. Действие можно отменить в карточке.") }
                 }
-                interviewSection
                 Section("Заметки") {
-                    TextEditor(text: $summary).frame(minHeight: 140).accessibilityIdentifier("reflectionSummary")
+                    TextEditor(text: $summary).frame(minHeight: 90).accessibilityIdentifier("reflectionSummary")
                         .onChange(of: summary) { _, value in if value.count > 10_000 { summary = String(value.prefix(10_000)) } }
                     if scopeID == nil && seasonScope == nil, let last = library.entry(for: title.id)?.chat.last(where: { $0.role == .assistant }) {
                         Button("Взять последний ответ за основу") { summary = String(last.text.prefix(10_000)) }
                     }
                 }
+                Button(showImpressions ? "Скрыть подробности" : "Добавить впечатления и вопросы") {
+                    showImpressions.toggle()
+                }.accessibilityIdentifier("toggleReviewDetails")
+                if showImpressions {
+                    interviewSection
                 Section("Что понравилось") {
                     if let interview { Text(interview.liked).font(.subheadline).foregroundStyle(Theme.accent).textSelection(.enabled) }
                     ReviewChoiceList(choices: choiceOptions(positive: true), selected: $likedChoices)
@@ -110,6 +115,7 @@ struct ReflectionEditorView: View {
                     TextEditor(text: $questions).frame(minHeight: 70)
                         .accessibilityIdentifier("reflectionQuestions")
                         .onChange(of: questions) { _, value in if value.count > 30_000 { questions = String(value.prefix(30_000)) } }
+                }
                 }
                 if let error { Section { ErrorNotice(message: error) } }
             }
@@ -134,15 +140,13 @@ struct ReflectionEditorView: View {
                     dislikedChoices = reflection.dislikedChoices
                     questions = reflection.questions.joined(separator: "\n")
                     rating = reflection.rating ?? 0
+                    showImpressions = !reflection.allLiked.isEmpty || !reflection.allDisliked.isEmpty || !reflection.questions.isEmpty
                 } else {
                     summary = String(initialSummary.prefix(10_000))
                     rating = Reflection.latest(in: library.entry(for: title.id)?.reflections ?? [], episodeID: scopeID, seasonNumber: seasonScope)?.rating ?? 0
                 }
             }
-            .task {
-                await model.assistant.refreshAvailability()
-                if !model.isUITesting && !skippedInterview && canInterview && model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable { startInterview() }
-            }
+            .task { await model.assistant.refreshAvailability() }
             .onChange(of: library.activeAccountID) { _, _ in dismiss() }
             .onChange(of: currentProgress) { _, _ in stopInterview(); interview = nil }
             .onChange(of: model.localeIdentifier) { _, _ in stopInterview(); interview = nil }

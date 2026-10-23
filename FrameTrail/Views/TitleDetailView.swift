@@ -20,6 +20,7 @@ struct TitleDetailView: View {
     @State private var episodeToReview: Episode?
     @State private var showRetrospective = false
     @State private var reviewingSeason = false
+    @State private var episodeDetails: Episode?
 
     private var entry: LibraryEntry { library.entry(for: title.id) ?? LibraryEntry(title: title) }
     private var isSaved: Bool { library.entry(for: title.id) != nil }
@@ -32,14 +33,16 @@ struct TitleDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 HStack(alignment: .top, spacing: 20) {
-                    PosterView(title: title, width: 108)
+                    PosterView(title: title, width: 82)
                     VStack(alignment: .leading, spacing: 12) {
-                        Text(title.kind == .movie ? "ФИЛЬМ" : "СЕРИАЛ").font(.caption2.bold()).tracking(2).foregroundStyle(Theme.accent)
+                        Text(title.kind == .movie ? "ФИЛЬМ" : "СЕРИАЛ").font(.caption2.weight(.medium)).foregroundStyle(Theme.accent)
                         Text(title.title).font(.title2.bold()).textSelection(.enabled)
                         if let year = title.year { Text(String(year)).font(.subheadline).foregroundStyle(Theme.muted) }
                         if let rating = overallReview?.rating { Label("Моя оценка: \(rating)/10", systemImage: "star.fill").font(.caption).foregroundStyle(Theme.accent) }
-                        Button { save(entry) } label: { Label(isSaved ? "В библиотеке" : "В библиотеку", systemImage: isSaved ? "checkmark" : "plus") }
-                            .buttonStyle(.bordered).disabled(isSaved)
+                        if !isSaved {
+                            Button { save(entry) } label: { Label("В библиотеку", systemImage: "plus") }
+                                .buttonStyle(.bordered)
+                        }
                     }
                     Spacer(minLength: 0)
                 }
@@ -56,6 +59,17 @@ struct TitleDetailView: View {
                     DisclosureGroup("Описание от источника") {
                         Text(title.overview).font(.subheadline).foregroundStyle(Theme.muted).padding(.top, 8)
                     }.font(.subheadline).tint(Theme.muted)
+                }
+                if canReview {
+                    if entry.reflections.isEmpty && !model.isUITesting { TipView(FirstReviewTip()) }
+                    Button {
+                        if !model.isUITesting { FirstReviewTip().invalidate(reason: .actionPerformed) }
+                        editingReflection = overallReview
+                        reflectionEditor = true
+                    } label: {
+                        Label(overallReview?.rating == nil ? "Оценить и написать отзыв" : "Моя оценка и отзыв", systemImage: "star")
+                            .frame(maxWidth: .infinity)
+                    }.buttonStyle(.bordered).accessibilityIdentifier("rateTitle")
                 }
                 if title.kind == .movie {
                     Toggle("Я досмотрел фильм", isOn: Binding(get: { entry.progress.finished }, set: { value in
@@ -102,29 +116,20 @@ struct TitleDetailView: View {
                         Image(systemName: "arrow.up.right")
                     }.padding(18).background(Theme.card, in: RoundedRectangle(cornerRadius: 18))
                 }.buttonStyle(.plain).foregroundStyle(Theme.accent).accessibilityIdentifier("openDiscussion")
-                VStack(alignment: .leading, spacing: 12) {
-                    SectionCaption(eyebrow: "Дополнительно", title: "Источники")
-                    Text("Сохранено материалов: \(entry.facts.count). Аннотации серий используются только после отметки о просмотре.")
-                        .font(.footnote).foregroundStyle(Theme.muted)
-                    Button { sourceImport = true } label: { Label("Добавить текст или субтитры", systemImage: "doc.badge.plus") }
-                        .accessibilityIdentifier("importSource")
-                    if let source = title.sourceURL { Link("Карточка у источника", destination: source).font(.footnote) }
+                DisclosureGroup("Источники") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Добавлено материалов: \(entry.facts.count)").font(.caption).foregroundStyle(Theme.muted)
+                        Button { sourceImport = true } label: { Label("Добавить текст или субтитры", systemImage: "doc.badge.plus") }
+                            .accessibilityIdentifier("importSource")
+                        if let source = title.sourceURL { Link("Открыть страницу произведения", destination: source).font(.footnote) }
+                    }.padding(.top, 10)
+                }.accessibilityIdentifier("sourcesDisclosure")
+                if let recent = entry.reflections.filter({ !$0.summary.isEmpty || !$0.allLiked.isEmpty || !$0.allDisliked.isEmpty }).sorted(by: { $0.createdAt > $1.createdAt }).first {
+                    reflectionCard(recent)
                 }
-                if canReview {
-                    if entry.reflections.isEmpty && !model.isUITesting { TipView(FirstReviewTip()) }
-                    Button {
-                        if !model.isUITesting { FirstReviewTip().invalidate(reason: .actionPerformed) }
-                        editingReflection = overallReview; reflectionEditor = true
-                    } label: {
-                        Label(overallReview?.rating == nil ? "Оценить" : "Изменить оценку", systemImage: "star.bubble")
-                    }.buttonStyle(.bordered).accessibilityIdentifier("rateTitle")
-                    Button {
-                        if !model.isUITesting { FirstReviewTip().invalidate(reason: .actionPerformed) }
-                        editingReflection = nil; reflectionEditor = true
-                    } label: { Label("Написать отзыв", systemImage: "square.and.pencil") }
-                        .buttonStyle(.borderedProminent).accessibilityIdentifier("writeReflection")
+                if !entry.reflections.isEmpty {
+                    Button("Все отзывы в дневнике") { model.selectedTab = 2 }.font(.subheadline)
                 }
-                ForEach(entry.reflections.sorted { $0.createdAt > $1.createdAt }) { reflection in reflectionCard(reflection) }
             }.padding(20)
         }
         .background(Theme.background)
@@ -138,6 +143,15 @@ struct TitleDetailView: View {
         .sheet(isPresented: $reflectionEditor) { ReflectionEditorView(title: title, reflection: editingReflection) }
         .sheet(item: $episodeToReview) { episode in
             ReflectionEditorView(title: title, reflection: Reflection.latest(in: entry.reflections, episodeID: episode.id), episode: episode)
+        }
+        .sheet(item: $episodeDetails) { episode in
+            NavigationStack {
+                ScrollView { VStack(alignment: .leading, spacing: 16) {
+                    Text(episode.name).font(.title2.bold())
+                    Text(episode.summary).textSelection(.enabled)
+                }.padding(24) }.navigationTitle("S\(episode.season) E\(episode.number)")
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Готово") { episodeDetails = nil } } }
+            }.presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showRetrospective) { RetrospectiveView(title: title) }
         .sheet(isPresented: $reviewingSeason) {
@@ -157,7 +171,7 @@ struct TitleDetailView: View {
 
     @ViewBuilder private var episodeSection: some View {
         VStack(alignment: .leading, spacing: 14) {
-            SectionCaption(eyebrow: "Граница просмотра", title: "Серии")
+            Text("Серии").font(.title3.bold())
             if loading { ProgressView("Загружаем серии…") }
             if availableEpisodes.isEmpty && !loading {
                 InfoCard(symbol: "rectangle.stack", title: "Список серий пока недоступен", text: "Можно добавить своё описание серии вместе с материалами. Поиск по оригинальному названию и подключение TMDB расширяют покрытие.")
@@ -167,8 +181,21 @@ struct TitleDetailView: View {
                     ForEach(seasons, id: \.self) { season in Text(season == 0 ? "Спецвыпуски" : "Сезон \(season)").tag(season) }
                 }.pickerStyle(.menu)
             }
-            Text("Просмотрено: \(entry.progress.watchedEpisodeIDs.count) · В списке: \(availableEpisodes.count)")
-                .font(.caption).foregroundStyle(Theme.muted)
+            let seasonEpisodes = availableEpisodes.filter { $0.season == selectedSeason }
+            let seasonWatched = seasonEpisodes.filter { entry.progress.watchedEpisodeIDs.contains($0.id) }.count
+            ProgressView(value: Double(seasonWatched), total: Double(max(1, seasonEpisodes.count))) {
+                Text("Просмотрено \(seasonWatched) из \(seasonEpisodes.count)").font(.caption).foregroundStyle(Theme.muted)
+            }.tint(Theme.accent)
+            if let next = seasonEpisodes.first(where: { !entry.progress.watchedEpisodeIDs.contains($0.id) }) {
+                Button {
+                    var changed = entry
+                    changed.progress.watchedEpisodeIDs.insert(next.id)
+                    save(changed)
+                    if library.lastError == nil { InteractionFeedback.selection() }
+                } label: {
+                    Label("Посмотрел S\(next.season) E\(next.number)", systemImage: "checkmark.circle")
+                }.buttonStyle(.bordered).accessibilityIdentifier("watchNextEpisode")
+            }
             HStack {
                 Button { reviewingSeason = true } label: { Label("Оценить сезон", systemImage: "star") }
                     .disabled(!availableEpisodes.contains { $0.season == selectedSeason && entry.progress.watchedEpisodeIDs.contains($0.id) })
@@ -187,7 +214,7 @@ struct TitleDetailView: View {
                         else { changed.progress.watchedEpisodeIDs.insert(episode.id) }
                         save(changed)
                         if library.lastError == nil { InteractionFeedback.selection() }
-                    } label: { Image(systemName: watched ? "checkmark.circle.fill" : "circle").font(.title3).foregroundStyle(watched ? Theme.accent : Theme.muted) }
+                    } label: { Image(systemName: watched ? "checkmark.circle.fill" : "circle").font(.title3).frame(width: 44, height: 44).contentShape(Rectangle()).foregroundStyle(watched ? Theme.accent : Theme.muted) }
                     .accessibilityLabel("\(watched ? "Снять просмотр" : "Просмотрено"): сезон \(episode.season), серия \(episode.number)")
                     VStack(alignment: .leading, spacing: 5) {
                         Text("S\(episode.season) · E\(episode.number)").font(.caption.bold()).foregroundStyle(Theme.accent)
@@ -196,8 +223,7 @@ struct TitleDetailView: View {
                             Label("\(rating)/10", systemImage: "star.fill").font(.caption).foregroundStyle(Theme.accent)
                         }
                         if watched && !episode.summary.isEmpty {
-                            DisclosureGroup("Напомнить события") { Text(episode.summary).font(.footnote).foregroundStyle(Theme.muted).padding(.vertical, 6) }
-                                .font(.caption).tint(Theme.muted)
+                            Button("Описание серии") { episodeDetails = episode }.font(.caption).foregroundStyle(Theme.muted)
                         }
                     }
                     Spacer(minLength: 0)
@@ -326,7 +352,7 @@ struct TitleDetailView: View {
             } else if let season = reflection.seasonNumber {
                 Text("Сезон \(season)").font(.caption).foregroundStyle(Theme.accent)
             }
-            if !reflection.summary.isEmpty { Text(reflection.summary).font(.subheadline).textSelection(.enabled) }
+            if !reflection.summary.isEmpty { Text(reflection.summary).font(.subheadline).lineLimit(4).textSelection(.enabled) }
             ForEach(Array(reflection.allLiked.enumerated()), id: \.offset) { item in Text("+ " + item.element).font(.caption).foregroundStyle(Theme.muted) }
             ForEach(Array(reflection.allDisliked.enumerated()), id: \.offset) { item in Text("− " + item.element).font(.caption).foregroundStyle(Theme.muted) }
             ForEach(Array(reflection.questions.enumerated()), id: \.offset) { item in Text("? " + item.element).font(.caption).foregroundStyle(Theme.muted) }

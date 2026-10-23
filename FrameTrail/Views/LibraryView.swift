@@ -10,17 +10,17 @@ struct LibraryView: View {
 
     private var entries: [LibraryEntry] {
         library.entries.filter {
-            (filter == 0 || (filter == 1 ? !$0.progress.finished : $0.progress.finished)) &&
-            (query.isEmpty || $0.title.title.localizedCaseInsensitiveContains(query))
+            (filter == 0 || (filter == 1 && !$0.progress.finished && !$0.progress.watchedEpisodeIDs.isEmpty) || (filter == 2 && $0.progress.finished) || (filter == 3 && !$0.progress.finished && $0.progress.watchedEpisodeIDs.isEmpty)) &&
+            (query.isEmpty || $0.title.title.localizedCaseInsensitiveContains(query) || $0.title.originalTitle?.localizedCaseInsensitiveContains(query) == true)
         }.sorted { $0.updatedAt > $1.updatedAt }
     }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                SectionCaption(eyebrow: "Моя коллекция", title: "Библиотека")
                 Picker("Показать", selection: $filter) {
                     Text("Все").tag(0)
+                    Text("В планах").tag(3)
                     Text("Смотрю").tag(1)
                     Text("Досмотрел").tag(2)
                 }.pickerStyle(.segmented)
@@ -73,8 +73,7 @@ struct JournalView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                SectionCaption(eyebrow: "Оценки и отзывы", title: "Дневник просмотра")
-                LibraryStatisticsView(entries: library.entries)
+                DisclosureGroup("Статистика") { LibraryStatisticsView(entries: library.entries).padding(.top, 12) }
                 if records.isEmpty {
                     EmptyState(symbol: "text.book.closed", title: "Пока нет отзывов", text: "После просмотра открой «Итог» в карточке фильма или сериала. Сохрани впечатления, вопросы и оценку.")
                 }

@@ -27,6 +27,7 @@ struct DiscussionView: View {
     private var availability: AssistantAvailability { model.assistant.availability(localeIdentifier: model.localeIdentifier) }
 
     var body: some View {
+        ScrollViewReader { proxy in
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
@@ -91,6 +92,7 @@ struct DiscussionView: View {
                             .padding(16).frame(maxWidth: .infinity, alignment: .leading)
                             .background(turn.role == .user ? Color.clear : Theme.card, in: RoundedRectangle(cornerRadius: 16))
                         }
+                        Color.clear.frame(height: 1).id("lastMessage")
                         if busy { HStack { ProgressView(); Text("Готовлю ответ…").font(.footnote).foregroundStyle(Theme.muted) } }
                         if let error { ErrorNotice(message: error) }
                         DisclosureGroup("На каких материалах основан ответ") { evidenceList.padding(.top, 10) }
@@ -114,7 +116,10 @@ struct DiscussionView: View {
                 }.padding(16).background(Theme.background)
             }
         }
+        .onChange(of: entry.chat.count) { _, _ in withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("lastMessage", anchor: .bottom) } }
+        }
         .background(Theme.background)
+        .toolbar(.hidden, for: .tabBar)
         .navigationTitle("Обсуждение").navigationBarTitleDisplayMode(.inline)
         .toolbar {
             Menu {

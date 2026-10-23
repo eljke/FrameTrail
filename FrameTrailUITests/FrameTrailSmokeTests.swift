@@ -34,7 +34,7 @@ final class FrameTrailSmokeTests: XCTestCase {
         reveal(finished, app: app)
         finished.tap()
 
-        let writeReflection = app.buttons["writeReflection"]
+        let writeReflection = app.buttons["rateTitle"]
         XCTAssertTrue(writeReflection.waitForExistence(timeout: 5))
         reveal(writeReflection, app: app)
         capture("03-finished-movie", app: app)
@@ -112,9 +112,10 @@ final class FrameTrailSmokeTests: XCTestCase {
         app.buttons["Без оценки"].tap()
         XCTAssertTrue(app.buttons["saveReflection"].isEnabled, "An existing rating-only review must allow clearing its score")
         app.buttons["saveReflection"].tap()
-        let write = app.buttons["writeReflection"]
+        let write = app.buttons["rateTitle"]
         reveal(write, app: app)
         write.tap()
+        app.buttons["toggleReviewDetails"].tap()
         let liked = app.textViews["reflectionLiked"]
         reveal(liked, app: app)
         XCTAssertTrue(liked.exists)
@@ -145,6 +146,9 @@ final class FrameTrailSmokeTests: XCTestCase {
         let title = app.staticTexts["My series"].firstMatch
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         title.tap()
+        let disclosure = app.buttons["sourcesDisclosure"]
+        reveal(disclosure, app: app)
+        disclosure.tap()
         let source = app.buttons["importSource"]
         reveal(source, app: app)
         source.tap()
@@ -167,6 +171,7 @@ final class FrameTrailSmokeTests: XCTestCase {
             .press(forDuration: 0.1, thenDragTo: rating.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5)))
         XCTAssertEqual(app.staticTexts["ratingValue"].label, "9")
         capture("08-episode-rating", app: app)
+        app.buttons["toggleReviewDetails"].tap()
         let disliked = app.textViews["reflectionDisliked"]
         reveal(disliked, app: app)
         disliked.tap()

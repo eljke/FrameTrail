@@ -9,15 +9,20 @@ struct RootView: View {
     var body: some View {
         @Bindable var model = model
         TabView(selection: $model.selectedTab) {
-            NavigationStack { DiscoverView().navigationDestination(for: MediaTitle.self) { TitleDetailView(title: $0) } }
-                .tabItem { Label("Обзор", systemImage: "sparkles.tv") }.tag(0)
-            NavigationStack { LibraryView().navigationDestination(for: MediaTitle.self) { TitleDetailView(title: $0) } }
-                .tabItem { Label("Библиотека", systemImage: "books.vertical") }.tag(1)
-            NavigationStack { JournalView().navigationDestination(for: MediaTitle.self) { TitleDetailView(title: $0) } }
-                .tabItem { Label("Дневник", systemImage: "text.book.closed") }.tag(2)
-            NavigationStack { SettingsView() }
-                .tabItem { Label("Настройки", systemImage: "slider.horizontal.3") }.tag(3)
+            Tab("Библиотека", systemImage: "books.vertical", value: 1) {
+                NavigationStack { LibraryView().navigationDestination(for: MediaTitle.self) { TitleDetailView(title: $0) } }
+            }
+            Tab("Дневник", systemImage: "text.book.closed", value: 2) {
+                NavigationStack { JournalView().navigationDestination(for: MediaTitle.self) { TitleDetailView(title: $0) } }
+            }
+            Tab("Настройки", systemImage: "slider.horizontal.3", value: 3) {
+                NavigationStack { SettingsView() }
+            }
+            Tab("Поиск", systemImage: "magnifyingglass", value: 0, role: .search) {
+                NavigationStack { DiscoverView().navigationDestination(for: MediaTitle.self) { TitleDetailView(title: $0) } }
+            }
         }
+        .tabBarMinimizeBehavior(.onScrollDown)
         .id(library.activeAccountID)
         .alert("FrameTrail", isPresented: Binding(get: { model.alertMessage != nil || library.lastError != nil }, set: { if !$0 { model.alertMessage = nil; library.dismissError() } })) {
             Button("Понятно") { model.alertMessage = nil; library.dismissError() }
@@ -38,12 +43,6 @@ struct DiscoverView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Фильмы и сериалы")
-                        .font(.system(.largeTitle, design: .serif, weight: .medium))
-                    Text("Отмечай просмотренное, ставь оценки и обсуждай сюжет.")
-                        .font(.subheadline).foregroundStyle(Theme.muted)
-                }.padding(.top, 12)
                 if query.trimmingCharacters(in: .whitespaces).isEmpty {
                     if let recent = library.entries.sorted(by: { $0.updatedAt > $1.updatedAt }).first {
                         NavigationLink(value: recent.title) {
@@ -59,7 +58,7 @@ struct DiscoverView: View {
                             }.padding(14).background(Theme.card, in: RoundedRectangle(cornerRadius: 20))
                         }.buttonStyle(.plain)
                     }
-                    SectionCaption(eyebrow: "Каталог", title: "Популярное")
+                    Text("Популярное").font(.title2.bold())
                     if library.entries.isEmpty && !model.isUITesting {
                         TipView(FirstTitleTip()) { _ in quickGuide = true }
                     }
@@ -70,7 +69,6 @@ struct DiscoverView: View {
                             }
                         }
                     }
-                    InfoCard(symbol: "iphone.gen3", title: "Разговор остаётся на iPhone", text: "Ответы генерирует локальная модель Apple. Для поиска и загрузки материалов нужен интернет.")
                     Button { manualEntry = true } label: { Label("Добавить вручную", systemImage: "plus.circle") }
                         .accessibilityIdentifier("addManualTitle")
                 } else {

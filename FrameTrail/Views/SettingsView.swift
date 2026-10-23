@@ -44,13 +44,75 @@ struct SettingsView: View {
                 }.padding(.vertical, 8)
             }
             Section {
+                Picker("Язык приложения", selection: $model.localeIdentifier) {
+                    Text("Русский").tag("ru_RU")
+                    Text("English").tag("en_US")
+                }.accessibilityIdentifier("appLanguage")
+            }
+            Section {
+                NavigationLink {
+                    Form { AccountSettingsSection() }.navigationTitle("Аккаунт FrameTrail")
+                } label: { Label("Аккаунт FrameTrail", systemImage: "person.crop.circle") }
+                NavigationLink {
+                    Form { assistantSettings }.navigationTitle("Apple Intelligence")
+                } label: { Label("Apple Intelligence", systemImage: "sparkles") }
+                NavigationLink {
+                    Form { catalogSettings }.navigationTitle("TMDB и каталоги")
+                } label: { Label("TMDB и каталоги", systemImage: "film.stack") }
+            }
+            Section {
+                NavigationLink { StorageView() } label: { Label("Память", systemImage: "internaldrive") }
+                    .accessibilityIdentifier("storageSettings")
+                NavigationLink {
+                    Form { backupSettings }.navigationTitle("Резервная копия")
+                } label: { Label("Резервная копия", systemImage: "externaldrive") }
+            }
+            Section {
+                NavigationLink { QuickGuideView() } label: { Label("Краткий гид", systemImage: "questionmark.circle") }
+                    .accessibilityIdentifier("openQuickGuide")
+                NavigationLink {
+                    Form { aboutSettings }.navigationTitle("О приложении")
+                } label: { Label("О приложении", systemImage: "info.circle") }
+                Link(destination: URL(string: "https://github.com/eljke/FrameTrail/issues")!) {
+                    Label("Сообщить об ошибке", systemImage: "ladybug")
+                }
+            }
+            if let error { Section { ErrorNotice(message: error) } }
+            if let notice { Section { Text(notice).font(.footnote).foregroundStyle(Theme.accent) } }
+        }
+        .scrollContentBackground(.hidden).background(Theme.background)
+        .navigationTitle("Настройки").navigationBarTitleDisplayMode(.inline)
+        .task { await model.assistant.refreshAvailability() }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { Task { await model.assistant.refreshAvailability() } }
+        }
+        .translationTask(translationConfiguration) { session in await prepareTranslation(using: session) }
+        .sheet(item: $authorization, onDismiss: {
+            if awaitingApproval { Task { await finishLogin() } }
+        }) { SafariPage(url: $0.url).ignoresSafeArea() }
+        .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .json, defaultFilename: "FrameTrail-library") { result in
+            if case .failure(let failure) = result { error = failure.localizedDescription }
+        }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
+            do {
+                let url = try result.get()
+                let access = url.startAccessingSecurityScopedResource()
+                defer { if access { url.stopAccessingSecurityScopedResource() } }
+                let attributes = try url.resourceValues(forKeys: [.fileSizeKey])
+                guard (attributes.fileSize ?? 0) <= 10 * 1024 * 1024 else { throw CocoaError(.fileReadTooLarge) }
+                let data = try Data(contentsOf: url, options: .mappedIfSafe)
+                try library.importData(data)
+                notice = "Библиотека восстановлена. Новые записи объединены с текущими по дате изменения."
+                error = nil
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+
+    private var assistantSettings: some View {
+        Group {
+            Section {
                 Label(modelStatus.isAvailable ? "Локальная модель готова" : "Модель недоступна", systemImage: modelStatus.isAvailable ? "checkmark.shield" : "exclamationmark.circle")
                 Text(modelStatus.message).font(.footnote).foregroundStyle(.secondary)
-                Picker("Язык ответов", selection: $model.localeIdentifier) {
-                    Text("English").tag("en_US")
-                    Text(model.assistant.usesRussianTranslation ? "Русский · перевод Apple" : "Русский").tag("ru_RU")
-                        .disabled(model.assistant.usesRussianTranslation && !model.assistant.translation.isSupported)
-                }
                 if model.assistant.usesRussianTranslation {
                     Text(model.assistant.translation.message).font(.footnote).foregroundStyle(.secondary)
                     if model.assistant.translation.readiness == .downloadRequired {
@@ -61,7 +123,11 @@ struct SettingsView: View {
                 Text("Если модель не поддерживает русский напрямую, вопрос и разрешённые источники переводятся на английский, ответ — обратно на русский. Всё выполняется на iPhone. Языки перевода загружаются отдельно, занимают системное место и доступны другим приложениям. Перевод может неточно передать имена и смысл; оригиналы источников сохранены.")
                     .font(.caption).foregroundStyle(.secondary)
             } header: { Text("Помощник на устройстве") }
-            AccountSettingsSection()
+        }
+    }
+
+    private var catalogSettings: some View {
+        Group {
             Section {
                 if let account = model.account {
                     Label(account.displayName ?? account.username, systemImage: "person.crop.circle.fill")
@@ -93,18 +159,24 @@ struct SettingsView: View {
                 Text("Нужен API Read Access Token, а не пароль. Он открывает каталог TMDB и вход в аккаунт. Без него поиск фильмов и сериалов остаётся доступен через другие источники.")
                     .font(.caption).foregroundStyle(.secondary)
             } header: { Text("Расширенный каталог") }
+        }
+    }
+
+    private var backupSettings: some View {
+        Group {
             Section {
-                NavigationLink { StorageView() } label: { Label("Память", systemImage: "internaldrive") }
-                    .accessibilityIdentifier("storageSettings")
                 Button("Экспортировать библиотеку") {
                     do { exportDocument = LibraryDocument(data: try library.exportData()); exporting = true }
                     catch { self.error = error.localizedDescription }
                 }
                 Button("Импортировать резервную копию") { importing = true }
             } header: { Text("Данные и место") }
+        }
+    }
+
+    private var aboutSettings: some View {
+        Group {
             Section {
-                NavigationLink { QuickGuideView() } label: { Label("Краткий гид по FrameTrail", systemImage: "questionmark.circle") }
-                    .accessibilityIdentifier("openQuickGuide")
                 Label("Диалоги обрабатываются на iPhone", systemImage: "iphone.gen3")
                 Label("Без рекламы и аналитических SDK", systemImage: "hand.raised")
                 Text("Поисковые запросы отправляются выбранным каталогам. При входе в FrameTrail карточки, прогресс и личные итоги хранятся в Supabase. Текст обсуждения обрабатывается локально. Подключение TMDB подтверждается на его сайте.")
@@ -112,34 +184,6 @@ struct SettingsView: View {
                 NavigationLink("Источники и лицензии") { AttributionView() }
                 Link("Исходный код и сообщения об ошибках", destination: URL(string: "https://github.com/eljke/FrameTrail")!)
             } header: { Text("О приложении") }
-            if let error { Section { ErrorNotice(message: error) } }
-            if let notice { Section { Text(notice).font(.footnote).foregroundStyle(Theme.accent) } }
-        }
-        .scrollContentBackground(.hidden).background(Theme.background)
-        .navigationTitle("Настройки").navigationBarTitleDisplayMode(.inline)
-        .task { await model.assistant.refreshAvailability() }
-        .onChange(of: scenePhase) { _, phase in
-            if phase == .active { Task { await model.assistant.refreshAvailability() } }
-        }
-        .translationTask(translationConfiguration) { session in await prepareTranslation(using: session) }
-        .sheet(item: $authorization, onDismiss: {
-            if awaitingApproval { Task { await finishLogin() } }
-        }) { SafariPage(url: $0.url).ignoresSafeArea() }
-        .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .json, defaultFilename: "FrameTrail-library") { result in
-            if case .failure(let failure) = result { error = failure.localizedDescription }
-        }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
-            do {
-                let url = try result.get()
-                let access = url.startAccessingSecurityScopedResource()
-                defer { if access { url.stopAccessingSecurityScopedResource() } }
-                let attributes = try url.resourceValues(forKeys: [.fileSizeKey])
-                guard (attributes.fileSize ?? 0) <= 10 * 1024 * 1024 else { throw CocoaError(.fileReadTooLarge) }
-                let data = try Data(contentsOf: url, options: .mappedIfSafe)
-                try library.importData(data)
-                notice = "Библиотека восстановлена. Новые записи объединены с текущими по дате изменения."
-                error = nil
-            } catch { self.error = error.localizedDescription }
         }
     }
 
