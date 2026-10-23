@@ -39,9 +39,9 @@ struct DiscoverView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("У каждой истории\nесть послевкусие.")
+                    Text("Фильмы и сериалы")
                         .font(.system(.largeTitle, design: .serif, weight: .medium))
-                    Text("Вспомни важное. Разберись в сюжете.\nОбсуди то, что осталось с тобой.")
+                    Text("Отмечай просмотренное, ставь оценки и обсуждай сюжет.")
                         .font(.subheadline).foregroundStyle(Theme.muted)
                 }.padding(.top, 12)
                 if query.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -50,16 +50,16 @@ struct DiscoverView: View {
                             HStack(spacing: 16) {
                                 PosterView(title: recent.title, width: 65)
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text("ПРОДОЛЖИТЬ ИСТОРИЮ").font(.caption2.bold()).tracking(1.2).foregroundStyle(Theme.accent)
+                                    Text("НЕДАВНО ОТКРЫВАЛИ").font(.caption2.bold()).tracking(1.2).foregroundStyle(Theme.accent)
                                     Text(recent.title.title).font(.headline)
-                                    Text(recent.progress.finished ? "Вернуться к обсуждению" : "Вспомнить просмотренное").font(.caption).foregroundStyle(Theme.muted)
+                                    Text(recent.progress.finished ? "Вернуться к обсуждению" : "Обсудить просмотренное").font(.caption).foregroundStyle(Theme.muted)
                                 }
                                 Spacer()
                                 Image(systemName: "arrow.up.right").foregroundStyle(Theme.accent)
                             }.padding(14).background(Theme.card, in: RoundedRectangle(cornerRadius: 20))
                         }.buttonStyle(.plain)
                     }
-                    SectionCaption(eyebrow: "Найди свою историю", title: "Начни с названия")
+                    SectionCaption(eyebrow: "Каталог", title: "Популярное")
                     if library.entries.isEmpty && !model.isUITesting {
                         TipView(FirstTitleTip()) { _ in quickGuide = true }
                     }
@@ -71,10 +71,10 @@ struct DiscoverView: View {
                         }
                     }
                     InfoCard(symbol: "iphone.gen3", title: "Разговор остаётся на iPhone", text: "Ответы генерирует локальная модель Apple. Для поиска и загрузки материалов нужен интернет.")
-                    Button { manualEntry = true } label: { Label("Добавить своё произведение", systemImage: "plus.circle") }
+                    Button { manualEntry = true } label: { Label("Добавить вручную", systemImage: "plus.circle") }
                         .accessibilityIdentifier("addManualTitle")
                 } else {
-                    if isSearching { ProgressView("Ищем истории…").frame(maxWidth: .infinity).padding() }
+                    if isSearching { ProgressView("Поиск…").frame(maxWidth: .infinity).padding() }
                     if let error { ErrorNotice(message: error) }
                     if !isSearching && results.isEmpty && error == nil {
                         EmptyState(symbol: "magnifyingglass", title: "Ничего не найдено", text: "Попробуй оригинальное название. Для расширенного каталога можно подключить TMDB в настройках.")
@@ -133,7 +133,7 @@ struct ManualTitleView: View {
                 }
                 Section { Text("Добавь собственные материалы в карточке произведения. До отметки «Досмотрел» полный сюжет фильма не используется в ответах.").font(.footnote) }
             }
-            .navigationTitle("Своя история")
+            .navigationTitle("Добавить вручную")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {

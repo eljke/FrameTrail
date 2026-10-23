@@ -85,9 +85,9 @@ struct TitleDetailView: View {
                         if !model.isUITesting { SeriesRetrospectiveTip().invalidate(reason: .actionPerformed) }
                         showRetrospective = true
                     } label: {
-                        Label("Собрать общую картину по сериям", systemImage: "sparkles.rectangle.stack")
+                        Label("Итог по сериям", systemImage: "sparkles.rectangle.stack")
                     }.buttonStyle(.bordered).accessibilityIdentifier("compileSeriesImpressions")
-                    Text("Сводка Apple по сохранённым оценкам и впечатлениям о просмотренных сериях.").font(.caption).foregroundStyle(Theme.muted)
+                    Text("Собрать заметки о сериях в один отзыв.").font(.caption).foregroundStyle(Theme.muted)
                 }
                 NavigationLink {
                     DiscussionView(title: title, initialEpisodes: availableEpisodes)
@@ -95,15 +95,15 @@ struct TitleDetailView: View {
                     HStack(spacing: 14) {
                         Image(systemName: "bubble.left.and.text.bubble.right").font(.title2)
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(entry.progress.finished ? "Обсудить после финала" : "Вспомнить просмотренное").font(.headline)
-                            Text("С источниками · Локально на iPhone").font(.caption).foregroundStyle(Theme.muted)
+                            Text(entry.progress.finished ? "Обсудить финал" : "Обсудить просмотренное").font(.headline)
+                            Text("Задать вопрос о просмотренном").font(.caption).foregroundStyle(Theme.muted)
                         }
                         Spacer()
                         Image(systemName: "arrow.up.right")
                     }.padding(18).background(Theme.card, in: RoundedRectangle(cornerRadius: 18))
                 }.buttonStyle(.plain).foregroundStyle(Theme.accent).accessibilityIdentifier("openDiscussion")
                 VStack(alignment: .leading, spacing: 12) {
-                    SectionCaption(eyebrow: "Добавь контекст", title: "Материалы истории")
+                    SectionCaption(eyebrow: "Дополнительно", title: "Источники")
                     Text("Сохранено материалов: \(entry.facts.count). Аннотации серий используются только после отметки о просмотре.")
                         .font(.footnote).foregroundStyle(Theme.muted)
                     Button { sourceImport = true } label: { Label("Добавить текст или субтитры", systemImage: "doc.badge.plus") }
@@ -116,12 +116,12 @@ struct TitleDetailView: View {
                         if !model.isUITesting { FirstReviewTip().invalidate(reason: .actionPerformed) }
                         editingReflection = overallReview; reflectionEditor = true
                     } label: {
-                        Label(overallReview?.rating == nil ? "Оценить и разобрать впечатления" : "Моя оценка и впечатления", systemImage: "star.bubble")
+                        Label(overallReview?.rating == nil ? "Оценить" : "Изменить оценку", systemImage: "star.bubble")
                     }.buttonStyle(.bordered).accessibilityIdentifier("rateTitle")
                     Button {
                         if !model.isUITesting { FirstReviewTip().invalidate(reason: .actionPerformed) }
                         editingReflection = nil; reflectionEditor = true
-                    } label: { Label("Сохранить личный итог", systemImage: "square.and.pencil") }
+                    } label: { Label("Написать отзыв", systemImage: "square.and.pencil") }
                         .buttonStyle(.borderedProminent).accessibilityIdentifier("writeReflection")
                 }
                 ForEach(entry.reflections.sorted { $0.createdAt > $1.createdAt }) { reflection in reflectionCard(reflection) }
@@ -143,8 +143,8 @@ struct TitleDetailView: View {
         .sheet(isPresented: $reviewingSeason) {
             ReflectionEditorView(title: title, reflection: Reflection.latest(in: entry.reflections, seasonNumber: selectedSeason), season: selectedSeason)
         }
-        .confirmationDialog("Удалить личный итог? После синхронизации он исчезнет и на других устройствах.", isPresented: Binding(get: { pendingReflectionRemoval != nil }, set: { if !$0 { pendingReflectionRemoval = nil } }), titleVisibility: .visible) {
-            Button("Удалить итог", role: .destructive) {
+        .confirmationDialog("Удалить отзыв? После синхронизации он исчезнет и на других устройствах.", isPresented: Binding(get: { pendingReflectionRemoval != nil }, set: { if !$0 { pendingReflectionRemoval = nil } }), titleVisibility: .visible) {
+            Button("Удалить отзыв", role: .destructive) {
                 if let reflection = pendingReflectionRemoval {
                     var changed = entry
                     changed.reflections.removeAll { $0.id == reflection.id }
@@ -311,14 +311,14 @@ struct TitleDetailView: View {
     private func reflectionCard(_ reflection: Reflection) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Мой итог").font(.headline)
+                Text("Мой отзыв").font(.headline)
                 Spacer()
                 if let rating = reflection.rating { Text("★ \(rating)/10").foregroundStyle(Theme.accent) }
                 Button { editingReflection = reflection; reflectionEditor = true } label: { Image(systemName: "pencil") }
-                    .accessibilityLabel("Изменить личный итог")
+                    .accessibilityLabel("Изменить отзыв")
                 Menu {
-                    ShareLink(item: shareText(reflection)) { Label("Поделиться итогом", systemImage: "square.and.arrow.up") }
-                    Button("Удалить итог", role: .destructive) { pendingReflectionRemoval = reflection }
+                    ShareLink(item: shareText(reflection)) { Label("Поделиться отзывом", systemImage: "square.and.arrow.up") }
+                    Button("Удалить отзыв", role: .destructive) { pendingReflectionRemoval = reflection }
                 } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("Действия с итогом")
             }
             if let season = reflection.episodeSeason, let number = reflection.episodeNumber {

@@ -83,14 +83,14 @@ struct ReflectionEditorView: View {
                     } footer: { Text("Только просмотренные серии выбранного сезона или сериала. Действие можно отменить в карточке.") }
                 }
                 interviewSection
-                Section("Что осталось после просмотра?") {
+                Section("Заметки") {
                     TextEditor(text: $summary).frame(minHeight: 140).accessibilityIdentifier("reflectionSummary")
                         .onChange(of: summary) { _, value in if value.count > 10_000 { summary = String(value.prefix(10_000)) } }
                     if scopeID == nil && seasonScope == nil, let last = library.entry(for: title.id)?.chat.last(where: { $0.role == .assistant }) {
                         Button("Взять последний ответ за основу") { summary = String(last.text.prefix(10_000)) }
                     }
                 }
-                Section("Что понравилось — по пункту на строку") {
+                Section("Что понравилось") {
                     if let interview { Text(interview.liked).font(.subheadline).foregroundStyle(Theme.accent).textSelection(.enabled) }
                     ReviewChoiceList(choices: choiceOptions(positive: true), selected: $likedChoices)
                     Text("Свой вариант · необязательно").font(.caption).foregroundStyle(.secondary)
@@ -98,7 +98,7 @@ struct ReflectionEditorView: View {
                         .accessibilityIdentifier("reflectionLiked")
                         .onChange(of: liked) { _, value in if value.count > 30_000 { liked = String(value.prefix(30_000)) } }
                 }
-                Section("Что не понравилось или могло быть лучше?") {
+                Section("Что не понравилось") {
                     if let interview { Text(interview.disliked).font(.subheadline).foregroundStyle(Theme.accent).textSelection(.enabled) }
                     ReviewChoiceList(choices: choiceOptions(positive: false), selected: $dislikedChoices)
                     Text("Свой вариант · необязательно").font(.caption).foregroundStyle(.secondary)
@@ -106,14 +106,14 @@ struct ReflectionEditorView: View {
                         .accessibilityIdentifier("reflectionDisliked")
                         .onChange(of: disliked) { _, value in if value.count > 30_000 { disliked = String(value.prefix(30_000)) } }
                 }
-                Section("О чём ещё хочется подумать?") {
+                Section("Вопросы на потом") {
                     TextEditor(text: $questions).frame(minHeight: 70)
                         .accessibilityIdentifier("reflectionQuestions")
                         .onChange(of: questions) { _, value in if value.count > 30_000 { questions = String(value.prefix(30_000)) } }
                 }
                 if let error { Section { ErrorNotice(message: error) } }
             }
-            .navigationTitle("Личный итог")
+            .navigationTitle("Отзыв")
             .scrollContentBackground(.hidden).background(Theme.background)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
@@ -161,7 +161,7 @@ struct ReflectionEditorView: View {
             Button {
                 skippedInterview = false
                 startInterview()
-            } label: { Label(interview == nil ? "Разобрать сюжет и впечатления" : "Уточнить варианты с учётом ответов", systemImage: "sparkles") }
+            } label: { Label(interview == nil ? "Подобрать вопросы" : "Обновить варианты", systemImage: "sparkles") }
                 .disabled(generating || !canInterview || !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable)
             if generating {
                 HStack { ProgressView(); Text("Проверяю материалы и готовлю варианты…").font(.footnote) }
@@ -185,7 +185,7 @@ struct ReflectionEditorView: View {
                 Text("Оценки и заметки доступны вручную. Для вариантов помощника подготовь модель и язык в настройках.")
                     .font(.caption).foregroundStyle(.secondary)
             }
-        } header: { Text("Впечатления с помощником") } footer: {
+        } header: { Text("Вопросы о просмотренном") } footer: {
             Text("Необязательно: выбери несколько вариантов, добавь свой ответ или сохрани только оценку.")
         }
     }

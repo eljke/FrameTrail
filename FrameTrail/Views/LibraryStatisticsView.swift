@@ -63,7 +63,7 @@ struct LibraryStatisticsView: View {
                 statisticCard(statistics.titleCount, label: "Историй в библиотеке", symbol: "books.vertical")
                 statisticCard(statistics.completedTitleCount, label: "Досмотрено", symbol: "checkmark.seal")
                 statisticCard(statistics.watchedEpisodeCount, label: "Просмотрено серий", symbol: "play.rectangle.on.rectangle")
-                statisticCard(statistics.reflectionCount, label: "Личных итогов", symbol: "text.book.closed")
+                statisticCard(statistics.reflectionCount, label: "Отзывов", symbol: "text.book.closed")
             }
 
             VStack(alignment: .leading, spacing: 12) {

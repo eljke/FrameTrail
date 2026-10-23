@@ -157,7 +157,7 @@ final class OnDeviceAssistant {
         guard !positive.isEmpty || !negative.isEmpty else {
             throw AssistantError(message: "Не удалось подобрать варианты из разрешённых материалов. Попробуй ещё раз или запиши впечатления самостоятельно.")
         }
-        return ReviewQuestions(liked: "Что понравилось больше всего?", disliked: "Что не понравилось или могло быть лучше?", likedChoices: positive, dislikedChoices: negative)
+        return ReviewQuestions(liked: "Что понравилось больше всего?", disliked: "Что не понравилось", likedChoices: positive, dislikedChoices: negative)
     }
 
     func compileReflections(title: String, compilation: ReflectionCompilation, localeIdentifier: String, progress: (Int, Int) -> Void) async throws -> String {

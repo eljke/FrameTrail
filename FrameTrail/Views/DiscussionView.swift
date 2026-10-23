@@ -83,7 +83,7 @@ struct DiscussionView: View {
                                     HStack {
                                         ShareLink(item: title.title + "\n\n" + turn.text) { Label("Поделиться", systemImage: "square.and.arrow.up") }
                                         if entry.progress.finished {
-                                            Button("Сохранить личный итог") { reflectionDraft = turn.text; showReflection = true }
+                                            Button("Написать отзыв") { reflectionDraft = turn.text; showReflection = true }
                                         }
                                     }.font(.caption)
                                 }
@@ -91,7 +91,7 @@ struct DiscussionView: View {
                             .padding(16).frame(maxWidth: .infinity, alignment: .leading)
                             .background(turn.role == .user ? Color.clear : Theme.card, in: RoundedRectangle(cornerRadius: 16))
                         }
-                        if busy { HStack { ProgressView(); Text("Обдумываю на iPhone…").font(.footnote).foregroundStyle(Theme.muted) } }
+                        if busy { HStack { ProgressView(); Text("Готовлю ответ…").font(.footnote).foregroundStyle(Theme.muted) } }
                         if let error { ErrorNotice(message: error) }
                         DisclosureGroup("На каких материалах основан ответ") { evidenceList.padding(.top, 10) }
                             .font(.footnote).tint(Theme.accent)
@@ -100,7 +100,7 @@ struct DiscussionView: View {
             }
             if !strict {
                 HStack(alignment: .bottom, spacing: 12) {
-                    TextField("Спроси об истории…", text: $question, axis: .vertical)
+                    TextField("Вопрос о фильме или сериале…", text: $question, axis: .vertical)
                         .lineLimit(1...5).padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
                         .onChange(of: question) { _, value in if value.count > 1_000 { question = String(value.prefix(1_000)) } }
                         .accessibilityIdentifier("assistantQuestion")
@@ -118,7 +118,7 @@ struct DiscussionView: View {
         .navigationTitle("Обсуждение").navigationBarTitleDisplayMode(.inline)
         .toolbar {
             Menu {
-                if entry.progress.finished { Button("Личный итог", systemImage: "square.and.pencil") { reflectionDraft = ""; showReflection = true } }
+                if entry.progress.finished { Button("Отзыв", systemImage: "square.and.pencil") { reflectionDraft = ""; showReflection = true } }
                 Button("Очистить обсуждение", role: .destructive) { confirmClear = true }
             } label: { Image(systemName: "ellipsis.circle") }
         }

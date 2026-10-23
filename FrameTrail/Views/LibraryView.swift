@@ -18,15 +18,15 @@ struct LibraryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                SectionCaption(eyebrow: "Твой след в историях", title: "Библиотека")
+                SectionCaption(eyebrow: "Моя коллекция", title: "Библиотека")
                 Picker("Показать", selection: $filter) {
                     Text("Все").tag(0)
                     Text("Смотрю").tag(1)
                     Text("Досмотрел").tag(2)
                 }.pickerStyle(.segmented)
                 if entries.isEmpty {
-                    EmptyState(symbol: "books.vertical", title: "Здесь будут твои истории", text: "Найди фильм в обзоре или добавь свой. Прогресс, материалы и обсуждения сохранятся на устройстве.")
-                    Button { manualEntry = true } label: { Label("Добавить историю", systemImage: "plus.circle.fill") }
+                    EmptyState(symbol: "books.vertical", title: "Библиотека пока пуста", text: "Найди фильм в обзоре или добавь свой. Прогресс, материалы и обсуждения сохранятся на устройстве.")
+                    Button { manualEntry = true } label: { Label("Добавить фильм или сериал", systemImage: "plus.circle.fill") }
                         .buttonStyle(.borderedProminent).accessibilityIdentifier("libraryAddTitle")
                 }
                 LazyVStack(spacing: 12) {
@@ -54,7 +54,7 @@ struct LibraryView: View {
         .background(Theme.background)
         .navigationTitle("Библиотека").navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "Поиск в библиотеке")
-        .toolbar { Button { manualEntry = true } label: { Image(systemName: "plus") }.accessibilityLabel("Добавить историю") }
+        .toolbar { Button { manualEntry = true } label: { Image(systemName: "plus") }.accessibilityLabel("Добавить фильм или сериал") }
         .sheet(isPresented: $manualEntry) { ManualTitleView() }
         .confirmationDialog("Удалить историю, её обсуждение и заметки?", isPresented: Binding(get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }), titleVisibility: .visible) {
             Button("Удалить", role: .destructive) { if let entry = pendingRemoval { library.remove(entry.id) }; pendingRemoval = nil }
@@ -73,10 +73,10 @@ struct JournalView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                SectionCaption(eyebrow: "То, что осталось с тобой", title: "Дневник просмотра")
+                SectionCaption(eyebrow: "Оценки и отзывы", title: "Дневник просмотра")
                 LibraryStatisticsView(entries: library.entries)
                 if records.isEmpty {
-                    EmptyState(symbol: "text.book.closed", title: "Истории заканчиваются. Мысли остаются.", text: "После просмотра открой «Итог» в карточке фильма или сериала. Сохрани впечатления, вопросы и оценку.")
+                    EmptyState(symbol: "text.book.closed", title: "Пока нет отзывов", text: "После просмотра открой «Итог» в карточке фильма или сериала. Сохрани впечатления, вопросы и оценку.")
                 }
                 ForEach(records, id: \.reflection.id) { record in
                     NavigationLink(value: record.entry.title) {
