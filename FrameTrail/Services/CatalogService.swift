@@ -88,6 +88,7 @@ actor CatalogService {
                     episodes.append(contentsOf: page.episodes.map { original in
                         var episode = (byID[original.id] ?? original).episode(showID: title.providerID)
                         episode.originalName = original.name
+                        episode.originalSummary = original.overview.flatMap { $0.isEmpty ? nil : $0 }
                         if episode.name.isEmpty { episode.name = original.name }
                         if episode.summary.isEmpty { episode.summary = original.overview ?? "" }
                         return episode

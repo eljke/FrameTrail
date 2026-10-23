@@ -502,7 +502,8 @@ final class LibraryStore {
             for episode in entry.episodes {
                 guard validIdentifier(episode.id, maximum: 256), episode.season >= 0, episode.season <= 10_000,
                       episode.number >= 0, episode.number <= 100_000, episode.name.count <= 1_000,
-                      episode.summary.count <= 50_000, validURL(episode.sourceURL) else {
+                      episode.summary.count <= 50_000, (episode.originalSummary?.count ?? 0) <= 50_000,
+                      (episode.originalName?.count ?? 0) <= 1_000, validURL(episode.sourceURL) else {
                     throw LibraryStoreError.invalidData(L10n.text("некорректная серия"))
                 }
             }

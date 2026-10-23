@@ -216,7 +216,7 @@ struct DiscussionView: View {
                   localeIdentifier == model.localeIdentifier, let afterTranslation = library.entry(for: title.id),
                   afterTranslation.progress == snapshot.progress, afterTranslation.chat == snapshot.chat,
                   afterTranslation.facts == snapshot.facts, afterTranslation.episodes == snapshot.episodes else { return }
-            let packet = SpoilerContextBuilder.build(title: title, episodes: snapshot.episodes, progress: snapshot.progress, facts: snapshot.facts, question: prepared, maxCharacters: 9_000)
+            let packet = SpoilerContextBuilder.build(title: title, episodes: snapshot.episodes, progress: snapshot.progress, facts: snapshot.facts, question: text + "\n" + prepared, maxCharacters: 9_000)
             guard packet.hasEvidence else { error = L10n.text("Для ответа нужны материалы в пределах просмотренного."); return }
             let response = try await model.assistant.respond(question: text, context: packet, history: snapshot.chat, localeIdentifier: localeIdentifier, preparedQuestion: prepared, aliases: snapshot.nameAliases ?? [])
             try Task.checkCancellation()

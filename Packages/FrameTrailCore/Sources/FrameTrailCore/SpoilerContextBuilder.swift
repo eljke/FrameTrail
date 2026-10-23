@@ -80,10 +80,11 @@ public enum SpoilerContextBuilder {
             }
         case .series:
             for episode in episodes.sorted(by: episodeOrder) where allowedIDs.contains(episode.id) {
-                guard !episode.summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+                let summary = episode.originalSummary ?? episode.summary
+                guard !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
                 candidates.append(StoryFact(
                     id: "episode:\(episode.id):summary",
-                    text: "S\(episode.season)E\(episode.number): \(episode.summary)",
+                    text: "S\(episode.season)E\(episode.number): \(summary)",
                     episodeID: episode.id,
                     sourceURL: episode.sourceURL,
                     kind: "summary",

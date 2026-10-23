@@ -17,6 +17,7 @@ final class ServicesTests: XCTestCase {
         XCTAssertEqual(episodes.first?.id, "tmdb-episode:1")
         XCTAssertEqual(episodes.first?.name, "Пилот")
         XCTAssertEqual(episodes.first?.originalName, "Pilot")
+        XCTAssertEqual(episodes.first?.originalSummary, "Original overview.")
         XCTAssertEqual(episodes.first?.summary, "Описание первой серии.")
     }
 
