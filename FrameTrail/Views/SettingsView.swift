@@ -62,24 +62,25 @@ struct SettingsView: View {
                 Text("Если модель не поддерживает русский напрямую, вопрос и разрешённые источники переводятся на английский, ответ — обратно на русский. Всё выполняется на iPhone. Языки перевода загружаются отдельно, занимают системное место и доступны другим приложениям. Перевод может неточно передать имена и смысл; оригиналы источников сохранены.")
                     .font(.caption).foregroundStyle(.secondary)
             } header: { Text("Помощник на устройстве") }
+            AccountSettingsSection()
             Section {
                 if let account = model.account {
                     Label(account.displayName ?? account.username, systemImage: "person.crop.circle.fill")
                     Text("TMDB · @\(account.username)").font(.caption).foregroundStyle(.secondary)
                     Button("Импортировать список TMDB") { Task { await importWatchlist() } }.disabled(busy)
-                    Button("Выйти из аккаунта", role: .destructive) { Task { busy = true; await model.signOut(library: library); busy = false } }.disabled(busy)
+                    Button("Отключить TMDB", role: .destructive) { Task { busy = true; await model.signOut(library: library); busy = false } }.disabled(busy)
                 } else {
-                    Label("Гостевая библиотека", systemImage: "person.crop.circle")
+                    Label("Импорт из TMDB", systemImage: "list.and.film")
                     Button("Войти через TMDB") { Task { await beginLogin() } }.disabled(busy || !model.hasCatalogToken)
                     if awaitingApproval {
                         Button("Я подтвердил вход в TMDB") { Task { await finishLogin() } }.disabled(busy)
                         Button("Отменить вход", role: .cancel) { awaitingApproval = false }
                     }
                 }
-                Text("Каждый аккаунт имеет отдельную локальную библиотеку. Импорт списка TMDB выполняется по запросу; автоматической облачной синхронизации прогресса и диалогов нет.")
+                Text("TMDB — дополнительное подключение для импорта списка просмотра. Оно не меняет аккаунт FrameTrail или активную библиотеку.")
                     .font(.caption).foregroundStyle(.secondary)
                 if busy { ProgressView() }
-            } header: { Text("Аккаунт") }
+            } header: { Text("Подключение TMDB") }
             Section {
                 Label(model.hasCatalogToken ? "TMDB подключён" : "Работают TVmaze и Wikidata", systemImage: model.hasCatalogToken ? "checkmark.circle" : "globe")
                 SecureField("TMDB API Read Access Token", text: $apiToken)
@@ -105,7 +106,7 @@ struct SettingsView: View {
             Section {
                 Label("Диалоги обрабатываются на iPhone", systemImage: "iphone.gen3")
                 Label("Без рекламы и аналитических SDK", systemImage: "hand.raised")
-                Text("Поисковые запросы и обращения за материалами отправляются выбранным каталогам. Текст обсуждения не отправляется в облачный ИИ. Авторизация выполняется на сайте TMDB.")
+                Text("Поисковые запросы отправляются выбранным каталогам. При входе в FrameTrail карточки, прогресс и личные итоги хранятся в Supabase. Текст обсуждения обрабатывается локально. Подключение TMDB подтверждается на его сайте.")
                     .font(.caption).foregroundStyle(.secondary)
                 NavigationLink("Источники и лицензии") { AttributionView() }
                 Link("Исходный код и сообщения об ошибках", destination: URL(string: "https://github.com/eljke/FrameTrail")!)

@@ -1,0 +1,4 @@
+project_id = "FrameTrail"
+
+[functions.delete-account]
+verify_jwt = false

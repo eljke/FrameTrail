@@ -29,6 +29,8 @@ enum LibraryStoreError: LocalizedError {
     case unsupportedSchema
     case invalidData(String)
     case unreadableLibrary
+    case unreadableSyncBaseline
+    case syncUnavailable
 
     var errorDescription: String? {
         switch self {
@@ -40,6 +42,10 @@ enum LibraryStoreError: LocalizedError {
             return "Не удалось проверить библиотеку: \(reason)."
         case .unreadableLibrary:
             return "Файл библиотеки повреждён. Исходный файл сохранён; изменения заблокированы."
+        case .unreadableSyncBaseline:
+            return "История синхронизации повреждена. Библиотека доступна для чтения и экспорта; запись и синхронизация заблокированы."
+        case .syncUnavailable:
+            return "Синхронизация недоступна для гостевого или повреждённого аккаунта."
         }
     }
 }
@@ -49,9 +55,11 @@ final class LibraryStore {
     private(set) var entries: [LibraryEntry] = []
     private(set) var lastError: String?
     private(set) var activeAccountID = "guest"
+    private(set) var syncBaseline = LibrarySyncBaseline()
 
     private let directory: URL
     private var unreadableAccountIDs: Set<String> = []
+    private var unreadableBaselineAccountIDs: Set<String> = []
     private static let maximumBytes = 10 * 1024 * 1024
 
     init(directory: URL? = nil) {
@@ -59,11 +67,18 @@ final class LibraryStore {
             .appendingPathComponent("FrameTrail", isDirectory: true)
             .appendingPathComponent("Library", isDirectory: true)
         do {
-            entries = try load(accountID: activeAccountID)
+            try activateLoaded(try load(accountID: activeAccountID), accountID: activeAccountID)
         } catch {
-            unreadableAccountIDs.insert(activeAccountID)
+            if !unreadableBaselineAccountIDs.contains(activeAccountID) {
+                unreadableAccountIDs.insert(activeAccountID)
+            }
             lastError = error.localizedDescription
         }
+    }
+
+    var isReadable: Bool { !unreadableAccountIDs.contains(activeAccountID) }
+    var canSync: Bool {
+        activeAccountID != "guest" && isReadable && !unreadableBaselineAccountIDs.contains(activeAccountID)
     }
 
     var bytesOnDisk: Int {
@@ -84,16 +99,19 @@ final class LibraryStore {
             lastError = LibraryStoreError.invalidData("некорректный идентификатор аккаунта").localizedDescription
             return
         }
+        unreadableBaselineAccountIDs.remove(id)
         do {
             let loaded = try load(accountID: id)
             activeAccountID = id
-            entries = loaded
             unreadableAccountIDs.remove(id)
-            lastError = nil
+            try activateLoaded(loaded, accountID: id)
         } catch {
             activeAccountID = id
-            entries = []
-            unreadableAccountIDs.insert(id)
+            if !unreadableBaselineAccountIDs.contains(id) {
+                entries = []
+                syncBaseline = LibrarySyncBaseline()
+                unreadableAccountIDs.insert(id)
+            }
             lastError = error.localizedDescription
         }
     }
@@ -127,6 +145,16 @@ final class LibraryStore {
         commit(entries.filter { $0.id != titleID })
     }
 
+    func eraseCurrentAccount() throws {
+        let url = fileURL(accountID: activeAccountID)
+        if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+        entries = []
+        syncBaseline = LibrarySyncBaseline()
+        unreadableAccountIDs.remove(activeAccountID)
+        unreadableBaselineAccountIDs.remove(activeAccountID)
+        lastError = nil
+    }
+
     func clearChat(for titleID: String) {
         var next = entries
         guard let index = next.firstIndex(where: { $0.id == titleID }) else { return }
@@ -150,6 +178,62 @@ final class LibraryStore {
             throw LibraryStoreError.unreadableLibrary
         }
         return try Self.encode(entries)
+    }
+
+    func cloudItems() -> [CloudLibraryItem] {
+        entries.map { CloudLibraryItem(title: $0.title, progress: $0.progress, reflections: $0.reflections) }
+    }
+
+    func applyCloudRecord(_ record: CloudLibraryRecord) throws {
+        var baseline = syncBaseline
+        baseline.records[record.mediaID] = record
+        try commitCloudChanges(applies: [record], baseline: baseline)
+    }
+
+    func recordSyncedCloudRecord(_ record: CloudLibraryRecord) throws {
+        var baseline = syncBaseline
+        baseline.records[record.mediaID] = record
+        try commitCloudChanges(applies: [], baseline: baseline)
+    }
+
+    /// Commits remote records and their acknowledged revisions in the same atomic file.
+    func commitCloudChanges(applies: [CloudLibraryRecord], baseline: LibrarySyncBaseline) throws {
+        do {
+            guard canSync else { throw LibraryStoreError.syncUnavailable }
+            try Self.validateBaseline(baseline)
+            guard Set(syncBaseline.records.keys).isSubset(of: Set(baseline.records.keys)) else {
+                throw LibraryStoreError.invalidData("история синхронизации не должна терять подтверждённые записи")
+            }
+            guard Set(applies.map(\.mediaID)).count == applies.count else {
+                throw LibraryStoreError.invalidData("повторяющиеся облачные записи")
+            }
+            var next = entries
+            for record in applies {
+                try Self.validateRecord(record)
+                guard baseline.records[record.mediaID] == record else {
+                    throw LibraryStoreError.invalidData("облачная запись не соответствует истории синхронизации")
+                }
+                if record.deleted {
+                    next.removeAll { $0.id == record.mediaID }
+                } else if let item = record.payload {
+                    var entry = next.first { $0.id == item.id } ?? LibraryEntry(title: item.title)
+                    entry.title = item.title
+                    entry.progress = item.progress
+                    entry.reflections = item.reflections
+                    entry.updatedAt = Date()
+                    if let index = next.firstIndex(where: { $0.id == item.id }) { next[index] = entry }
+                    else { next.append(entry) }
+                }
+            }
+            let safe = Self.scopedEntries(clearingChatsOnRewind(next))
+            try persist(safe, baseline: baseline)
+            entries = safe
+            syncBaseline = baseline
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+            throw error
+        }
     }
 
     /// Merges a validated archive. More recent records win; equal timestamps retain local data.
@@ -185,11 +269,14 @@ final class LibraryStore {
         }
     }
 
-    private func persist(_ next: [LibraryEntry]) throws {
+    private func persist(_ next: [LibraryEntry], baseline: LibrarySyncBaseline? = nil) throws {
         guard !unreadableAccountIDs.contains(activeAccountID) else {
             throw LibraryStoreError.unreadableLibrary
         }
-        let data = try Self.encode(next)
+        guard !unreadableBaselineAccountIDs.contains(activeAccountID) else {
+            throw LibraryStoreError.unreadableSyncBaseline
+        }
+        let data = try Self.encode(next, baseline: baseline ?? syncBaseline)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         #if os(iOS)
         try data.write(to: fileURL(accountID: activeAccountID), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
@@ -211,14 +298,31 @@ final class LibraryStore {
         }
     }
 
-    private func load(accountID: String) throws -> [LibraryEntry] {
+    private func load(accountID: String) throws -> Archive {
         let url = fileURL(accountID: accountID)
-        guard FileManager.default.fileExists(atPath: url.path) else { return [] }
+        guard FileManager.default.fileExists(atPath: url.path) else { return Archive(entries: []) }
         let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
         if let size = attributes[.size] as? NSNumber, size.intValue > Self.maximumBytes {
             throw LibraryStoreError.tooLarge
         }
-        return try Self.decode(Data(contentsOf: url))
+        return try Self.decodeArchive(Data(contentsOf: url))
+    }
+
+    private func activateLoaded(_ archive: Archive, accountID: String) throws {
+        entries = archive.entries
+        syncBaseline = LibrarySyncBaseline()
+        unreadableAccountIDs.remove(accountID)
+        unreadableBaselineAccountIDs.remove(accountID)
+        do {
+            guard !archive.baselineUnreadable else { throw LibraryStoreError.unreadableSyncBaseline }
+            let baseline = archive.syncBaseline ?? LibrarySyncBaseline()
+            try Self.validateBaseline(baseline)
+            syncBaseline = baseline
+            lastError = nil
+        } catch {
+            unreadableBaselineAccountIDs.insert(accountID)
+            throw LibraryStoreError.unreadableSyncBaseline
+        }
     }
 
     private func fileURL(accountID: String) -> URL {
@@ -227,26 +331,68 @@ final class LibraryStore {
     }
 
     private struct Archive: Codable {
-        var schemaVersion: Int
+        var schemaVersion = 1
         var entries: [LibraryEntry]
+        var syncBaseline: LibrarySyncBaseline?
+        var baselineUnreadable = false
+
+        private enum CodingKeys: String, CodingKey { case schemaVersion, entries, syncBaseline }
+
+        init(entries: [LibraryEntry], syncBaseline: LibrarySyncBaseline? = nil) {
+            self.entries = entries
+            self.syncBaseline = syncBaseline
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+            entries = try container.decode([LibraryEntry].self, forKey: .entries)
+            do { syncBaseline = try container.decodeIfPresent(LibrarySyncBaseline.self, forKey: .syncBaseline) }
+            catch { baselineUnreadable = true; syncBaseline = nil }
+        }
     }
 
     private static func decode(_ data: Data) throws -> [LibraryEntry] {
-        guard data.count <= maximumBytes else { throw LibraryStoreError.tooLarge }
-        let archive = try JSONDecoder().decode(Archive.self, from: data)
-        guard archive.schemaVersion == 1 else { throw LibraryStoreError.unsupportedSchema }
-        let entries = scopedEntries(archive.entries)
-        try validate(entries)
-        return entries
+        try decodeArchive(data).entries
     }
 
-    private static func encode(_ entries: [LibraryEntry]) throws -> Data {
+    private static func decodeArchive(_ data: Data) throws -> Archive {
+        guard data.count <= maximumBytes else { throw LibraryStoreError.tooLarge }
+        var archive = try JSONDecoder().decode(Archive.self, from: data)
+        guard archive.schemaVersion == 1 else { throw LibraryStoreError.unsupportedSchema }
+        archive.entries = scopedEntries(archive.entries)
+        try validate(archive.entries)
+        return archive
+    }
+
+    private static func encode(_ entries: [LibraryEntry], baseline: LibrarySyncBaseline? = nil) throws -> Data {
         try validate(entries)
+        if let baseline { try validateBaseline(baseline) }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        let data = try encoder.encode(Archive(schemaVersion: 1, entries: entries))
+        let data = try encoder.encode(Archive(entries: entries, syncBaseline: baseline))
         guard data.count <= maximumBytes else { throw LibraryStoreError.tooLarge }
         return data
+    }
+
+    private static func validateBaseline(_ baseline: LibrarySyncBaseline) throws {
+        guard baseline.records.count <= 10_000 else { throw LibraryStoreError.tooLarge }
+        for (id, record) in baseline.records {
+            guard id == record.mediaID else { throw LibraryStoreError.invalidData("неверный ключ истории синхронизации") }
+            try validateRecord(record)
+        }
+    }
+
+    private static func validateRecord(_ record: CloudLibraryRecord) throws {
+        guard record.isValid, validIdentifier(record.mediaID, maximum: 256) else {
+            throw LibraryStoreError.invalidData("некорректная облачная запись")
+        }
+        if let item = record.payload {
+            var entry = LibraryEntry(title: item.title)
+            entry.progress = item.progress
+            entry.reflections = item.reflections
+            try validate([entry])
+        }
     }
 
     private static func scopedEntries(_ entries: [LibraryEntry]) -> [LibraryEntry] {

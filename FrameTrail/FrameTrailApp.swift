@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct FrameTrailApp: App {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var library: LibraryStore
     @State private var model = AppModel()
 
@@ -20,6 +21,10 @@ struct FrameTrailApp: App {
                 .tint(Theme.accent)
                 .preferredColorScheme(.dark)
                 .task { await model.restoreAccount(library: library) }
+                .onChange(of: library.cloudItems()) { _, _ in model.sync?.schedule(library: library) }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active && !model.isUITesting { Task { await model.sync?.syncNow(library: library) } }
+                }
         }
     }
 }

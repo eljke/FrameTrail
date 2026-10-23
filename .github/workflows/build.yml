@@ -2,7 +2,7 @@ name: Build and release
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'release/**']
     tags: ['v*']
   pull_request:
   workflow_dispatch:
@@ -122,4 +122,4 @@ jobs:
           gh release create "$RELEASE_TAG" dist/*.ipa dist/*.sha256 \
             --verify-tag --title "FrameTrail ${RELEASE_TAG#v}" \
             --generate-notes "${PRERELEASE[@]}" \
-            --notes 'Unsigned IPA for installation through AltStore or SideStore, which apply your own signature. Requires iOS 26 or later. On-device model availability depends on Apple Intelligence settings and supported languages. No model weights are bundled. Review the README for TMDB account setup, supported features, and beta limitations.'
+            --notes 'Unsigned IPA for installation through AltStore or SideStore, which apply your own signature. Requires iOS 26 or later. Uses Apple on-device intelligence with optional local Russian translation. Supabase accounts synchronize the library, viewing progress and reflections; discussions and source material stay on the device. Email signup is restricted to the closed beta until custom SMTP is configured. Review the README for setup and remaining physical-device checks.'
