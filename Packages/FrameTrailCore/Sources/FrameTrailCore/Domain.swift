@@ -151,6 +151,9 @@ public struct Reflection: Identifiable, Hashable, Codable, Sendable {
     public var dislikedChoices: [ReviewChoice]
     public var allLiked: [String] { likedChoices.map(\.text) + liked }
     public var allDisliked: [String] { dislikedChoices.map(\.text) + disliked }
+    public var hasContent: Bool {
+        rating != nil || ([summary] + allLiked + allDisliked + questions).contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
     public var questions: [String]
     public var rating: Int?
     public var createdAt: Date

@@ -97,7 +97,7 @@ struct TitleDetailView: View {
                 }
                 if let plotInfo { Text(plotInfo).font(.footnote).foregroundStyle(Theme.muted) }
                 if title.kind == .series && canReview {
-                    if !model.isUITesting && Set(entry.reflections.compactMap(\.episodeID)).intersection(entry.progress.watchedEpisodeIDs).count >= 2 {
+                    if !model.isUITesting && ReflectionCompilation(records: entry.reflections, watchedEpisodeIDs: entry.progress.watchedEpisodeIDs).episodeCount >= 2 {
                         TipView(SeriesRetrospectiveTip())
                     }
                     Button {

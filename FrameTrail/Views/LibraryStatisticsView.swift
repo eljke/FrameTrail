@@ -30,7 +30,7 @@ struct LibraryStatistics {
         movieCount = entries.filter { $0.title.kind == .movie }.count
         seriesCount = entries.filter { $0.title.kind == .series }.count
         let reflections = entries.flatMap { $0.reflections }
-        reflectionCount = reflections.count
+        reflectionCount = reflections.filter(\.hasContent).count
         let current: [Reflection] = entries.flatMap { entry in
             Dictionary(grouping: entry.reflections, by: \.scope).values.compactMap { records in
                 Reflection.latest(in: records, episodeID: records[0].episodeID, seasonNumber: records[0].seasonNumber)

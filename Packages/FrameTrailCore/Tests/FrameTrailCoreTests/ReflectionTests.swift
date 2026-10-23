@@ -3,6 +3,16 @@ import XCTest
 @testable import FrameTrailCore
 
 final class ReflectionTests: XCTestCase {
+    func testClearedLatestEpisodeReviewDoesNotReviveAnOldRating() {
+        let old = Reflection(titleID: "show", rating: 8, createdAt: Date(timeIntervalSince1970: 1), episodeID: "e1", episodeSeason: 1, episodeNumber: 1)
+        let cleared = Reflection(titleID: "show", createdAt: Date(timeIntervalSince1970: 2), episodeID: "e1", episodeSeason: 1, episodeNumber: 1)
+        let compilation = ReflectionCompilation(records: [old, cleared], watchedEpisodeIDs: ["e1"])
+        XCTAssertEqual(compilation.episodeCount, 0)
+        XCTAssertTrue(compilation.batches.isEmpty)
+        XCTAssertFalse(cleared.hasContent)
+        XCTAssertTrue(Reflection(titleID: "show", liked: ["Acting"]).hasContent)
+    }
+
     func testSeasonReviewExcludesUnwatchedAndOtherSeasonSources() {
         let title = MediaTitle(id: "show", title: "Show", kind: .series, provider: "local", providerID: "show")
         let episodes = [Episode(id: "e1", season: 1, number: 1, name: "First", summary: "Allowed events"), Episode(id: "e2", season: 1, number: 2, name: "Second", summary: "Future events"), Episode(id: "e3", season: 2, number: 1, name: "Third", summary: "Other season")]

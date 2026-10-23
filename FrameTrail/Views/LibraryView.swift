@@ -69,7 +69,7 @@ struct JournalView: View {
     @Environment(AppModel.self) private var model
 
     private var records: [(entry: LibraryEntry, reflection: Reflection)] {
-        library.entries.flatMap { entry in entry.reflections.map { (entry: entry, reflection: $0) } }
+        library.entries.flatMap { entry in entry.reflections.filter(\.hasContent).map { (entry: entry, reflection: $0) } }
             .sorted { $0.reflection.createdAt > $1.reflection.createdAt }
     }
 
