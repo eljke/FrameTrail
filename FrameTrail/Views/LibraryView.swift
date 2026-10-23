@@ -28,7 +28,7 @@ struct LibraryView: View {
                 if entries.isEmpty {
                     EmptyState(symbol: "books.vertical", title: L10n.text("Библиотека пока пуста"), text: L10n.text("Найди фильм в обзоре или добавь свой. Прогресс, материалы и обсуждения сохранятся на устройстве."))
                     Button { manualEntry = true } label: { Label(L10n.text("Добавить фильм или сериал"), systemImage: "plus.circle.fill") }
-                        .buttonStyle(.borderedProminent).accessibilityIdentifier("libraryAddTitle")
+                        .buttonStyle(.borderedProminent).foregroundStyle(Theme.background).accessibilityIdentifier("libraryAddTitle")
                 }
                 LazyVStack(spacing: 12) {
                     ForEach(entries) { entry in

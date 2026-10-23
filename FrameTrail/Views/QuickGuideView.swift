@@ -23,7 +23,7 @@ struct QuickGuideView: View {
                     }.font(.footnote).foregroundStyle(Theme.muted).padding(.top, 10)
                 }.font(.subheadline)
                 Button(L10n.text("Открыть обзор")) { dismiss(); model.selectedTab = 0 }
-                    .buttonStyle(.borderedProminent).frame(maxWidth: .infinity)
+                    .buttonStyle(.borderedProminent).foregroundStyle(Theme.background).frame(maxWidth: .infinity)
                     .accessibilityIdentifier("guideOpenDiscover")
             }.padding(24)
         }

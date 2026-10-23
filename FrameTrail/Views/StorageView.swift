@@ -44,7 +44,7 @@ struct StorageView: View {
                 Button { clean(includeMaterials: false) } label: {
                     Label(L10n.text("Очистить кэш изображений"), systemImage: "sparkles")
                         .frame(maxWidth: .infinity).padding(.vertical, 6)
-                }.buttonStyle(.borderedProminent).accessibilityIdentifier("clearImageCache")
+                }.buttonStyle(.borderedProminent).foregroundStyle(Theme.background).accessibilityIdentifier("clearImageCache")
                 Button(L10n.text("Удалить загруженные материалы"), role: .destructive) { confirmMaterials = true }
                     .frame(maxWidth: .infinity).accessibilityIdentifier("clearSourceCache")
                 Text(L10n.text("Оценки, впечатления и прогресс сохраняются.")).font(.subheadline.bold())
