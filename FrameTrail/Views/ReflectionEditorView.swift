@@ -76,6 +76,7 @@ struct ReflectionEditorView: View {
                             .accessibilityIdentifier("applyRatingToEpisodes")
                         if applyRatingToEpisodes {
                             Toggle(L10n.text("Заменить уже выставленные оценки"), isOn: $overwriteEpisodeRatings)
+                                .accessibilityIdentifier("overwriteEpisodeRatings")
                             let entry = library.entry(for: title.id) ?? LibraryEntry(title: title)
                             let plan = EpisodeRatingPlan(titleID: title.id, episodes: entry.episodes, watchedEpisodeIDs: entry.progress.watchedEpisodeIDs,
                                                          records: entry.reflections, rating: rating, season: seasonScope, overwrite: overwriteEpisodeRatings)
@@ -153,7 +154,7 @@ struct ReflectionEditorView: View {
             .onChange(of: model.localeIdentifier) { _, _ in stopInterview(); interview = nil }
             .onDisappear { stopInterview() }
             .confirmationDialog(L10n.text("Заменить оценки просмотренных серий? Заметки сохранятся."), isPresented: $confirmOverwrite, titleVisibility: .visible) {
-                Button(L10n.text("Заменить оценки")) { save() }
+                Button(L10n.text("Заменить оценки")) { save() }.accessibilityIdentifier("confirmRatingOverwrite")
             }
             .sheet(isPresented: $importingSource) {
                 SourceImportView(title: title, episodes: library.entry(for: title.id)?.episodes ?? [], initialEpisodeID: scopeID)
