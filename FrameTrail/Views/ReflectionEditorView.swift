@@ -133,6 +133,9 @@ struct ReflectionEditorView: View {
                 }
             }
             .onAppear {
+                applyRatingToEpisodes = false
+                overwriteEpisodeRatings = false
+                confirmOverwrite = false
                 if let reflection {
                     summary = reflection.summary
                     liked = reflection.liked.joined(separator: "\n")
