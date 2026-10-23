@@ -21,6 +21,14 @@ final class SourceAnswerTests: XCTestCase {
         XCTAssertTrue(answer.citations.isEmpty)
     }
 
+    func testInlineNumbersCannotImpersonateVerifiedCitations() {
+        let source = StoryFact(id: "allowed", text: "Known passage")
+        let answer = SourceAnswer(paragraphs: [AnswerParagraph(text: "A point [99, 100]", sourceIDs: ["R1"])], evidence: [source])
+        XCTAssertEqual(answer.text, "A point [1]")
+        XCTAssertEqual(answer.citations.map(\.number), [1])
+        XCTAssertEqual(SourceAnswer.visibleText(answer.text), answer.text)
+    }
+
     func testOldMessagesRemainReadableWithoutExposingInternalIDs() throws {
         let data = Data("{\"id\":\"11111111-2222-3333-4444-555555555555\",\"role\":\"assistant\",\"text\":\"A point [wikipedia:12:34]. Другой [S1E2, S1E3].\",\"createdAt\":0}".utf8)
         let turn = try JSONDecoder().decode(ChatTurn.self, from: data)
