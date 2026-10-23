@@ -122,6 +122,6 @@ struct RetrospectiveView: View {
         entry.reflections.append(Reflection(titleID: title.id, summary: header + "\n\n" + result, rating: rating))
         library.update(entry)
         if let failure = library.lastError { error = failure }
-        else { dismiss() }
+        else { InteractionFeedback.success(); dismiss() }
     }
 }

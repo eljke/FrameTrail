@@ -53,6 +53,7 @@ struct TitleDetailView: View {
                         changed.progress.finished = value
                         changed.chat = []
                         save(changed)
+                        if library.lastError == nil { InteractionFeedback.selection() }
                     }))
                     .tint(Theme.accent).accessibilityIdentifier("finishedToggle")
                     if entry.progress.finished {
@@ -150,6 +151,7 @@ struct TitleDetailView: View {
                         if watched { changed.progress.watchedEpisodeIDs.remove(episode.id); changed.progress.finished = false; changed.chat = [] }
                         else { changed.progress.watchedEpisodeIDs.insert(episode.id) }
                         save(changed)
+                        if library.lastError == nil { InteractionFeedback.selection() }
                     } label: { Image(systemName: watched ? "checkmark.circle.fill" : "circle").font(.title3).foregroundStyle(watched ? Theme.accent : Theme.muted) }
                     .accessibilityLabel("\(watched ? "Снять просмотр" : "Просмотрено"): сезон \(episode.season), серия \(episode.number)")
                     VStack(alignment: .leading, spacing: 5) {
@@ -177,6 +179,7 @@ struct TitleDetailView: View {
                 if value { changed.progress.watchedEpisodeIDs.formUnion(availableEpisodes.map(\.id)) }
                 changed.chat = []
                 save(changed)
+                if library.lastError == nil { InteractionFeedback.selection() }
             })).tint(Theme.accent)
         }
     }
@@ -211,6 +214,7 @@ struct TitleDetailView: View {
         var changed = entry
         changed.progress.watchedEpisodeIDs.formUnion(availableEpisodes.filter { $0.season < episode.season || ($0.season == episode.season && $0.number <= episode.number) }.map(\.id))
         save(changed)
+        if library.lastError == nil { InteractionFeedback.selection() }
     }
 
     private func loadEpisodePlot(_ episode: Episode) async {

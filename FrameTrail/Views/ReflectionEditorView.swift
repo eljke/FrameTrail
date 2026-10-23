@@ -236,7 +236,7 @@ struct ReflectionEditorView: View {
         }
         entry.updatedAt = Date()
         library.update(entry)
-        if library.lastError == nil { dismiss() } else { error = library.lastError }
+        if library.lastError == nil { InteractionFeedback.success(); dismiss() } else { error = library.lastError }
     }
 
     private func lines(_ text: String) -> [String] {

@@ -56,6 +56,7 @@ struct StorageView: View {
         }
         .background(Theme.background).navigationTitle("Память").navigationBarTitleDisplayMode(.inline)
         .onAppear { imageBytes = URLCache.shared.currentDiskUsage }
+        .sensoryFeedback(.success, trigger: cleanups)
         .confirmationDialog("Удалить тексты, пересказы и список серий текущего аккаунта? Оценки, впечатления и прогресс останутся.", isPresented: $confirmMaterials, titleVisibility: .visible) {
             Button("Удалить материалы и очистить кэш", role: .destructive) { clean(includeMaterials: true) }
         }

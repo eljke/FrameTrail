@@ -59,6 +59,7 @@ final class FrameTrailSmokeTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Arrival"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts[thought].firstMatch.waitForExistence(timeout: 5))
         capture("04-journal", app: app)
+        XCTAssertTrue(app.staticTexts["8/10"].firstMatch.exists)
 
         tabs.buttons["Настройки"].tap()
         XCTAssertTrue(tabs.buttons["Настройки"].isSelected)
@@ -157,6 +158,7 @@ final class FrameTrailSmokeTests: XCTestCase {
         app.tabBars.buttons["Дневник"].tap()
         XCTAssertTrue(app.staticTexts["Сезон 1 · Серия 1"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["− The final scene felt rushed"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["9/10"].firstMatch.exists)
         capture("07-episode-review", app: app)
     }
 

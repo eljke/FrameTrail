@@ -30,6 +30,8 @@ struct ReviewChoiceList: View {
                         ShareLink(item: choice.sourceQuote) { Label("Оригинал фрагмента", systemImage: "quote.bubble") }
                     }
             }
-        }.padding(.vertical, 6)
+        }
+        .padding(.vertical, 6)
+        .sensoryFeedback(.selection, trigger: selected.map(\.id))
     }
 }
