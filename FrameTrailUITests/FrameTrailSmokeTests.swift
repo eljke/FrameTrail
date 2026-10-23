@@ -2,6 +2,21 @@ import XCTest
 
 final class FrameTrailSmokeTests: XCTestCase {
     @MainActor
+    func testSwitchApplicationLanguage() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting", "--language=en"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Library"].waitForExistence(timeout: 15))
+        app.tabBars.buttons["Settings"].tap()
+        capture("10-settings-english", app: app)
+        app.buttons["appLanguage"].tap()
+        app.buttons["Русский"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Библиотека"].waitForExistence(timeout: 5))
+        capture("11-settings-russian", app: app)
+    }
+
+    @MainActor
     func testSaveFinishedMovieAndReflection() {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -10,6 +25,7 @@ final class FrameTrailSmokeTests: XCTestCase {
 
         let tabs = app.tabBars.firstMatch
         XCTAssertTrue(tabs.waitForExistence(timeout: 15))
+        tabs.buttons["Поиск"].tap()
         XCTAssertTrue(app.buttons["addManualTitle"].waitForExistence(timeout: 5))
         capture("01-overview", app: app)
 
@@ -34,7 +50,7 @@ final class FrameTrailSmokeTests: XCTestCase {
         reveal(finished, app: app)
         finished.tap()
 
-        let writeReflection = app.buttons["writeReflection"]
+        let writeReflection = app.buttons["rateTitle"]
         XCTAssertTrue(writeReflection.waitForExistence(timeout: 5))
         reveal(writeReflection, app: app)
         capture("03-finished-movie", app: app)
@@ -47,9 +63,8 @@ final class FrameTrailSmokeTests: XCTestCase {
         XCTAssertEqual(app.staticTexts["ratingValue"].label, "8")
         reveal(summary, app: app)
         XCTAssertTrue(summary.exists)
-        summary.tap()
         let thought = "The ending reframes the earlier choices. I want to revisit the opening scene."
-        summary.typeText(thought)
+        enter(thought, in: summary, app: app)
         let save = app.buttons["saveReflection"]
         XCTAssertTrue(save.isEnabled)
         save.tap()
@@ -86,6 +101,7 @@ final class FrameTrailSmokeTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--uitesting"]
         app.launch()
+        app.tabBars.buttons["Поиск"].tap()
         let add = app.buttons["addManualTitle"]
         XCTAssertTrue(add.waitForExistence(timeout: 15))
         add.tap()
@@ -112,14 +128,14 @@ final class FrameTrailSmokeTests: XCTestCase {
         app.buttons["Без оценки"].tap()
         XCTAssertTrue(app.buttons["saveReflection"].isEnabled, "An existing rating-only review must allow clearing its score")
         app.buttons["saveReflection"].tap()
-        let write = app.buttons["writeReflection"]
+        let write = app.buttons["rateTitle"]
         reveal(write, app: app)
         write.tap()
+        app.buttons["toggleReviewDetails"].tap()
         let liked = app.textViews["reflectionLiked"]
         reveal(liked, app: app)
         XCTAssertTrue(liked.exists)
-        liked.tap()
-        liked.typeText("The music stayed with me")
+        enter("The music stayed with me", in: liked, app: app)
         XCTAssertTrue(app.buttons["saveReflection"].isEnabled)
         app.buttons["saveReflection"].tap()
         app.tabBars.buttons["Дневник"].tap()
@@ -133,6 +149,7 @@ final class FrameTrailSmokeTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--uitesting"]
         app.launch()
+        app.tabBars.buttons["Поиск"].tap()
         let add = app.buttons["addManualTitle"]
         XCTAssertTrue(add.waitForExistence(timeout: 15))
         add.tap()
@@ -145,6 +162,9 @@ final class FrameTrailSmokeTests: XCTestCase {
         let title = app.staticTexts["My series"].firstMatch
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         title.tap()
+        let disclosure = app.buttons["Источники"].firstMatch
+        reveal(disclosure, app: app)
+        disclosure.tap()
         let source = app.buttons["importSource"]
         reveal(source, app: app)
         source.tap()
@@ -167,11 +187,36 @@ final class FrameTrailSmokeTests: XCTestCase {
             .press(forDuration: 0.1, thenDragTo: rating.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5)))
         XCTAssertEqual(app.staticTexts["ratingValue"].label, "9")
         capture("08-episode-rating", app: app)
+        app.buttons["toggleReviewDetails"].tap()
         let disliked = app.textViews["reflectionDisliked"]
         reveal(disliked, app: app)
-        disliked.tap()
-        disliked.typeText("The final scene felt rushed")
+        enter("The final scene felt rushed", in: disliked, app: app)
         app.buttons["saveReflection"].tap()
+        let rateSeason = app.buttons["rateSeason"]
+        reveal(rateSeason, app: app)
+        rateSeason.tap()
+        let seasonStars = app.descendants(matching: .any).matching(identifier: "starRating").firstMatch
+        XCTAssertTrue(seasonStars.waitForExistence(timeout: 5))
+        seasonStars.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.5)).tap()
+        toggle(app.switches["applyRatingToEpisodes"], app: app)
+        app.buttons["saveReflection"].tap()
+        XCTAssertTrue(app.staticTexts["9/10"].firstMatch.waitForExistence(timeout: 5))
+        reveal(rateSeason, app: app)
+        rateSeason.tap()
+        XCTAssertEqual(app.switches["applyRatingToEpisodes"].value as? String, "0")
+        toggle(app.switches["applyRatingToEpisodes"], app: app)
+        XCTAssertEqual(app.switches["applyRatingToEpisodes"].value as? String, "1")
+        toggle(app.switches["overwriteEpisodeRatings"], app: app)
+        app.buttons["saveReflection"].tap()
+        let confirm = app.sheets.buttons["confirmRatingOverwrite"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
+        let undo = app.buttons["undoEpisodeRatings"]
+        XCTAssertTrue(undo.waitForExistence(timeout: 5))
+        reveal(undo, app: app)
+        undo.tap()
+        XCTAssertTrue(app.staticTexts["9/10"].firstMatch.exists)
+        capture("12-season-batch-rating", app: app)
         app.tabBars.buttons["Дневник"].tap()
         XCTAssertTrue(app.staticTexts["Сезон 1 · Серия 1"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["− The final scene felt rushed"].waitForExistence(timeout: 5))
@@ -185,7 +230,26 @@ final class FrameTrailSmokeTests: XCTestCase {
             if element.exists && element.isHittable { return }
             app.swipeUp()
         }
+        for _ in 0..<5 {
+            if element.exists && element.isHittable { return }
+            app.swipeDown()
+        }
         XCTAssertTrue(element.isHittable, "Expected control must be visible before interaction")
+    }
+
+    @MainActor
+    private func toggle(_ row: XCUIElement, app: XCUIApplication) {
+        let control = row.switches.firstMatch
+        XCTAssertTrue(control.waitForExistence(timeout: 5))
+        reveal(control, app: app)
+        control.tap()
+    }
+
+    @MainActor
+    private func enter(_ text: String, in editor: XCUIElement, app: XCUIApplication) {
+        reveal(editor, app: app)
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.2)).tap()
+        editor.typeText(text)
     }
 
     @MainActor

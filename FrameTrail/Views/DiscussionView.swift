@@ -17,6 +17,7 @@ struct DiscussionView: View {
     @State private var confirmClear = false
     @State private var showReflection = false
     @State private var reflectionDraft = ""
+    @State private var selectedCitation: AnswerCitation?
 
     private var entry: LibraryEntry { library.entry(for: title.id) ?? LibraryEntry(title: title) }
     private var context: GroundedContext {
@@ -26,29 +27,30 @@ struct DiscussionView: View {
     private var availability: AssistantAvailability { model.assistant.availability(localeIdentifier: model.localeIdentifier) }
 
     var body: some View {
+        ScrollViewReader { proxy in
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    InfoCard(symbol: entry.progress.finished ? "checkmark.seal" : "eye.slash", title: entry.progress.finished ? "Обсуждение после просмотра" : "В пределах просмотренного", text: context.coverage)
-                    Picker("Режим", selection: $strict) {
-                        Text("Обсуждение").tag(false)
-                        Text("Источники").tag(true)
+                    InfoCard(symbol: entry.progress.finished ? "checkmark.seal" : "eye.slash", title: entry.progress.finished ? L10n.text("Обсуждение после просмотра") : L10n.text("В пределах просмотренного"), text: context.hasEvidence ? L10n.text("Источников для ответа: %@", String(context.evidence.count)) : L10n.text("Нет материалов для ответа. Отметь просмотренное или добавь текст."))
+                    Picker(L10n.text("Режим"), selection: $strict) {
+                        Text(L10n.text("Обсуждение")).tag(false)
+                        Text(L10n.text("Источники")).tag(true)
                     }.pickerStyle(.segmented)
                     if strict {
-                        TextField("Найти в материалах", text: $sourceSearch).textFieldStyle(.roundedBorder)
+                        TextField(L10n.text("Найти в материалах"), text: $sourceSearch).textFieldStyle(.roundedBorder)
                             .onChange(of: sourceSearch) { _, value in if value.count > 1_000 { sourceSearch = String(value.prefix(1_000)) } }
                         evidenceList
                     } else {
                         if !availability.isAvailable {
                             ErrorNotice(message: availability.message)
-                            Button("Открыть настройки помощника") { model.selectedTab = 3 }
+                            Button(L10n.text("Открыть настройки помощника")) { model.selectedTab = 3 }
                                 .font(.footnote).foregroundStyle(Theme.accent)
                         }
-                        Text("Язык ответа: \(model.localeIdentifier == "ru_RU" ? "русский" : "English"). Модель может ошибиться или вспомнить сведения вне источников. Для строгого режима открой «Источники».")
+                        Text(L10n.text("Язык ответа: %@. Модель может ошибиться или вспомнить сведения вне источников. Для строгого режима открой «Источники».", String(describing: model.localeIdentifier == "ru_RU" ? L10n.text("русский") : "English")))
                             .font(.caption).foregroundStyle(Theme.muted)
                         if entry.chat.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("С чего начнём?").font(.headline)
+                                Text(L10n.text("С чего начнём?")).font(.headline)
                                 ForEach(suggestions, id: \.self) { suggestion in
                                     Button { question = suggestion } label: {
                                         HStack { Text(suggestion).font(.subheadline).multilineTextAlignment(.leading); Spacer(); Image(systemName: "arrow.down.left") }
@@ -59,14 +61,34 @@ struct DiscussionView: View {
                         }
                         ForEach(entry.chat) { turn in
                             VStack(alignment: .leading, spacing: 8) {
-                                Label(turn.role == .user ? "Ты" : "FrameTrail · локально", systemImage: turn.role == .user ? "person.crop.circle" : "sparkles")
+                                Label(turn.role == .user ? L10n.text("Ты") : L10n.text("FrameTrail · локально"), systemImage: turn.role == .user ? "person.crop.circle" : "sparkles")
                                     .font(.caption.bold()).foregroundStyle(turn.role == .user ? Theme.muted : Theme.accent)
-                                Text(turn.text).font(.body).textSelection(.enabled)
+                                if turn.role == .assistant {
+                                    LocalizedSourceText(text: SourceAnswer.visibleText(turn.text), aliases: entry.nameAliases ?? []).font(.body)
+                                } else {
+                                    Text(turn.text).font(.body).textSelection(.enabled)
+                                }
+                                if let citations = turn.citations, !citations.isEmpty {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 8) {
+                                            ForEach(citations) { citation in
+                                                Button { selectedCitation = citation } label: {
+                                                    Label("[\(citation.number)] \(citation.label.isEmpty ? L10n.text("Источник") : citation.label)", systemImage: "doc.text")
+                                                        .font(.caption).padding(.horizontal, 10).padding(.vertical, 8)
+                                                        .background(Theme.accent.opacity(0.12), in: Capsule())
+                                                }.buttonStyle(.plain).foregroundStyle(Theme.accent)
+                                            }
+                                        }
+                                    }
+                                } else if turn.role == .assistant {
+                                    Text(L10n.text("В старом ответе ссылки не сохранены. Для проверяемых источников задай вопрос ещё раз."))
+                                        .font(.caption).foregroundStyle(Theme.muted)
+                                }
                                 if turn.role == .assistant {
                                     HStack {
-                                        ShareLink(item: title.title + "\n\n" + turn.text) { Label("Поделиться", systemImage: "square.and.arrow.up") }
+                                        ShareLink(item: title.title + "\n\n" + turn.text) { Label(L10n.text("Поделиться"), systemImage: "square.and.arrow.up") }
                                         if entry.progress.finished {
-                                            Button("Сохранить личный итог") { reflectionDraft = turn.text; showReflection = true }
+                                            Button(L10n.text("Написать отзыв")) { reflectionDraft = turn.text; showReflection = true }
                                         }
                                     }.font(.caption)
                                 }
@@ -74,35 +96,39 @@ struct DiscussionView: View {
                             .padding(16).frame(maxWidth: .infinity, alignment: .leading)
                             .background(turn.role == .user ? Color.clear : Theme.card, in: RoundedRectangle(cornerRadius: 16))
                         }
-                        if busy { HStack { ProgressView(); Text("Обдумываю на iPhone…").font(.footnote).foregroundStyle(Theme.muted) } }
+                        Color.clear.frame(height: 1).id("lastMessage")
+                        if busy { HStack { ProgressView(); Text(L10n.text("Готовлю ответ…")).font(.footnote).foregroundStyle(Theme.muted) } }
                         if let error { ErrorNotice(message: error) }
-                        DisclosureGroup("На каких материалах основан ответ") { evidenceList.padding(.top, 10) }
+                        DisclosureGroup(L10n.text("На каких материалах основан ответ")) { evidenceList.padding(.top, 10) }
                             .font(.footnote).tint(Theme.accent)
                     }
                 }.padding(20)
             }
             if !strict {
                 HStack(alignment: .bottom, spacing: 12) {
-                    TextField("Спроси об истории…", text: $question, axis: .vertical)
+                    TextField(L10n.text("Вопрос о фильме или сериале…"), text: $question, axis: .vertical)
                         .lineLimit(1...5).padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
                         .onChange(of: question) { _, value in if value.count > 1_000 { question = String(value.prefix(1_000)) } }
                         .accessibilityIdentifier("assistantQuestion")
                     if busy {
-                        Button { stopResponse() } label: { Image(systemName: "stop.circle.fill").font(.title) }.accessibilityLabel("Остановить ответ")
+                        Button { stopResponse() } label: { Image(systemName: "stop.circle.fill").font(.title) }.accessibilityLabel(L10n.text("Остановить ответ"))
                     } else {
                         Button { startResponse() } label: { Image(systemName: "arrow.up.circle.fill").font(.largeTitle) }
                             .disabled(question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !availability.isAvailable || !context.hasEvidence)
-                            .accessibilityLabel("Отправить вопрос")
+                            .accessibilityLabel(L10n.text("Отправить вопрос"))
                     }
                 }.padding(16).background(Theme.background)
             }
         }
+        .onChange(of: entry.chat.count) { _, _ in withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("lastMessage", anchor: .bottom) } }
+        }
         .background(Theme.background)
-        .navigationTitle("Обсуждение").navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+        .navigationTitle(L10n.text("Обсуждение")).navigationBarTitleDisplayMode(.inline)
         .toolbar {
             Menu {
-                if entry.progress.finished { Button("Личный итог", systemImage: "square.and.pencil") { reflectionDraft = ""; showReflection = true } }
-                Button("Очистить обсуждение", role: .destructive) { confirmClear = true }
+                if entry.progress.finished { Button(L10n.text("Отзыв"), systemImage: "square.and.pencil") { reflectionDraft = ""; showReflection = true } }
+                Button(L10n.text("Очистить обсуждение"), role: .destructive) { confirmClear = true }
             } label: { Image(systemName: "ellipsis.circle") }
         }
         .task { _ = prepareEntry(); await model.assistant.refreshAvailability() }
@@ -111,32 +137,34 @@ struct DiscussionView: View {
         }
         .onChange(of: library.activeAccountID) { _, _ in stopResponse() }
         .onChange(of: entry.progress) { _, _ in stopResponse() }
+        .onChange(of: entry.nameAliases) { _, _ in stopResponse() }
         .onChange(of: model.localeIdentifier) { _, _ in stopResponse() }
         .onDisappear { stopResponse() }
         .sheet(isPresented: $showReflection) { ReflectionEditorView(title: title, initialSummary: reflectionDraft) }
-        .confirmationDialog("Удалить весь диалог этой истории с устройства?", isPresented: $confirmClear, titleVisibility: .visible) {
-            Button("Очистить обсуждение", role: .destructive) { stopResponse(); library.clearChat(for: title.id) }
+        .sheet(item: $selectedCitation) { CitationDetailView(citation: $0, aliases: entry.nameAliases ?? []) }
+        .confirmationDialog(L10n.text("Удалить весь диалог этой истории с устройства?"), isPresented: $confirmClear, titleVisibility: .visible) {
+            Button(L10n.text("Очистить обсуждение"), role: .destructive) { stopResponse(); library.clearChat(for: title.id) }
         }
     }
 
     private var suggestions: [String] {
         if model.localeIdentifier == "ru_RU" {
-            return entry.progress.finished ? ["Кратко резюмируй историю", "Объясни концовку, отделяя факты от интерпретаций", "Какие вопросы стоит обсудить после просмотра?"] : ["Напомни важные события просмотренных серий", "Что известно о мотивах героев на этом этапе?"]
+            return entry.progress.finished ? [L10n.text("Кратко резюмируй историю"), L10n.text("Объясни концовку, отделяя факты от интерпретаций"), L10n.text("Какие вопросы стоит обсудить после просмотра?")] : [L10n.text("Напомни важные события просмотренных серий"), L10n.text("Что известно о мотивах героев на этом этапе?")]
         }
         return entry.progress.finished ? ["Summarize the story briefly", "Explain the ending; separate facts from interpretation", "What questions are worth discussing after watching?"] : ["Remind me of the important events so far", "What do we know about the characters' motives so far?"]
     }
 
     @ViewBuilder private var evidenceList: some View {
         if context.evidence.isEmpty {
-            Text("Пока нет материалов в разрешённых границах. Отметь просмотренные серии или добавь собственный текст в карточке произведения.")
+            Text(L10n.text("Пока нет материалов в разрешённых границах. Отметь просмотренные серии или добавь собственный текст в карточке произведения."))
                 .font(.footnote).foregroundStyle(Theme.muted)
         }
         ForEach(context.evidence) { fact in
             VStack(alignment: .leading, spacing: 8) {
-                Text(fact.id).font(.caption2.monospaced()).foregroundStyle(Theme.accent)
-                Text(fact.text).font(.footnote).textSelection(.enabled)
-                if let url = fact.sourceURL { Link("Открыть источник", destination: url).font(.caption) }
-                else { Text("Материал пользователя").font(.caption2).foregroundStyle(Theme.muted) }
+                Text(fact.sourceURL?.host ?? L10n.text("Добавленный текст")).font(.caption.weight(.medium)).foregroundStyle(Theme.accent)
+                LocalizedSourceText(text: fact.text, aliases: entry.nameAliases ?? []).font(.footnote)
+                if let url = fact.sourceURL { Link(L10n.text("Открыть источник"), destination: url).font(.caption) }
+                else { Text(L10n.text("Материал пользователя")).font(.caption2).foregroundStyle(Theme.muted) }
             }.padding(14).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
         }
     }
@@ -182,15 +210,15 @@ struct DiscussionView: View {
         let accountID = library.activeAccountID
         let localeIdentifier = model.localeIdentifier
         do {
-            let prepared = try await model.assistant.prepareQuestion(question: text, localeIdentifier: localeIdentifier)
+            let prepared = try await model.assistant.prepareQuestion(question: text, localeIdentifier: localeIdentifier, aliases: snapshot.nameAliases ?? [])
             try Task.checkCancellation()
             guard activeRequestID == requestID, accountID == library.activeAccountID,
                   localeIdentifier == model.localeIdentifier, let afterTranslation = library.entry(for: title.id),
                   afterTranslation.progress == snapshot.progress, afterTranslation.chat == snapshot.chat,
                   afterTranslation.facts == snapshot.facts, afterTranslation.episodes == snapshot.episodes else { return }
-            let packet = SpoilerContextBuilder.build(title: title, episodes: snapshot.episodes, progress: snapshot.progress, facts: snapshot.facts, question: prepared, maxCharacters: 9_000)
-            guard packet.hasEvidence else { error = "Для ответа нужны материалы в пределах просмотренного."; return }
-            let response = try await model.assistant.respond(question: text, context: packet, history: snapshot.chat, localeIdentifier: localeIdentifier, preparedQuestion: prepared)
+            let packet = SpoilerContextBuilder.build(title: title, episodes: snapshot.episodes, progress: snapshot.progress, facts: snapshot.facts, question: text + "\n" + prepared, maxCharacters: 9_000)
+            guard packet.hasEvidence else { error = L10n.text("Для ответа нужны материалы в пределах просмотренного."); return }
+            let response = try await model.assistant.respond(question: text, context: packet, history: snapshot.chat, localeIdentifier: localeIdentifier, preparedQuestion: prepared, aliases: snapshot.nameAliases ?? [])
             try Task.checkCancellation()
             guard activeRequestID == requestID, accountID == library.activeAccountID,
                   localeIdentifier == model.localeIdentifier, let current = library.entry(for: title.id),
@@ -198,14 +226,14 @@ struct DiscussionView: View {
                   current.facts == snapshot.facts, current.episodes == snapshot.episodes else { return }
             var changed = current
             changed.chat.append(ChatTurn(role: .user, text: text))
-            changed.chat.append(ChatTurn(role: .assistant, text: response))
+            changed.chat.append(ChatTurn(role: .assistant, text: response.text, citations: response.citations))
             changed.chat = Array(changed.chat.suffix(80))
             changed.updatedAt = Date()
             library.update(changed)
             if let failure = library.lastError { error = failure }
             else if question.trimmingCharacters(in: .whitespacesAndNewlines) == text { question = "" }
         } catch is CancellationError {} catch {
-            if activeRequestID == requestID { self.error = error.localizedDescription }
+            if activeRequestID == requestID { self.error = L10n.error(error) }
         }
     }
 }

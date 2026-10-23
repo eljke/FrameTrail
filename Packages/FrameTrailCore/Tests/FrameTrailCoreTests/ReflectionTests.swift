@@ -3,6 +3,35 @@ import XCTest
 @testable import FrameTrailCore
 
 final class ReflectionTests: XCTestCase {
+    func testClearedLatestEpisodeReviewDoesNotReviveAnOldRating() {
+        let old = Reflection(titleID: "show", rating: 8, createdAt: Date(timeIntervalSince1970: 1), episodeID: "e1", episodeSeason: 1, episodeNumber: 1)
+        let cleared = Reflection(titleID: "show", createdAt: Date(timeIntervalSince1970: 2), episodeID: "e1", episodeSeason: 1, episodeNumber: 1)
+        let compilation = ReflectionCompilation(records: [old, cleared], watchedEpisodeIDs: ["e1"])
+        XCTAssertEqual(compilation.episodeCount, 0)
+        XCTAssertTrue(compilation.batches.isEmpty)
+        XCTAssertFalse(cleared.hasContent)
+        XCTAssertTrue(Reflection(titleID: "show", liked: ["Acting"]).hasContent)
+    }
+
+    func testSeasonReviewExcludesUnwatchedAndOtherSeasonSources() {
+        let title = MediaTitle(id: "show", title: "Show", kind: .series, provider: "local", providerID: "show")
+        let episodes = [Episode(id: "e1", season: 1, number: 1, name: "First", summary: "Allowed events"), Episode(id: "e2", season: 1, number: 2, name: "Second", summary: "Future events"), Episode(id: "e3", season: 2, number: 1, name: "Third", summary: "Other season")]
+        let context = SpoilerContextBuilder.forReview(title: title, episodes: episodes, progress: WatchProgress(watchedEpisodeIDs: ["e1", "e3"]), facts: [], episodeID: nil, seasonNumber: 1)
+        XCTAssertEqual(context.allowedEpisodeIDs, ["e1"])
+        XCTAssertTrue(context.text.contains("Allowed events"))
+        XCTAssertFalse(context.text.contains("Future events"))
+        XCTAssertFalse(context.text.contains("Other season"))
+    }
+
+    func testSeasonRatingDoesNotReplaceOverallOrEpisodeRating() throws {
+        let records = [Reflection(titleID: "show", rating: 7), Reflection(titleID: "show", rating: 9, seasonNumber: 1), Reflection(titleID: "show", rating: 4, episodeID: "e1", episodeSeason: 1, episodeNumber: 1)]
+        let restored = try JSONDecoder().decode([Reflection].self, from: JSONEncoder().encode(records))
+        XCTAssertEqual(Reflection.latest(in: restored)?.rating, 7)
+        XCTAssertEqual(Reflection.latest(in: restored, seasonNumber: 1)?.rating, 9)
+        XCTAssertEqual(Reflection.latest(in: restored, episodeID: "e1")?.rating, 4)
+        XCTAssertNil(Reflection.latest(in: restored, seasonNumber: 2))
+    }
+
     func testOldArchivesRemainReadable() throws {
         let data = Data("{\"id\":\"11111111-2222-3333-4444-555555555555\",\"titleID\":\"film\",\"summary\":\"Remember this\",\"liked\":[\"Acting\"],\"questions\":[],\"rating\":8,\"createdAt\":0}".utf8)
         let review = try JSONDecoder().decode(Reflection.self, from: data)

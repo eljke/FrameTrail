@@ -10,7 +10,7 @@ public struct ReflectionCompilation: Sendable {
         let groups = Dictionary(grouping: eligible, by: { $0.episodeID! })
         var latest: [Reflection] = groups.values.compactMap {
             Reflection.latest(in: $0, episodeID: $0[0].episodeID)
-        }
+        }.filter(\.hasContent)
         latest.sort {
             if $0.episodeSeason != $1.episodeSeason { return ($0.episodeSeason ?? 0) < ($1.episodeSeason ?? 0) }
             if $0.episodeNumber != $1.episodeNumber { return ($0.episodeNumber ?? 0) < ($1.episodeNumber ?? 0) }

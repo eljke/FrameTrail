@@ -4,6 +4,16 @@ import XCTest
 @testable import FrameTrail
 
 final class LibraryStatisticsTests: XCTestCase {
+    func testSeasonRatingsStaySeparateFromTitlesAndEpisodes() {
+        var show = entry("show", kind: .series)
+        show.reflections = [Reflection(titleID: "show", rating: 8), Reflection(titleID: "show", rating: 5, seasonNumber: 1), Reflection(titleID: "show", rating: 9, episodeID: "e1", episodeSeason: 1, episodeNumber: 1)]
+        let statistics = LibraryStatistics(entries: [show])
+        XCTAssertEqual(statistics.averageRating, 8)
+        XCTAssertEqual(statistics.averageSeasonRating, 5)
+        XCTAssertEqual(statistics.ratedSeasonCount, 1)
+        XCTAssertEqual(statistics.averageEpisodeRating, 9)
+    }
+
     func testEmptyLibraryHasNoInventedAverage() {
         let statistics = LibraryStatistics(entries: [])
 

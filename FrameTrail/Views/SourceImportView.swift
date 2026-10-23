@@ -18,34 +18,34 @@ struct SourceImportView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Область материала") {
+                Section(L10n.text("Область материала")) {
                     Text(title.title)
                     if title.kind == .series {
-                        Picker("Серия", selection: $episodeID) {
-                            Text("Своя серия").tag("")
+                        Picker(L10n.text("Серия"), selection: $episodeID) {
+                            Text(L10n.text("Своя серия")).tag("")
                             ForEach(episodes) { episode in Text("S\(episode.season) E\(episode.number)").tag(episode.id) }
                         }
                         if episodeID.isEmpty {
-                            Stepper("Сезон \(customSeason)", value: $customSeason, in: 0...200)
-                            Stepper("Серия \(customEpisode)", value: $customEpisode, in: 1...2_000)
+                            Stepper(L10n.text("Сезон %@", String(describing: customSeason)), value: $customSeason, in: 0...200)
+                            Stepper(L10n.text("Серия %@", String(describing: customEpisode)), value: $customEpisode, in: 1...2_000)
                         }
                     }
                 }
                 Section {
                     TextEditor(text: $text).frame(minHeight: 220).font(.body)
                         .accessibilityIdentifier("sourceText")
-                        .accessibilityLabel("Текст материала")
+                        .accessibilityLabel(L10n.text("Текст материала"))
                         .onChange(of: text) { _, value in if value.count > 40_000 { text = String(value.prefix(40_000)) } }
-                    Button { showFilePicker = true } label: { Label("Открыть TXT, SRT или VTT", systemImage: "doc") }
-                    Text("До 40 000 символов. Субтитры преобразуются в текст. Материал станет доступен помощнику только после отметки о просмотре соответствующего фильма или серии.")
+                    Button { showFilePicker = true } label: { Label(L10n.text("Открыть TXT, SRT или VTT"), systemImage: "doc") }
+                    Text(L10n.text("До 40 000 символов. Субтитры преобразуются в текст. Материал станет доступен помощнику только после отметки о просмотре соответствующего фильма или серии."))
                         .font(.caption).foregroundStyle(.secondary)
-                } header: { Text("Твой источник") }
+                } header: { Text(L10n.text("Твой источник")) }
                 if let error { Section { ErrorNotice(message: error) } }
             }
-            .navigationTitle("Материалы")
+            .navigationTitle(L10n.text("Материалы"))
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { save() }.disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("saveSource") }
+                ToolbarItem(placement: .cancellationAction) { Button(L10n.text("Отмена")) { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(L10n.text("Сохранить")) { save() }.disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("saveSource") }
             }
             .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.plainText, .text, .data]) { result in
                 do {
@@ -62,7 +62,7 @@ struct SourceImportView: View {
                         text = String(cues.map(\.text).joined(separator: "\n").prefix(40_000))
                     } else { text = String(imported.prefix(40_000)) }
                     error = nil
-                } catch { self.error = error.localizedDescription }
+                } catch { self.error = L10n.error(error) }
             }
             .onChange(of: library.activeAccountID) { _, _ in dismiss() }
             .onAppear {
@@ -84,12 +84,12 @@ struct SourceImportView: View {
                     scope = existing.id
                 } else {
                     let id = "local:\(title.id):\(customSeason):\(customEpisode)"
-                    entry.episodes.append(Episode(id: id, season: customSeason, number: customEpisode, name: "Серия \(customEpisode)"))
+                    entry.episodes.append(Episode(id: id, season: customSeason, number: customEpisode, name: L10n.text("Серия %@", String(describing: customEpisode))))
                     scope = id
                 }
             } else {
                 guard entry.episodes.contains(where: { $0.id == episodeID }) else {
-                    error = "Выбранная серия больше недоступна. Выбери её заново."
+                    error = L10n.text("Выбранная серия больше недоступна. Выбери её заново.")
                     return
                 }
                 scope = episodeID
@@ -112,9 +112,9 @@ private enum SourceImportError: LocalizedError {
     case tooLarge, invalidText, invalidSubtitles
     var errorDescription: String? {
         switch self {
-        case .tooLarge: return "Файл больше 512 КБ. Выбери текст одной серии или сократи материал."
-        case .invalidText: return "Нужен текстовый файл в UTF-8."
-        case .invalidSubtitles: return "Не удалось прочитать временные метки субтитров."
+        case .tooLarge: return L10n.text("Файл больше 512 КБ. Выбери текст одной серии или сократи материал.")
+        case .invalidText: return L10n.text("Нужен текстовый файл в UTF-8.")
+        case .invalidSubtitles: return L10n.text("Не удалось прочитать временные метки субтитров.")
         }
     }
 }

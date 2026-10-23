@@ -32,11 +32,14 @@ public struct GroundedContext: Codable, Sendable {
 /// A fact without titleID is assumed to be scoped to the supplied title by its caller.
 /// Importers should assign that scope before combining records from different titles.
 public enum SpoilerContextBuilder {
-    public static func forReview(title: MediaTitle, episodes: [Episode], progress: WatchProgress, facts: [StoryFact], episodeID: String?) -> GroundedContext {
+    public static func forReview(title: MediaTitle, episodes: [Episode], progress: WatchProgress, facts: [StoryFact], episodeID: String?, seasonNumber: Int? = nil) -> GroundedContext {
         var boundary = progress
         if let episodeID {
             let allowed: Set<String> = progress.watchedEpisodeIDs.contains(episodeID) ? [episodeID] : []
             boundary = WatchProgress(watchedEpisodeIDs: allowed)
+        } else if let seasonNumber {
+            let seasonIDs = Set(episodes.filter { $0.season == seasonNumber }.map(\.id))
+            boundary = WatchProgress(watchedEpisodeIDs: progress.watchedEpisodeIDs.intersection(seasonIDs))
         }
         return build(title: title, episodes: episodes, progress: boundary, facts: facts, question: "", maxCharacters: 30_000)
     }
@@ -77,10 +80,11 @@ public enum SpoilerContextBuilder {
             }
         case .series:
             for episode in episodes.sorted(by: episodeOrder) where allowedIDs.contains(episode.id) {
-                guard !episode.summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
+                let summary = episode.originalSummary ?? episode.summary
+                guard !summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { continue }
                 candidates.append(StoryFact(
                     id: "episode:\(episode.id):summary",
-                    text: "S\(episode.season)E\(episode.number): \(episode.summary)",
+                    text: "S\(episode.season)E\(episode.number): \(summary)",
                     episodeID: episode.id,
                     sourceURL: episode.sourceURL,
                     kind: "summary",

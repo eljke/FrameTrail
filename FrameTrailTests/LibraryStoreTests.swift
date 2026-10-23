@@ -5,6 +5,31 @@ import XCTest
 
 @MainActor
 final class LibraryStoreTests: XCTestCase {
+    func testBulkRatingsPersistAndUndoWithoutLosingNotes() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        var entry = LibraryEntry(title: MediaTitle(id: "show", title: "Show", kind: .series, provider: "local", providerID: "show"))
+        entry.episodes = [Episode(id: "e1", season: 1, number: 1, name: "First"), Episode(id: "e2", season: 1, number: 2, name: "Second")]
+        entry.progress.watchedEpisodeIDs = ["e1", "e2"]
+        entry.reflections = [Reflection(titleID: "show", summary: "My note", episodeID: "e1", episodeSeason: 1, episodeNumber: 1)]
+        store.update(entry)
+        store.updateWithEpisodeRatings(entry, rating: 8, season: 1, overwrite: false)
+        XCTAssertNil(store.lastError)
+        XCTAssertEqual(store.ratingUndo?.count, 2)
+        XCTAssertEqual(LibraryStore(directory: directory).entry(for: "show")?.reflections.count, 2)
+        store.undoEpisodeRatings(for: "show")
+        XCTAssertEqual(store.entry(for: "show")?.reflections, entry.reflections)
+
+        store.updateWithEpisodeRatings(entry, rating: 9, season: 1, overwrite: false)
+        var edited = try XCTUnwrap(store.entry(for: "show"))
+        edited.reflections[0].summary = "New note after bulk action"
+        store.update(edited)
+        store.undoEpisodeRatings(for: "show")
+        XCTAssertNotNil(store.lastError)
+        XCTAssertEqual(store.entry(for: "show")?.reflections, edited.reflections)
+    }
+
     func testAccountsAreIsolatedAndGuestReturns() async throws {
         let directory = temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }

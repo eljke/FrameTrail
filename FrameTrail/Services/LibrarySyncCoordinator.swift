@@ -6,7 +6,7 @@ import FrameTrailCore
 final class LibrarySyncCoordinator {
     private(set) var isSyncing = false
     private(set) var conflicts: [LibrarySyncConflict] = []
-    private(set) var status = "Войди в аккаунт для синхронизации."
+    private(set) var status = L10n.text("Войди в аккаунт для синхронизации.")
     private(set) var lastSyncedAt: Date?
     private let auth: SupabaseAuthService
     private let cloud: CloudLibraryService
@@ -29,7 +29,7 @@ final class LibrarySyncCoordinator {
         isSyncing = false
         lastSyncedAt = nil
         needsAnotherPass = false
-        status = accountID == nil ? "Гостевая библиотека хранится на устройстве." : "Готово к синхронизации."
+        status = accountID == nil ? L10n.text("Гостевая библиотека хранится на устройстве.") : L10n.text("Готово к синхронизации.")
     }
 
     func schedule(library: LibraryStore) {
@@ -45,10 +45,10 @@ final class LibrarySyncCoordinator {
 
     func syncNow(library: LibraryStore) async {
         guard !isSyncing, let accountID = activeAccountID, accountID == library.activeAccountID else { return }
-        guard library.canSync else { status = library.lastError ?? "Библиотека недоступна для синхронизации."; return }
+        guard library.canSync else { status = library.lastError ?? L10n.text("Библиотека недоступна для синхронизации."); return }
         let operation = generation
         isSyncing = true
-        status = "Сравниваю изменения…"
+        status = L10n.text("Сравниваю изменения…")
         defer {
             if operation == generation {
                 isSyncing = false
@@ -72,11 +72,11 @@ final class LibrarySyncCoordinator {
                 try library.recordSyncedCloudRecord(record)
             }
             lastSyncedAt = Date()
-            status = conflicts.isEmpty ? "Библиотека синхронизирована." : "Выбери версии для конфликтов: \(conflicts.count)."
+            status = conflicts.isEmpty ? L10n.text("Библиотека синхронизирована.") : L10n.text("Выбери версии для конфликтов: %@.", String(describing: conflicts.count))
         } catch is CancellationError {
-            if operation == generation { status = "Синхронизация прервана. Локальные изменения сохранены." }
+            if operation == generation { status = L10n.text("Синхронизация прервана. Локальные изменения сохранены.") }
         } catch {
-            if operation == generation { status = error.localizedDescription }
+            if operation == generation { status = L10n.error(error) }
         }
     }
 
@@ -100,9 +100,9 @@ final class LibrarySyncCoordinator {
                 try library.applyCloudRecord(remote)
             }
             conflicts.removeAll { $0.id == conflict.id }
-            status = "Выбранная версия сохранена. Повтори синхронизацию для проверки."
+            status = L10n.text("Выбранная версия сохранена. Повтори синхронизацию для проверки.")
         } catch {
-            if operation == generation { status = error.localizedDescription }
+            if operation == generation { status = L10n.error(error) }
         }
     }
 

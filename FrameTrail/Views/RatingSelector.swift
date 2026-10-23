@@ -7,7 +7,7 @@ struct RatingSelector: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(rating == 0 ? "Твоя оценка" : "\(rating)")
+                Text(rating == 0 ? L10n.text("Твоя оценка") : "\(rating)")
                     .font(.system(.largeTitle, design: .rounded, weight: .bold)).monospacedDigit()
                     .contentTransition(.numericText()).accessibilityIdentifier("ratingValue")
                 if rating > 0 { Text("/ 10").foregroundStyle(.secondary) }
@@ -32,8 +32,8 @@ struct RatingSelector: View {
             }
             .frame(height: 52)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Моя оценка")
-            .accessibilityValue(rating == 0 ? "Без оценки" : "\(rating) из 10")
+            .accessibilityLabel(L10n.text("Моя оценка"))
+            .accessibilityValue(rating == 0 ? L10n.text("Без оценки") : L10n.text("%@ из 10", String(describing: rating)))
             .accessibilityIdentifier("starRating")
             .accessibilityAdjustableAction { direction in
                 switch direction {
@@ -43,9 +43,9 @@ struct RatingSelector: View {
                 }
             }
             HStack {
-                Text("Коснись звезды или проведи пальцем").font(.caption).foregroundStyle(.secondary)
+                Text(L10n.text("Коснись звезды или проведи пальцем")).font(.caption).foregroundStyle(.secondary)
                 Spacer(minLength: 8)
-                Button("Без оценки") { rating = 0 }.font(.caption).frame(minHeight: 44).disabled(rating == 0)
+                Button(L10n.text("Без оценки")) { rating = 0 }.font(.caption).frame(minHeight: 44).disabled(rating == 0)
             }
         }
         .padding(.vertical, 8)

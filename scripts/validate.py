@@ -17,7 +17,7 @@ SEMVER = re.compile(
     r"(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?"
 )
 EXCLUDED = {".git", ".build", ".swiftpm", "build", "dist", "DerivedData", "FrameTrail.xcodeproj"}
-TEXT_SUFFIXES = {".swift", ".py", ".sh", ".json", ".yml", ".yaml", ".plist", ".md", ".txt", ".xcprivacy", ".sql", ".ts", ".toml", ".svg"}
+TEXT_SUFFIXES = {".swift", ".py", ".sh", ".json", ".yml", ".yaml", ".plist", ".md", ".txt", ".xcprivacy", ".sql", ".ts", ".toml", ".svg", ".strings"}
 
 
 def semantic_version(value):
@@ -37,8 +37,36 @@ def source_files():
             yield path
 
 
+def localization_tables():
+    tables = {}
+    pattern = re.compile(r'("(?:[^"\\]|\\.)*")\s*=\s*("(?:[^"\\]|\\.)*");')
+    for language in ("ru", "en"):
+        path = ROOT / f"FrameTrail/{language}.lproj/Localizable.strings"
+        values = {}
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            match = pattern.fullmatch(line)
+            if not match:
+                raise ValueError(f"Invalid localization entry: {path}:{number}")
+            key, value = map(json.loads, match.groups())
+            if key in values:
+                raise ValueError(f"Duplicate localization key: {key}")
+            if key.count("%@") != value.count("%@"):
+                raise ValueError(f"Localization placeholders differ: {language}: {key}")
+            values[key] = value
+        tables[language] = values
+    if tables["ru"].keys() != tables["en"].keys():
+        raise ValueError("Russian and English localization keys differ")
+    for path in (ROOT / "FrameTrail").rglob("*.swift"):
+        for match in re.finditer(r'L10n\.text\(("(?:[^"\\]|\\.)*")', path.read_text(encoding="utf-8")):
+            key = json.loads(match.group(1))
+            if key not in tables["ru"]:
+                raise ValueError(f"Missing localization in {path}: {key}")
+    return tables
+
+
 def validate(version=None):
     errors = []
+    localization_tables()
     declared = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     expected, base = semantic_version(version or declared)
     if expected != declared:

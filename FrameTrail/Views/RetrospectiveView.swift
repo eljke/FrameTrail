@@ -25,47 +25,47 @@ struct RetrospectiveView: View {
             Form {
                 Section {
                     Text(title.title).font(.title3.bold())
-                    Label("Впечатления о сериях: \(compilation.episodeCount)", systemImage: "square.stack.3d.up")
-                    Text("Помощник соберёт общую картину по твоим оценкам и заметкам: что работало, что мешало и как менялось впечатление. Это воспоминание о твоём опыте, а не пересказ неподтверждённых событий.")
+                    Label(L10n.text("Впечатления о сериях: %@", String(describing: compilation.episodeCount)), systemImage: "square.stack.3d.up")
+                    Text(L10n.text("Помощник соберёт общую картину по твоим оценкам и заметкам: что работало, что мешало и как менялось впечатление. Это воспоминание о твоём опыте, а не пересказ неподтверждённых событий."))
                         .font(.footnote).foregroundStyle(.secondary)
                     if compilation.shortened {
-                        Text("Длинные записи сокращаются для обработки: до 180 символов каждого поля на серию. Полные оригиналы остаются в дневнике.")
+                        Text(L10n.text("Длинные записи сокращаются для обработки: до 180 символов каждого поля на серию. Полные оригиналы остаются в дневнике."))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 Section {
-                    Button(result.isEmpty ? "Собрать общую картину" : "Собрать заново") { start() }
+                    Button(result.isEmpty ? L10n.text("Собрать общую картину") : L10n.text("Собрать заново")) { start() }
                         .disabled(busy || compilation.episodeCount == 0 || !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable)
                     if busy {
                         ProgressView(value: Double(completed), total: Double(total))
-                        Text("Локальная обработка: \(completed) из \(total) этапов. Для длинного сериала потребуется больше времени.").font(.caption)
-                        Button("Остановить", role: .cancel) { stop() }
+                        Text(L10n.text("Локальная обработка: %@ из %@ этапов. Для длинного сериала потребуется больше времени.", String(describing: completed), String(describing: total))).font(.caption)
+                        Button(L10n.text("Остановить"), role: .cancel) { stop() }
                     }
                     if !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable {
                         Text(model.assistant.availability(localeIdentifier: model.localeIdentifier).message).font(.footnote).foregroundStyle(.secondary)
                     }
                     if compilation.episodeCount == 0 {
-                        Text("Сначала оцени просмотренные серии или сохрани о них впечатления через меню серии. Ответы на вопросы необязательны.").font(.footnote)
+                        Text(L10n.text("Сначала оцени просмотренные серии или сохрани о них впечатления через меню серии. Ответы на вопросы необязательны.")).font(.footnote)
                     }
-                } header: { Text("Apple Intelligence · на iPhone") }
+                } header: { Text(L10n.text("Apple Intelligence · на iPhone")) }
                 if !result.isEmpty {
-                    Section("Сводка — можно отредактировать") {
+                    Section(L10n.text("Сводка — можно отредактировать")) {
                         TextEditor(text: $result).frame(minHeight: 240)
                             .disabled(busy)
                             .onChange(of: result) { _, text in if text.count > 10_000 { result = String(text.prefix(10_000)) } }
-                        ShareLink(item: title.title + "\n\n" + result) { Label("Поделиться сводкой", systemImage: "square.and.arrow.up") }
-                        Text("Сохрани сводку в дневник, чтобы вернуться к ней позже. При входе в аккаунт она синхронизируется как личный итог.")
+                        ShareLink(item: title.title + "\n\n" + result) { Label(L10n.text("Поделиться сводкой"), systemImage: "square.and.arrow.up") }
+                        Text(L10n.text("Сохрани сводку в дневник, чтобы вернуться к ней позже. При входе в аккаунт она синхронизируется как личный итог."))
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
                 if let error { Section { ErrorNotice(message: error) } }
             }
-            .navigationTitle("Общая картина")
+            .navigationTitle(L10n.text("Общая картина"))
             .scrollContentBackground(.hidden).background(Theme.background)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L10n.text("Закрыть")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Сохранить") { save() }.disabled(busy || result.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button(L10n.text("Сохранить")) { save() }.disabled(busy || result.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             .task { await model.assistant.refreshAvailability() }
@@ -90,20 +90,20 @@ struct RetrospectiveView: View {
         generationTask = Task {
             defer { if generationID == id { busy = false; generationID = nil; generationTask = nil } }
             do {
-                let text = try await model.assistant.compileReflections(title: title.title, compilation: plan, localeIdentifier: locale) { done, count in
+                let text = try await model.assistant.compileReflections(title: title.title, compilation: plan, localeIdentifier: locale, aliases: snapshot.nameAliases ?? []) { done, count in
                     if generationID == id { completed = done; total = count }
                 }
                 try Task.checkCancellation()
                 guard generationID == id, library.activeAccountID == accountID,
-                      entry?.progress == snapshot.progress, model.localeIdentifier == locale else { return }
+                      entry?.progress == snapshot.progress, entry?.nameAliases == snapshot.nameAliases, model.localeIdentifier == locale else { return }
                 guard entry?.reflections == snapshot.reflections else {
-                    error = "За время обработки записи изменились. Запусти сборку сводки ещё раз."
+                    error = L10n.text("За время обработки записи изменились. Запусти сборку сводки ещё раз.")
                     return
                 }
                 result = text
                 resultEpisodeCount = plan.episodeCount
             } catch is CancellationError {} catch {
-                if generationID == id { self.error = error.localizedDescription }
+                if generationID == id { self.error = L10n.error(error) }
             }
         }
     }
@@ -117,7 +117,7 @@ struct RetrospectiveView: View {
 
     private func save() {
         guard var entry else { return }
-        let header = "Сводка впечатлений · серий: \(resultEpisodeCount)"
+        let header = L10n.text("Сводка впечатлений · серий: %@", String(describing: resultEpisodeCount))
         let rating = Reflection.latest(in: entry.reflections)?.rating
         entry.reflections.append(Reflection(titleID: title.id, summary: header + "\n\n" + result, rating: rating))
         library.update(entry)
