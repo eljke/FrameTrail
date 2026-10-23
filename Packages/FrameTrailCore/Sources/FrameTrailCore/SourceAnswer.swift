@@ -34,7 +34,7 @@ public struct SourceAnswer: Sendable {
         var citations: [AnswerCitation] = []
         var sections: [String] = []
         for paragraph in paragraphs.prefix(4) {
-            let ids = Array(Set(paragraph.sourceIDs)).sorted()
+            let ids = Array(Set(paragraph.sourceIDs.prefix(6))).sorted()
             guard !ids.isEmpty, ids.allSatisfy({ sources[$0] != nil }) else { continue }
             let text = Self.visibleText(String(paragraph.text.prefix(2_000))).trimmingCharacters(in: .whitespacesAndNewlines)
             guard !text.isEmpty else { continue }
@@ -56,6 +56,6 @@ public struct SourceAnswer: Sendable {
     }
 
     public static func visibleText(_ text: String) -> String {
-        text.replacingOccurrences(of: "\\[(?:wikipedia:|tmdb:|tvmaze:|S[0-9]+E[0-9]+|R[0-9]+)[^\\]\\n]*\\]", with: " ", options: .regularExpression)
+        text.replacingOccurrences(of: "\\[(?:wikipedia:|tmdb:|tvmaze:|movie:|episode:|user:|S[0-9]+E[0-9]+|R[0-9]+)[^\\]\\n]*\\]", with: " ", options: .regularExpression)
     }
 }

@@ -63,7 +63,11 @@ struct DiscussionView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Label(turn.role == .user ? L10n.text("Ты") : L10n.text("FrameTrail · локально"), systemImage: turn.role == .user ? "person.crop.circle" : "sparkles")
                                     .font(.caption.bold()).foregroundStyle(turn.role == .user ? Theme.muted : Theme.accent)
-                                Text(SourceAnswer.visibleText(turn.text)).font(.body).textSelection(.enabled)
+                                if turn.role == .assistant {
+                                    LocalizedSourceText(text: SourceAnswer.visibleText(turn.text), aliases: entry.nameAliases ?? []).font(.body)
+                                } else {
+                                    Text(turn.text).font(.body).textSelection(.enabled)
+                                }
                                 if let citations = turn.citations, !citations.isEmpty {
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         HStack(spacing: 8) {
@@ -157,7 +161,7 @@ struct DiscussionView: View {
         }
         ForEach(context.evidence) { fact in
             VStack(alignment: .leading, spacing: 8) {
-                Text(fact.id).font(.caption2.monospaced()).foregroundStyle(Theme.accent)
+                Text(fact.sourceURL?.host ?? L10n.text("Добавленный текст")).font(.caption.weight(.medium)).foregroundStyle(Theme.accent)
                 LocalizedSourceText(text: fact.text, aliases: entry.nameAliases ?? []).font(.footnote)
                 if let url = fact.sourceURL { Link(L10n.text("Открыть источник"), destination: url).font(.caption) }
                 else { Text(L10n.text("Материал пользователя")).font(.caption2).foregroundStyle(Theme.muted) }
