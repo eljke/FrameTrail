@@ -5,6 +5,8 @@ options:
     iOS: "26.0"
   xcodeVersion: "26.0"
   createIntermediateGroups: true
+  developmentLanguage: ru
+  knownRegions: [ru, en]
 settings:
   base:
     SWIFT_VERSION: "5.0"

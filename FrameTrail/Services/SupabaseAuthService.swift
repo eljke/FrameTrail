@@ -48,18 +48,18 @@ enum SupabaseAuthError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .notConfigured: return "В этой сборке не настроен сервер аккаунтов FrameTrail. Гостевая библиотека доступна."
-        case .missingCredentials: return "Введи email и пароль."
-        case .invalidCredentials: return "Неверный email или пароль."
-        case .emailNotConfirmed: return "Подтверди email по ссылке из письма, затем войди снова."
-        case .emailNotAuthorized: return "Сервер пока отправляет письма только участникам проекта. Для публичной регистрации требуется настройка почты."
-        case .weakPassword: return "Пароль не соответствует требованиям сервера. Выбери более длинный и надёжный пароль."
-        case .signupsDisabled: return "Регистрация на сервере сейчас отключена."
-        case .sessionExpired: return "Сессия завершена. Войди в аккаунт снова."
-        case .rateLimited: return "Слишком много попыток входа или писем. Немного подожди и попробуй снова."
-        case .invalidResponse: return "Сервер аккаунтов вернул неполный ответ. Попробуй снова."
-        case .server(let status): return "Сервер аккаунтов временно недоступен (HTTP \(status))."
-        case .signedOutOffline: return "На этом устройстве выполнен выход. Сервер не подтвердил отзыв сессии; доступ по уже выданному токену может сохраняться до его истечения."
+        case .notConfigured: return L10n.text("В этой сборке не настроен сервер аккаунтов FrameTrail. Гостевая библиотека доступна.")
+        case .missingCredentials: return L10n.text("Введи email и пароль.")
+        case .invalidCredentials: return L10n.text("Неверный email или пароль.")
+        case .emailNotConfirmed: return L10n.text("Подтверди email по ссылке из письма, затем войди снова.")
+        case .emailNotAuthorized: return L10n.text("Сервер пока отправляет письма только участникам проекта. Для публичной регистрации требуется настройка почты.")
+        case .weakPassword: return L10n.text("Пароль не соответствует требованиям сервера. Выбери более длинный и надёжный пароль.")
+        case .signupsDisabled: return L10n.text("Регистрация на сервере сейчас отключена.")
+        case .sessionExpired: return L10n.text("Сессия завершена. Войди в аккаунт снова.")
+        case .rateLimited: return L10n.text("Слишком много попыток входа или писем. Немного подожди и попробуй снова.")
+        case .invalidResponse: return L10n.text("Сервер аккаунтов вернул неполный ответ. Попробуй снова.")
+        case .server(let status): return L10n.text("Сервер аккаунтов временно недоступен (HTTP %@).", String(describing: status))
+        case .signedOutOffline: return L10n.text("На этом устройстве выполнен выход. Сервер не подтвердил отзыв сессии; доступ по уже выданному токену может сохраняться до его истечения.")
         }
     }
 }

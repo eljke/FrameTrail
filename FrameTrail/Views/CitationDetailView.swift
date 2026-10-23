@@ -9,17 +9,17 @@ struct CitationDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Label(citation.label.isEmpty ? "Добавленный текст" : citation.label, systemImage: "doc.text")
+                    Label(citation.label.isEmpty ? L10n.text("Добавленный текст") : citation.label, systemImage: "doc.text")
                         .font(.headline).foregroundStyle(Theme.accent)
                     Text(citation.quote).textSelection(.enabled)
-                    Text("Фрагмент сохранён вместе с ответом на языке оригинала.")
+                    Text(L10n.text("Фрагмент сохранён вместе с ответом на языке оригинала."))
                         .font(.caption).foregroundStyle(Theme.muted)
-                    if let url = citation.sourceURL { Link("Открыть оригинал", destination: url).buttonStyle(.bordered) }
+                    if let url = citation.sourceURL { Link(L10n.text("Открыть оригинал"), destination: url).buttonStyle(.bordered) }
                 }.padding(24)
             }
             .background(Theme.background)
-            .navigationTitle("Источник \(citation.number)").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Готово") { dismiss() } } }
+            .navigationTitle(L10n.text("Источник %@", String(describing: citation.number))).navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.text("Готово")) { dismiss() } } }
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)

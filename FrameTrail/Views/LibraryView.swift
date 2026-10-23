@@ -18,15 +18,15 @@ struct LibraryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                Picker("Показать", selection: $filter) {
-                    Text("Все").tag(0)
-                    Text("В планах").tag(3)
-                    Text("Смотрю").tag(1)
-                    Text("Досмотрел").tag(2)
+                Picker(L10n.text("Показать"), selection: $filter) {
+                    Text(L10n.text("Все")).tag(0)
+                    Text(L10n.text("В планах")).tag(3)
+                    Text(L10n.text("Смотрю")).tag(1)
+                    Text(L10n.text("Досмотрел")).tag(2)
                 }.pickerStyle(.segmented)
                 if entries.isEmpty {
-                    EmptyState(symbol: "books.vertical", title: "Библиотека пока пуста", text: "Найди фильм в обзоре или добавь свой. Прогресс, материалы и обсуждения сохранятся на устройстве.")
-                    Button { manualEntry = true } label: { Label("Добавить фильм или сериал", systemImage: "plus.circle.fill") }
+                    EmptyState(symbol: "books.vertical", title: L10n.text("Библиотека пока пуста"), text: L10n.text("Найди фильм в обзоре или добавь свой. Прогресс, материалы и обсуждения сохранятся на устройстве."))
+                    Button { manualEntry = true } label: { Label(L10n.text("Добавить фильм или сериал"), systemImage: "plus.circle.fill") }
                         .buttonStyle(.borderedProminent).accessibilityIdentifier("libraryAddTitle")
                 }
                 LazyVStack(spacing: 12) {
@@ -36,9 +36,9 @@ struct LibraryView: View {
                                 PosterView(title: entry.title, width: 65)
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text(entry.title.title).font(.headline).foregroundStyle(.white)
-                                    Label(entry.progress.finished ? "Досмотрено" : (entry.progress.watchedEpisodeIDs.isEmpty ? "В планах" : "Просмотрено серий: \(entry.progress.watchedEpisodeIDs.count)"), systemImage: entry.progress.finished ? "checkmark.circle.fill" : "play.circle")
+                                    Label(entry.progress.finished ? L10n.text("Досмотрено") : (entry.progress.watchedEpisodeIDs.isEmpty ? L10n.text("В планах") : L10n.text("Просмотрено серий: %@", String(describing: entry.progress.watchedEpisodeIDs.count))), systemImage: entry.progress.finished ? "checkmark.circle.fill" : "play.circle")
                                         .font(.caption).foregroundStyle(Theme.accent)
-                                    Text("Обсуждений: \(entry.chat.filter { $0.role == .assistant }.count) · Итогов: \(entry.reflections.count)")
+                                    Text(L10n.text("Обсуждений: %@ · Итогов: %@", String(describing: entry.chat.filter { $0.role == .assistant }.count), String(describing: entry.reflections.count)))
                                         .font(.caption2).foregroundStyle(Theme.muted)
                                 }
                                 Spacer(minLength: 0)
@@ -46,18 +46,18 @@ struct LibraryView: View {
                             }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 18))
                         }
                         .buttonStyle(.plain)
-                        .contextMenu { Button("Удалить из библиотеки", role: .destructive) { pendingRemoval = entry } }
+                        .contextMenu { Button(L10n.text("Удалить из библиотеки"), role: .destructive) { pendingRemoval = entry } }
                     }
                 }
             }.padding(20)
         }
         .background(Theme.background)
-        .navigationTitle("Библиотека").navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $query, prompt: "Поиск в библиотеке")
-        .toolbar { Button { manualEntry = true } label: { Image(systemName: "plus") }.accessibilityLabel("Добавить фильм или сериал") }
+        .navigationTitle(L10n.text("Библиотека")).navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $query, prompt: L10n.text("Поиск в библиотеке"))
+        .toolbar { Button { manualEntry = true } label: { Image(systemName: "plus") }.accessibilityLabel(L10n.text("Добавить фильм или сериал")) }
         .sheet(isPresented: $manualEntry) { ManualTitleView() }
-        .confirmationDialog("Удалить историю, её обсуждение и заметки?", isPresented: Binding(get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }), titleVisibility: .visible) {
-            Button("Удалить", role: .destructive) { if let entry = pendingRemoval { library.remove(entry.id) }; pendingRemoval = nil }
+        .confirmationDialog(L10n.text("Удалить историю, её обсуждение и заметки?"), isPresented: Binding(get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }), titleVisibility: .visible) {
+            Button(L10n.text("Удалить"), role: .destructive) { if let entry = pendingRemoval { library.remove(entry.id) }; pendingRemoval = nil }
         }
     }
 }
@@ -73,9 +73,9 @@ struct JournalView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                DisclosureGroup("Статистика") { LibraryStatisticsView(entries: library.entries).padding(.top, 12) }
+                DisclosureGroup(L10n.text("Статистика")) { LibraryStatisticsView(entries: library.entries).padding(.top, 12) }
                 if records.isEmpty {
-                    EmptyState(symbol: "text.book.closed", title: "Пока нет отзывов", text: "После просмотра открой «Итог» в карточке фильма или сериала. Сохрани впечатления, вопросы и оценку.")
+                    EmptyState(symbol: "text.book.closed", title: L10n.text("Пока нет отзывов"), text: L10n.text("После просмотра открой «Итог» в карточке фильма или сериала. Сохрани впечатления, вопросы и оценку."))
                 }
                 ForEach(records, id: \.reflection.id) { record in
                     NavigationLink(value: record.entry.title) {
@@ -86,9 +86,9 @@ struct JournalView: View {
                                 if let rating = record.reflection.rating { Label("\(rating)/10", systemImage: "star.fill").font(.caption.bold()).foregroundStyle(Theme.accent) }
                             }
                             if let season = record.reflection.episodeSeason, let number = record.reflection.episodeNumber {
-                                Text("Сезон \(season) · Серия \(number)").font(.caption).foregroundStyle(Theme.accent)
+                                Text(L10n.text("Сезон %@ · Серия %@", String(describing: season), String(describing: number))).font(.caption).foregroundStyle(Theme.accent)
                             } else if let season = record.reflection.seasonNumber {
-                                Text("Сезон \(season)").font(.caption).foregroundStyle(Theme.accent)
+                                Text(L10n.text("Сезон %@", String(describing: season))).font(.caption).foregroundStyle(Theme.accent)
                             }
                             if !record.reflection.summary.isEmpty { Text(record.reflection.summary).font(.subheadline).lineLimit(5).foregroundStyle(Theme.muted) }
                             if let liked = record.reflection.allLiked.first { Text("+ " + liked).font(.caption).lineLimit(2).foregroundStyle(Theme.muted) }
@@ -100,6 +100,6 @@ struct JournalView: View {
             }.padding(20)
         }
         .background(Theme.background)
-        .navigationTitle("Дневник").navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(L10n.text("Дневник")).navigationBarTitleDisplayMode(.inline)
     }
 }

@@ -14,19 +14,19 @@ enum ServiceError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidResponse: return "Не удалось прочитать ответ сервиса. Попробуй ещё раз."
-        case .responseTooLarge: return "Ответ превышает лимит загрузки приложения."
-        case .http(401), .http(403): return "Сервис отклонил запрос. Если это TMDB, проверь API-токен или войди в аккаунт снова."
-        case .http(404): return "Произведение больше не доступно у этого источника."
-        case .http(let code): return "Сервис временно недоступен (HTTP \(code)). Попробуй позже."
+        case .invalidResponse: return L10n.text("Не удалось прочитать ответ сервиса. Попробуй ещё раз.")
+        case .responseTooLarge: return L10n.text("Ответ превышает лимит загрузки приложения.")
+        case .http(401), .http(403): return L10n.text("Сервис отклонил запрос. Если это TMDB, проверь API-токен или войди в аккаунт снова.")
+        case .http(404): return L10n.text("Произведение больше не доступно у этого источника.")
+        case .http(let code): return L10n.text("Сервис временно недоступен (HTTP %@). Попробуй позже.", String(describing: code))
         case .rateLimited(let seconds):
-            return seconds.map { "Слишком много запросов. Попробуй через \($0) с." } ?? "Слишком много запросов. Немного подожди."
-        case .missingTMDBToken: return "Перед входом добавь TMDB API Read Access Token в настройках."
-        case .invalidTMDBToken: return "Вставь сам TMDB API Read Access Token, без префикса Bearer и переносов строк."
-        case .authorizationNotStarted: return "Начни вход заново, подтверди доступ на сайте TMDB и вернись в приложение."
-        case .noPlot: return "Подходящий пересказ не найден. Можно добавить свой текст или субтитры."
-        case .unfinishedTitle: return "Полный сюжет доступен после отметки о просмотре фильма или выбранной серии."
-        case .signedOutOffline: return "На устройстве выполнен выход. Отозвать сессию на TMDB не удалось; при необходимости удали её в подключённых приложениях аккаунта TMDB."
+            return seconds.map { L10n.text("Слишком много запросов. Попробуй через %@ с.", String(describing: $0)) } ?? L10n.text("Слишком много запросов. Немного подожди.")
+        case .missingTMDBToken: return L10n.text("Перед входом добавь TMDB API Read Access Token в настройках.")
+        case .invalidTMDBToken: return L10n.text("Вставь сам TMDB API Read Access Token, без префикса Bearer и переносов строк.")
+        case .authorizationNotStarted: return L10n.text("Начни вход заново, подтверди доступ на сайте TMDB и вернись в приложение.")
+        case .noPlot: return L10n.text("Подходящий пересказ не найден. Можно добавить свой текст или субтитры.")
+        case .unfinishedTitle: return L10n.text("Полный сюжет доступен после отметки о просмотре фильма или выбранной серии.")
+        case .signedOutOffline: return L10n.text("На устройстве выполнен выход. Отозвать сессию на TMDB не удалось; при необходимости удали её в подключённых приложениях аккаунта TMDB.")
         }
     }
 }

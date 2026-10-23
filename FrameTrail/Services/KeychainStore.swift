@@ -44,5 +44,5 @@ enum KeychainStore {
 
 struct KeychainError: LocalizedError {
     let status: OSStatus
-    var errorDescription: String? { "Защищённое хранилище недоступно (\(status)). Разблокируй iPhone и попробуй снова." }
+    var errorDescription: String? { L10n.text("Защищённое хранилище недоступно (%@). Разблокируй iPhone и попробуй снова.", String(describing: status)) }
 }

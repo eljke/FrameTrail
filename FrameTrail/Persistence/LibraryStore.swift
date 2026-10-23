@@ -35,17 +35,17 @@ enum LibraryStoreError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .tooLarge:
-            return "Файл библиотеки превышает лимит 10 МБ."
+            return L10n.text("Файл библиотеки превышает лимит 10 МБ.")
         case .unsupportedSchema:
-            return "Версия библиотеки не поддерживается этим приложением."
+            return L10n.text("Версия библиотеки не поддерживается этим приложением.")
         case .invalidData(let reason):
-            return "Не удалось проверить библиотеку: \(reason)."
+            return L10n.text("Не удалось проверить библиотеку: %@.", String(describing: reason))
         case .unreadableLibrary:
-            return "Файл библиотеки повреждён. Исходный файл сохранён; изменения заблокированы."
+            return L10n.text("Файл библиотеки повреждён. Исходный файл сохранён; изменения заблокированы.")
         case .unreadableSyncBaseline:
-            return "История синхронизации повреждена. Библиотека доступна для чтения и экспорта; запись и синхронизация заблокированы."
+            return L10n.text("История синхронизации повреждена. Библиотека доступна для чтения и экспорта; запись и синхронизация заблокированы.")
         case .syncUnavailable:
-            return "Синхронизация недоступна для гостевого или повреждённого аккаунта."
+            return L10n.text("Синхронизация недоступна для гостевого или повреждённого аккаунта.")
         }
     }
 }
@@ -105,7 +105,7 @@ final class LibraryStore {
 
     func switchAccount(_ id: String) {
         guard Self.validIdentifier(id, maximum: 256) else {
-            lastError = LibraryStoreError.invalidData("некорректный идентификатор аккаунта").localizedDescription
+            lastError = LibraryStoreError.invalidData(L10n.text("некорректный идентификатор аккаунта")).localizedDescription
             return
         }
         ratingUndo = nil
@@ -187,7 +187,7 @@ final class LibraryStore {
               var entry = entry(for: titleID) else { return }
         guard entry.reflections == undo.after else {
             ratingUndo = nil
-            lastError = "Оценки уже изменились. Массовое действие нельзя отменить без потери новых записей."
+            lastError = L10n.text("Оценки уже изменились. Массовое действие нельзя отменить без потери новых записей.")
             return
         }
         entry.reflections = undo.before
@@ -259,16 +259,16 @@ final class LibraryStore {
             guard canSync else { throw LibraryStoreError.syncUnavailable }
             try Self.validateBaseline(baseline)
             guard Set(syncBaseline.records.keys).isSubset(of: Set(baseline.records.keys)) else {
-                throw LibraryStoreError.invalidData("история синхронизации не должна терять подтверждённые записи")
+                throw LibraryStoreError.invalidData(L10n.text("история синхронизации не должна терять подтверждённые записи"))
             }
             guard Set(applies.map(\.mediaID)).count == applies.count else {
-                throw LibraryStoreError.invalidData("повторяющиеся облачные записи")
+                throw LibraryStoreError.invalidData(L10n.text("повторяющиеся облачные записи"))
             }
             var next = entries
             for record in applies {
                 try Self.validateRecord(record)
                 guard baseline.records[record.mediaID] == record else {
-                    throw LibraryStoreError.invalidData("облачная запись не соответствует истории синхронизации")
+                    throw LibraryStoreError.invalidData(L10n.text("облачная запись не соответствует истории синхронизации"))
                 }
                 if record.deleted {
                     next.removeAll { $0.id == record.mediaID }
@@ -435,14 +435,14 @@ final class LibraryStore {
     private static func validateBaseline(_ baseline: LibrarySyncBaseline) throws {
         guard baseline.records.count <= 10_000 else { throw LibraryStoreError.tooLarge }
         for (id, record) in baseline.records {
-            guard id == record.mediaID else { throw LibraryStoreError.invalidData("неверный ключ истории синхронизации") }
+            guard id == record.mediaID else { throw LibraryStoreError.invalidData(L10n.text("неверный ключ истории синхронизации")) }
             try validateRecord(record)
         }
     }
 
     private static func validateRecord(_ record: CloudLibraryRecord) throws {
         guard record.isValid, validIdentifier(record.mediaID, maximum: 256) else {
-            throw LibraryStoreError.invalidData("некорректная облачная запись")
+            throw LibraryStoreError.invalidData(L10n.text("некорректная облачная запись"))
         }
         if let item = record.payload {
             var entry = LibraryEntry(title: item.title)
@@ -464,7 +464,7 @@ final class LibraryStore {
 
     private static func validate(_ entries: [LibraryEntry]) throws {
         guard entries.count <= 2_000, Set(entries.map(\.id)).count == entries.count else {
-            throw LibraryStoreError.invalidData("слишком много произведений или повторяющиеся идентификаторы")
+            throw LibraryStoreError.invalidData(L10n.text("слишком много произведений или повторяющиеся идентификаторы"))
         }
         for entry in entries {
             let title = entry.title
@@ -473,26 +473,26 @@ final class LibraryStore {
                   title.title.count <= 512, (title.originalTitle?.count ?? 0) <= 512,
                   title.overview.count <= 50_000, validURL(title.posterURL), validURL(title.sourceURL),
                   entry.updatedAt.timeIntervalSince1970.isFinite else {
-                throw LibraryStoreError.invalidData("некорректная карточка произведения")
+                throw LibraryStoreError.invalidData(L10n.text("некорректная карточка произведения"))
             }
             guard entry.episodes.count <= 5_000, entry.facts.count <= 10_000, entry.chat.count <= 500,
                   entry.reflections.count <= 5_000, entry.progress.watchedEpisodeIDs.count <= 5_000,
                   entry.progress.watchedEpisodeIDs.allSatisfy({ validIdentifier($0, maximum: 256) }),
                   entry.progress.currentSeason.map({ $0 >= 0 && $0 <= 10_000 }) ?? true,
                   entry.progress.currentEpisode.map({ $0 >= 0 && $0 <= 100_000 }) ?? true else {
-                throw LibraryStoreError.invalidData("превышен размер материалов или некорректный прогресс")
+                throw LibraryStoreError.invalidData(L10n.text("превышен размер материалов или некорректный прогресс"))
             }
             guard Set(entry.episodes.map(\.id)).count == entry.episodes.count,
                   Set(entry.facts.map(\.id)).count == entry.facts.count,
                   Set(entry.chat.map(\.id)).count == entry.chat.count,
                   Set(entry.reflections.map(\.id)).count == entry.reflections.count else {
-                throw LibraryStoreError.invalidData("повторяющиеся идентификаторы материалов")
+                throw LibraryStoreError.invalidData(L10n.text("повторяющиеся идентификаторы материалов"))
             }
             for episode in entry.episodes {
                 guard validIdentifier(episode.id, maximum: 256), episode.season >= 0, episode.season <= 10_000,
                       episode.number >= 0, episode.number <= 100_000, episode.name.count <= 1_000,
                       episode.summary.count <= 50_000, validURL(episode.sourceURL) else {
-                    throw LibraryStoreError.invalidData("некорректная серия")
+                    throw LibraryStoreError.invalidData(L10n.text("некорректная серия"))
                 }
             }
             for fact in entry.facts {
@@ -500,19 +500,19 @@ final class LibraryStore {
                       fact.episodeID.map({ validIdentifier($0, maximum: 256) }) ?? true,
                       fact.titleID == nil || fact.titleID == entry.id,
                       validIdentifier(fact.kind, maximum: 64), validURL(fact.sourceURL) else {
-                    throw LibraryStoreError.invalidData("некорректный источник сюжета")
+                    throw LibraryStoreError.invalidData(L10n.text("некорректный источник сюжета"))
                 }
             }
             for turn in entry.chat {
                 guard turn.text.count <= 30_000, turn.createdAt.timeIntervalSince1970.isFinite else {
-                    throw LibraryStoreError.invalidData("слишком длинное сообщение")
+                    throw LibraryStoreError.invalidData(L10n.text("слишком длинное сообщение"))
                 }
                 if let citations = turn.citations {
                     guard citations.count <= 24, Set(citations.map(\.id)).count == citations.count,
                           Set(citations.map(\.number)).count == citations.count,
                           citations.allSatisfy({ validIdentifier($0.id, maximum: 512) && (1...24).contains($0.number)
                               && !$0.quote.isEmpty && $0.quote.count <= 1_200 && validURL($0.sourceURL) }) else {
-                        throw LibraryStoreError.invalidData("некорректные ссылки ответа")
+                        throw LibraryStoreError.invalidData(L10n.text("некорректные ссылки ответа"))
                     }
                 }
             }
@@ -527,7 +527,7 @@ final class LibraryStore {
                               && !choice.text.isEmpty && choice.text.count <= 1_000 && validURL(choice.sourceURL)
                               && (choice.episodeID.map { validIdentifier($0, maximum: 256) } ?? true)
                               && (reflection.episodeID == nil || choice.episodeID == reflection.episodeID)
-                      }) else { throw LibraryStoreError.invalidData("некорректные варианты впечатлений") }
+                      }) else { throw LibraryStoreError.invalidData(L10n.text("некорректные варианты впечатлений")) }
                 guard reflection.titleID == entry.id, reflection.summary.count <= 30_000,
                       reflection.liked.count <= 100, reflection.disliked.count <= 100, reflection.questions.count <= 100,
                       reflection.liked.allSatisfy({ $0.count <= 5_000 }), reflection.questions.allSatisfy({ $0.count <= 5_000 }),
@@ -540,7 +540,7 @@ final class LibraryStore {
                       (reflection.episodeID == nil) == (reflection.episodeSeason == nil && reflection.episodeNumber == nil),
                       reflection.episodeID == nil || (title.kind == .series && reflection.episodeSeason != nil && reflection.episodeNumber != nil),
                       reflection.createdAt.timeIntervalSince1970.isFinite else {
-                    throw LibraryStoreError.invalidData("некорректная запись впечатлений")
+                    throw LibraryStoreError.invalidData(L10n.text("некорректная запись впечатлений"))
                 }
             }
         }

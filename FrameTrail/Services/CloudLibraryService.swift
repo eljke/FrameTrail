@@ -8,9 +8,9 @@ enum CloudLibraryError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidRecord: return "Сервер вернул некорректную запись библиотеки. Локальные данные сохранены."
-        case .limitExceeded: return "Превышен лимит облачной библиотеки: 10 000 записей или 512 КБ на историю."
-        case .changedDuringSync: return "Облачная запись изменилась во время синхронизации. Повтори синхронизацию для сравнения версий."
+        case .invalidRecord: return L10n.text("Сервер вернул некорректную запись библиотеки. Локальные данные сохранены.")
+        case .limitExceeded: return L10n.text("Превышен лимит облачной библиотеки: 10 000 записей или 512 КБ на историю.")
+        case .changedDuringSync: return L10n.text("Облачная запись изменилась во время синхронизации. Повтори синхронизацию для сравнения версий.")
         }
     }
 }

@@ -23,11 +23,11 @@ struct ReviewChoiceList: View {
                     .background(Theme.accent.opacity(checked ? 0.12 : 0.025), in: RoundedRectangle(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(Theme.accent.opacity(checked ? 0.65 : 0.18)))
                 }.buttonStyle(.plain)
-                    .accessibilityValue(checked ? "Выбрано" : "Не выбрано")
+                    .accessibilityValue(checked ? L10n.text("Выбрано") : L10n.text("Не выбрано"))
                     .accessibilityAddTraits(checked ? .isSelected : [])
                     .contextMenu {
-                        if let source = choice.sourceURL { Link("Открыть источник", destination: source) }
-                        ShareLink(item: choice.sourceQuote) { Label("Оригинал фрагмента", systemImage: "quote.bubble") }
+                        if let source = choice.sourceURL { Link(L10n.text("Открыть источник"), destination: source) }
+                        ShareLink(item: choice.sourceQuote) { Label(L10n.text("Оригинал фрагмента"), systemImage: "quote.bubble") }
                     }
             }
         }

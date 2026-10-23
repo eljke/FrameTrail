@@ -9,23 +9,23 @@ struct RootView: View {
     var body: some View {
         @Bindable var model = model
         TabView(selection: $model.selectedTab) {
-            Tab("Библиотека", systemImage: "books.vertical", value: 1) {
+            Tab(L10n.text("Библиотека"), systemImage: "books.vertical", value: 1) {
                 NavigationStack { LibraryView().navigationDestination(for: MediaTitle.self) { TitleDetailView(title: $0) } }
             }
-            Tab("Дневник", systemImage: "text.book.closed", value: 2) {
+            Tab(L10n.text("Дневник"), systemImage: "text.book.closed", value: 2) {
                 NavigationStack { JournalView().navigationDestination(for: MediaTitle.self) { TitleDetailView(title: $0) } }
             }
-            Tab("Настройки", systemImage: "slider.horizontal.3", value: 3) {
+            Tab(L10n.text("Настройки"), systemImage: "slider.horizontal.3", value: 3) {
                 NavigationStack { SettingsView() }
             }
-            Tab("Поиск", systemImage: "magnifyingglass", value: 0, role: .search) {
+            Tab(L10n.text("Поиск"), systemImage: "magnifyingglass", value: 0, role: .search) {
                 NavigationStack { DiscoverView().navigationDestination(for: MediaTitle.self) { TitleDetailView(title: $0) } }
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
-        .id(library.activeAccountID)
+        .id(library.activeAccountID + model.localeIdentifier)
         .alert("FrameTrail", isPresented: Binding(get: { model.alertMessage != nil || library.lastError != nil }, set: { if !$0 { model.alertMessage = nil; library.dismissError() } })) {
-            Button("Понятно") { model.alertMessage = nil; library.dismissError() }
+            Button(L10n.text("Понятно")) { model.alertMessage = nil; library.dismissError() }
         } message: { Text(model.alertMessage ?? library.lastError ?? "") }
     }
 }
@@ -49,16 +49,16 @@ struct DiscoverView: View {
                             HStack(spacing: 16) {
                                 PosterView(title: recent.title, width: 65)
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text("НЕДАВНО ОТКРЫВАЛИ").font(.caption2.bold()).tracking(1.2).foregroundStyle(Theme.accent)
+                                    Text(L10n.text("НЕДАВНО ОТКРЫВАЛИ")).font(.caption2.bold()).tracking(1.2).foregroundStyle(Theme.accent)
                                     Text(recent.title.title).font(.headline)
-                                    Text(recent.progress.finished ? "Вернуться к обсуждению" : "Обсудить просмотренное").font(.caption).foregroundStyle(Theme.muted)
+                                    Text(recent.progress.finished ? L10n.text("Вернуться к обсуждению") : L10n.text("Обсудить просмотренное")).font(.caption).foregroundStyle(Theme.muted)
                                 }
                                 Spacer()
                                 Image(systemName: "arrow.up.right").foregroundStyle(Theme.accent)
                             }.padding(14).background(Theme.card, in: RoundedRectangle(cornerRadius: 20))
                         }.buttonStyle(.plain)
                     }
-                    Text("Популярное").font(.title2.bold())
+                    Text(L10n.text("Популярное")).font(.title2.bold())
                     if library.entries.isEmpty && !model.isUITesting {
                         TipView(FirstTitleTip()) { _ in quickGuide = true }
                     }
@@ -69,13 +69,13 @@ struct DiscoverView: View {
                             }
                         }
                     }
-                    Button { manualEntry = true } label: { Label("Добавить вручную", systemImage: "plus.circle") }
+                    Button { manualEntry = true } label: { Label(L10n.text("Добавить вручную"), systemImage: "plus.circle") }
                         .accessibilityIdentifier("addManualTitle")
                 } else {
-                    if isSearching { ProgressView("Поиск…").frame(maxWidth: .infinity).padding() }
+                    if isSearching { ProgressView(L10n.text("Поиск…")).frame(maxWidth: .infinity).padding() }
                     if let error { ErrorNotice(message: error) }
                     if !isSearching && results.isEmpty && error == nil {
-                        EmptyState(symbol: "magnifyingglass", title: "Ничего не найдено", text: "Попробуй оригинальное название. Для расширенного каталога можно подключить TMDB в настройках.")
+                        EmptyState(symbol: "magnifyingglass", title: L10n.text("Ничего не найдено"), text: L10n.text("Попробуй оригинальное название. Для расширенного каталога можно подключить TMDB в настройках."))
                     }
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), alignment: .top)], alignment: .leading, spacing: 24) {
                         ForEach(results) { title in NavigationLink(value: title) { TitleCard(title: title) }.buttonStyle(.plain) }
@@ -86,7 +86,7 @@ struct DiscoverView: View {
         .background(Theme.background)
         .navigationTitle("FrameTrail")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $query, prompt: "Фильм или сериал")
+        .searchable(text: $query, prompt: L10n.text("Фильм или сериал"))
         .sheet(isPresented: $manualEntry) { ManualTitleView() }
         .sheet(isPresented: $quickGuide) { NavigationStack { QuickGuideView() } }
         .onChange(of: library.entries.isEmpty) { _, empty in
@@ -122,20 +122,20 @@ struct ManualTitleView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Произведение") {
-                    TextField("Название", text: $name).accessibilityIdentifier("manualTitleName")
-                    Picker("Тип", selection: $kind) {
-                        Text("Фильм").tag(MediaKind.movie)
-                        Text("Сериал").tag(MediaKind.series)
+                Section(L10n.text("Произведение")) {
+                    TextField(L10n.text("Название"), text: $name).accessibilityIdentifier("manualTitleName")
+                    Picker(L10n.text("Тип"), selection: $kind) {
+                        Text(L10n.text("Фильм")).tag(MediaKind.movie)
+                        Text(L10n.text("Сериал")).tag(MediaKind.series)
                     }.accessibilityIdentifier("manualTitleKind")
                 }
-                Section { Text("Добавь собственные материалы в карточке произведения. До отметки «Досмотрел» полный сюжет фильма не используется в ответах.").font(.footnote) }
+                Section { Text(L10n.text("Добавь собственные материалы в карточке произведения. До отметки «Досмотрел» полный сюжет фильма не используется в ответах.")).font(.footnote) }
             }
-            .navigationTitle("Добавить вручную")
+            .navigationTitle(L10n.text("Добавить вручную"))
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L10n.text("Отмена")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Добавить") {
+                    Button(L10n.text("Добавить")) {
                         let id = UUID().uuidString
                         library.add(MediaTitle(id: "local:" + id, title: String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(300)), kind: kind, provider: "local", providerID: id))
                         dismiss()

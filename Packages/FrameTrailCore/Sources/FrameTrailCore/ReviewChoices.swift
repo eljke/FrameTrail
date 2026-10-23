@@ -43,10 +43,10 @@ public struct ReviewPassage: Identifiable, Hashable, Sendable {
 }
 
 public enum ReviewPassages {
-    public static func choice(passageID: String, aspect: ReviewAspect, candidates: [ReviewPassage], localizedQuote: String? = nil) -> ReviewChoice? {
+    public static func choice(passageID: String, aspect: ReviewAspect, candidates: [ReviewPassage], localizedQuote: String? = nil, aspectLabel: String? = nil) -> ReviewChoice? {
         guard let passage = candidates.first(where: { $0.id == passageID }) else { return nil }
         let id = passage.source.id + "#\(passage.ordinal):" + aspect.rawValue
-        let text = aspect.label + " — «" + String((localizedQuote ?? passage.quote).prefix(400)) + "»"
+        let text = (aspectLabel ?? aspect.label) + " — «" + String((localizedQuote ?? passage.quote).prefix(400)) + "»"
         return ReviewChoice(id: id, aspect: aspect, text: text, sourceQuote: passage.quote, sourceID: passage.source.id, sourceURL: passage.source.sourceURL, episodeID: passage.source.episodeID)
     }
 

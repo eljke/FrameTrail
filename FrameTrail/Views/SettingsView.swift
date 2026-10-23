@@ -22,14 +22,14 @@ struct SettingsView: View {
 
     private var modelStatus: AssistantAvailability { model.assistant.availability(localeIdentifier: model.localeIdentifier) }
 
-    private static let versionLabel: String = {
+    private static var versionLabel: String {
         let bundle = Bundle.main
         let release = bundle.url(forResource: "VERSION", withExtension: nil)
             .flatMap { try? String(contentsOf: $0, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines) }
         let version = release ?? bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
         let build = bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
-        return "\(version) · сборка \(build)"
-    }()
+        return L10n.text("%@ · сборка %@", String(describing: version), String(describing: build))
+    }
 
     var body: some View {
         @Bindable var model = model
@@ -44,44 +44,44 @@ struct SettingsView: View {
                 }.padding(.vertical, 8)
             }
             Section {
-                Picker("Язык приложения", selection: $model.localeIdentifier) {
-                    Text("Русский").tag("ru_RU")
+                Picker(L10n.text("Язык приложения"), selection: $model.localeIdentifier) {
+                    Text(L10n.text("Русский")).tag("ru_RU")
                     Text("English").tag("en_US")
                 }.accessibilityIdentifier("appLanguage")
             }
             Section {
                 NavigationLink {
-                    Form { AccountSettingsSection() }.navigationTitle("Аккаунт FrameTrail")
-                } label: { Label("Аккаунт FrameTrail", systemImage: "person.crop.circle") }
+                    Form { AccountSettingsSection() }.navigationTitle(L10n.text("Аккаунт FrameTrail"))
+                } label: { Label(L10n.text("Аккаунт FrameTrail"), systemImage: "person.crop.circle") }
                 NavigationLink {
                     Form { assistantSettings }.navigationTitle("Apple Intelligence")
                 } label: { Label("Apple Intelligence", systemImage: "sparkles") }
                 NavigationLink {
-                    Form { catalogSettings }.navigationTitle("TMDB и каталоги")
-                } label: { Label("TMDB и каталоги", systemImage: "film.stack") }
+                    Form { catalogSettings }.navigationTitle(L10n.text("TMDB и каталоги"))
+                } label: { Label(L10n.text("TMDB и каталоги"), systemImage: "film.stack") }
             }
             Section {
-                NavigationLink { StorageView() } label: { Label("Память", systemImage: "internaldrive") }
+                NavigationLink { StorageView() } label: { Label(L10n.text("Память"), systemImage: "internaldrive") }
                     .accessibilityIdentifier("storageSettings")
                 NavigationLink {
-                    Form { backupSettings }.navigationTitle("Резервная копия")
-                } label: { Label("Резервная копия", systemImage: "externaldrive") }
+                    Form { backupSettings }.navigationTitle(L10n.text("Резервная копия"))
+                } label: { Label(L10n.text("Резервная копия"), systemImage: "externaldrive") }
             }
             Section {
-                NavigationLink { QuickGuideView() } label: { Label("Краткий гид", systemImage: "questionmark.circle") }
+                NavigationLink { QuickGuideView() } label: { Label(L10n.text("Краткий гид"), systemImage: "questionmark.circle") }
                     .accessibilityIdentifier("openQuickGuide")
                 NavigationLink {
-                    Form { aboutSettings }.navigationTitle("О приложении")
-                } label: { Label("О приложении", systemImage: "info.circle") }
+                    Form { aboutSettings }.navigationTitle(L10n.text("О приложении"))
+                } label: { Label(L10n.text("О приложении"), systemImage: "info.circle") }
                 Link(destination: URL(string: "https://github.com/eljke/FrameTrail/issues")!) {
-                    Label("Сообщить об ошибке", systemImage: "ladybug")
+                    Label(L10n.text("Сообщить об ошибке"), systemImage: "ladybug")
                 }
             }
             if let error { Section { ErrorNotice(message: error) } }
             if let notice { Section { Text(notice).font(.footnote).foregroundStyle(Theme.accent) } }
         }
         .scrollContentBackground(.hidden).background(Theme.background)
-        .navigationTitle("Настройки").navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(L10n.text("Настройки")).navigationBarTitleDisplayMode(.inline)
         .task { await model.assistant.refreshAvailability() }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await model.assistant.refreshAvailability() } }
@@ -102,7 +102,7 @@ struct SettingsView: View {
                 guard (attributes.fileSize ?? 0) <= 10 * 1024 * 1024 else { throw CocoaError(.fileReadTooLarge) }
                 let data = try Data(contentsOf: url, options: .mappedIfSafe)
                 try library.importData(data)
-                notice = "Библиотека восстановлена. Новые записи объединены с текущими по дате изменения."
+                notice = L10n.text("Библиотека восстановлена. Новые записи объединены с текущими по дате изменения.")
                 error = nil
             } catch { self.error = error.localizedDescription }
         }
@@ -111,18 +111,18 @@ struct SettingsView: View {
     private var assistantSettings: some View {
         Group {
             Section {
-                Label(modelStatus.isAvailable ? "Локальная модель готова" : "Модель недоступна", systemImage: modelStatus.isAvailable ? "checkmark.shield" : "exclamationmark.circle")
+                Label(modelStatus.isAvailable ? L10n.text("Локальная модель готова") : L10n.text("Модель недоступна"), systemImage: modelStatus.isAvailable ? "checkmark.shield" : "exclamationmark.circle")
                 Text(modelStatus.message).font(.footnote).foregroundStyle(.secondary)
                 if model.assistant.usesRussianTranslation {
                     Text(model.assistant.translation.message).font(.footnote).foregroundStyle(.secondary)
                     if model.assistant.translation.readiness == .downloadRequired {
-                        Button("Подготовить русский перевод") { beginTranslationPreparation() }.disabled(busy)
+                        Button(L10n.text("Подготовить русский перевод")) { beginTranslationPreparation() }.disabled(busy)
                     }
-                    if preparationStep > 0 { ProgressView("Подготавливаю языки Apple…") }
+                    if preparationStep > 0 { ProgressView(L10n.text("Подготавливаю языки Apple…")) }
                 }
-                Text("Если модель не поддерживает русский напрямую, вопрос и разрешённые источники переводятся на английский, ответ — обратно на русский. Всё выполняется на iPhone. Языки перевода загружаются отдельно, занимают системное место и доступны другим приложениям. Перевод может неточно передать имена и смысл; оригиналы источников сохранены.")
+                Text(L10n.text("Если модель не поддерживает русский напрямую, вопрос и разрешённые источники переводятся на английский, ответ — обратно на русский. Всё выполняется на iPhone. Языки перевода загружаются отдельно, занимают системное место и доступны другим приложениям. Перевод может неточно передать имена и смысл; оригиналы источников сохранены."))
                     .font(.caption).foregroundStyle(.secondary)
-            } header: { Text("Помощник на устройстве") }
+            } header: { Text(L10n.text("Помощник на устройстве")) }
         }
     }
 
@@ -132,58 +132,58 @@ struct SettingsView: View {
                 if let account = model.account {
                     Label(account.displayName ?? account.username, systemImage: "person.crop.circle.fill")
                     Text("TMDB · @\(account.username)").font(.caption).foregroundStyle(.secondary)
-                    Button("Импортировать список TMDB") { Task { await importWatchlist() } }.disabled(busy)
-                    Button("Отключить TMDB", role: .destructive) { Task { busy = true; await model.signOut(library: library); busy = false } }.disabled(busy)
+                    Button(L10n.text("Импортировать список TMDB")) { Task { await importWatchlist() } }.disabled(busy)
+                    Button(L10n.text("Отключить TMDB"), role: .destructive) { Task { busy = true; await model.signOut(library: library); busy = false } }.disabled(busy)
                 } else {
-                    Label("Импорт из TMDB", systemImage: "list.and.film")
-                    Button("Войти через TMDB") { Task { await beginLogin() } }.disabled(busy || !model.hasCatalogToken)
+                    Label(L10n.text("Импорт из TMDB"), systemImage: "list.and.film")
+                    Button(L10n.text("Войти через TMDB")) { Task { await beginLogin() } }.disabled(busy || !model.hasCatalogToken)
                     if awaitingApproval {
-                        Button("Я подтвердил вход в TMDB") { Task { await finishLogin() } }.disabled(busy)
-                        Button("Отменить вход", role: .cancel) {
+                        Button(L10n.text("Я подтвердил вход в TMDB")) { Task { await finishLogin() } }.disabled(busy)
+                        Button(L10n.text("Отменить вход"), role: .cancel) {
                             awaitingApproval = false
                             Task { await model.auth.cancelAuthorization() }
                         }.disabled(busy)
                     }
                 }
-                Text("TMDB — дополнительное подключение для импорта списка просмотра. Оно не меняет аккаунт FrameTrail или активную библиотеку.")
+                Text(L10n.text("TMDB — дополнительное подключение для импорта списка просмотра. Оно не меняет аккаунт FrameTrail или активную библиотеку."))
                     .font(.caption).foregroundStyle(.secondary)
                 if busy { ProgressView() }
-            } header: { Text("Подключение TMDB") }
+            } header: { Text(L10n.text("Подключение TMDB")) }
             Section {
-                Label(model.hasCatalogToken ? "TMDB подключён" : "Работают TVmaze и Wikidata", systemImage: model.hasCatalogToken ? "checkmark.circle" : "globe")
+                Label(model.hasCatalogToken ? L10n.text("TMDB подключён") : L10n.text("Работают TVmaze и Wikidata"), systemImage: model.hasCatalogToken ? "checkmark.circle" : "globe")
                 SecureField("TMDB API Read Access Token", text: $apiToken)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
-                Button(apiToken.isEmpty ? "Удалить токен TMDB" : "Сохранить токен") { Task { await saveToken() } }
+                Button(apiToken.isEmpty ? L10n.text("Удалить токен TMDB") : L10n.text("Сохранить токен")) { Task { await saveToken() } }
                     .disabled(busy || (apiToken.isEmpty && !model.hasCatalogToken))
-                Link("Получить токен в настройках TMDB", destination: URL(string: "https://www.themoviedb.org/settings/api")!)
-                Text("Нужен API Read Access Token, а не пароль. Он открывает каталог TMDB и вход в аккаунт. Без него поиск фильмов и сериалов остаётся доступен через другие источники.")
+                Link(L10n.text("Получить токен в настройках TMDB"), destination: URL(string: "https://www.themoviedb.org/settings/api")!)
+                Text(L10n.text("Нужен API Read Access Token, а не пароль. Он открывает каталог TMDB и вход в аккаунт. Без него поиск фильмов и сериалов остаётся доступен через другие источники."))
                     .font(.caption).foregroundStyle(.secondary)
-            } header: { Text("Расширенный каталог") }
+            } header: { Text(L10n.text("Расширенный каталог")) }
         }
     }
 
     private var backupSettings: some View {
         Group {
             Section {
-                Button("Экспортировать библиотеку") {
+                Button(L10n.text("Экспортировать библиотеку")) {
                     do { exportDocument = LibraryDocument(data: try library.exportData()); exporting = true }
                     catch { self.error = error.localizedDescription }
                 }
-                Button("Импортировать резервную копию") { importing = true }
-            } header: { Text("Данные и место") }
+                Button(L10n.text("Импортировать резервную копию")) { importing = true }
+            } header: { Text(L10n.text("Данные и место")) }
         }
     }
 
     private var aboutSettings: some View {
         Group {
             Section {
-                Label("Диалоги обрабатываются на iPhone", systemImage: "iphone.gen3")
-                Label("Без рекламы и аналитических SDK", systemImage: "hand.raised")
-                Text("Поисковые запросы отправляются выбранным каталогам. При входе в FrameTrail карточки, прогресс и личные итоги хранятся в Supabase. Текст обсуждения обрабатывается локально. Подключение TMDB подтверждается на его сайте.")
+                Label(L10n.text("Диалоги обрабатываются на iPhone"), systemImage: "iphone.gen3")
+                Label(L10n.text("Без рекламы и аналитических SDK"), systemImage: "hand.raised")
+                Text(L10n.text("Поисковые запросы отправляются выбранным каталогам. При входе в FrameTrail карточки, прогресс и личные итоги хранятся в Supabase. Текст обсуждения обрабатывается локально. Подключение TMDB подтверждается на его сайте."))
                     .font(.caption).foregroundStyle(.secondary)
-                NavigationLink("Источники и лицензии") { AttributionView() }
-                Link("Исходный код и сообщения об ошибках", destination: URL(string: "https://github.com/eljke/FrameTrail")!)
-            } header: { Text("О приложении") }
+                NavigationLink(L10n.text("Источники и лицензии")) { AttributionView() }
+                Link(L10n.text("Исходный код и сообщения об ошибках"), destination: URL(string: "https://github.com/eljke/FrameTrail")!)
+            } header: { Text(L10n.text("О приложении")) }
         }
     }
 
@@ -198,7 +198,7 @@ struct SettingsView: View {
             apiToken = ""
             awaitingApproval = false
             authorization = nil
-            notice = model.hasCatalogToken ? "Токен сохранён в Keychain." : "Токен удалён."
+            notice = model.hasCatalogToken ? L10n.text("Токен сохранён в Keychain.") : L10n.text("Токен удалён.")
         } catch {
             self.error = error.localizedDescription
             do { try await model.refreshAccountState(library: library) }
@@ -227,7 +227,7 @@ struct SettingsView: View {
             await model.assistant.refreshAvailability()
             if model.assistant.translation.readiness == .installed {
                 model.localeIdentifier = "ru_RU"
-                notice = "Русский перевод готов. Вопросы и ответы обрабатываются локально."
+                notice = L10n.text("Русский перевод готов. Вопросы и ответы обрабатываются локально.")
             }
             preparationStep = 0
             translationConfiguration = nil
@@ -259,9 +259,9 @@ struct SettingsView: View {
         do {
             try await model.finishAuthorization(library: library)
             awaitingApproval = false
-            notice = "TMDB подключён. Можно импортировать список просмотра."
+            notice = L10n.text("TMDB подключён. Можно импортировать список просмотра.")
         } catch ServiceError.http(401) {
-            self.error = "TMDB пока не подтвердил вход. Одобри доступ на сайте и нажми «Я подтвердил вход» или начни заново."
+            self.error = L10n.text("TMDB пока не подтвердил вход. Одобри доступ на сайте и нажми «Я подтвердил вход» или начни заново.")
         } catch is CancellationError {
         } catch { self.error = error.localizedDescription }
     }
@@ -275,7 +275,7 @@ struct SettingsView: View {
             let titles = try await model.auth.watchlist()
             guard accountID == library.activeAccountID else { return }
             let added = try library.addTitles(titles)
-            notice = "Добавлено: \(added), получено: \(titles.count). Существующие записи сохранены. Импорт ограничен первыми 10 страницами каждого типа."
+            notice = L10n.text("Добавлено: %@, получено: %@. Существующие записи сохранены. Импорт ограничен первыми 10 страницами каждого типа.", String(describing: added), String(describing: titles.count))
         } catch { self.error = error.localizedDescription }
     }
 }
@@ -305,21 +305,21 @@ private struct LibraryDocument: FileDocument {
 private struct AttributionView: View {
     var body: some View {
         List {
-            Section("Каталоги") {
+            Section(L10n.text("Каталоги")) {
                 Link("TMDB", destination: URL(string: "https://www.themoviedb.org")!)
                 Text("This product uses the TMDB API but is not endorsed or certified by TMDB.").font(.footnote)
                 Image("TMDBLogo").resizable().scaledToFit().frame(width: 100, height: 73).accessibilityLabel("TMDB")
                 Link("TVmaze · CC BY-SA", destination: URL(string: "https://www.tvmaze.com/api")!)
                 Link("Wikidata · CC0", destination: URL(string: "https://www.wikidata.org/wiki/Wikidata:Licensing")!)
             }
-            Section("Сюжетные материалы") {
-                Text("Материалы Wikipedia распространяются по CC BY-SA 4.0. Пересказ и выбранные фрагменты могут быть сокращены; ссылка на исходную редакцию доступна возле материала. Пользовательские тексты хранятся только в его библиотеке.").font(.footnote)
+            Section(L10n.text("Сюжетные материалы")) {
+                Text(L10n.text("Материалы Wikipedia распространяются по CC BY-SA 4.0. Пересказ и выбранные фрагменты могут быть сокращены; ссылка на исходную редакцию доступна возле материала. Пользовательские тексты хранятся только в его библиотеке.")).font(.footnote)
                 Link("CC BY-SA 4.0", destination: URL(string: "https://creativecommons.org/licenses/by-sa/4.0/")!)
             }
-            Section("Приложение") {
+            Section(L10n.text("Приложение")) {
                 Text("FrameTrail · MIT License · © 2026 Ilya Kuzmenko").font(.footnote)
-                Text("Apple Foundation Models — системная технология Apple. Доступность зависит от устройства, региона, настроек Apple Intelligence и языка.").font(.footnote)
+                Text(L10n.text("Apple Foundation Models — системная технология Apple. Доступность зависит от устройства, региона, настроек Apple Intelligence и языка.")).font(.footnote)
             }
-        }.navigationTitle("Источники")
+        }.navigationTitle(L10n.text("Источники"))
     }
 }

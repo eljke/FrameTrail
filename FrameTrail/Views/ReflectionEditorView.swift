@@ -62,56 +62,56 @@ struct ReflectionEditorView: View {
                 Section {
                     Text(title.title).font(.headline)
                     if let scopeSeason, let scopeNumber {
-                        Text("Сезон \(scopeSeason) · Серия \(scopeNumber)").font(.subheadline).foregroundStyle(Theme.accent)
+                        Text(L10n.text("Сезон %@ · Серия %@", String(describing: scopeSeason), String(describing: scopeNumber))).font(.subheadline).foregroundStyle(Theme.accent)
                     } else if let seasonScope {
-                        Text("Сезон \(seasonScope)").font(.subheadline).foregroundStyle(Theme.accent)
+                        Text(L10n.text("Сезон %@", String(describing: seasonScope))).font(.subheadline).foregroundStyle(Theme.accent)
                     } else {
-                        Text(title.kind == .movie ? "Фильм целиком" : "Сериал в целом").font(.subheadline).foregroundStyle(Theme.accent)
+                        Text(title.kind == .movie ? L10n.text("Фильм целиком") : L10n.text("Сериал в целом")).font(.subheadline).foregroundStyle(Theme.accent)
                     }
                     RatingSelector(rating: $rating)
                 }
                 if title.kind == .series && scopeID == nil && rating > 0 {
                     Section {
-                        Toggle("Применить к просмотренным сериям", isOn: $applyRatingToEpisodes)
+                        Toggle(L10n.text("Применить к просмотренным сериям"), isOn: $applyRatingToEpisodes)
                             .accessibilityIdentifier("applyRatingToEpisodes")
                         if applyRatingToEpisodes {
-                            Toggle("Заменить уже выставленные оценки", isOn: $overwriteEpisodeRatings)
+                            Toggle(L10n.text("Заменить уже выставленные оценки"), isOn: $overwriteEpisodeRatings)
                             let entry = library.entry(for: title.id) ?? LibraryEntry(title: title)
                             let plan = EpisodeRatingPlan(titleID: title.id, episodes: entry.episodes, watchedEpisodeIDs: entry.progress.watchedEpisodeIDs,
                                                          records: entry.reflections, rating: rating, season: seasonScope, overwrite: overwriteEpisodeRatings)
-                            Text("Изменится оценок: \(plan.changedCount). Заметки сохранятся.").font(.caption).foregroundStyle(.secondary)
+                            Text(L10n.text("Изменится оценок: %@. Заметки сохранятся.", String(describing: plan.changedCount))).font(.caption).foregroundStyle(.secondary)
                         }
-                    } footer: { Text("Только просмотренные серии выбранного сезона или сериала. Действие можно отменить в карточке.") }
+                    } footer: { Text(L10n.text("Только просмотренные серии выбранного сезона или сериала. Действие можно отменить в карточке.")) }
                 }
-                Section("Заметки") {
+                Section(L10n.text("Заметки")) {
                     TextEditor(text: $summary).frame(minHeight: 90).accessibilityIdentifier("reflectionSummary")
                         .onChange(of: summary) { _, value in if value.count > 10_000 { summary = String(value.prefix(10_000)) } }
                     if scopeID == nil && seasonScope == nil, let last = library.entry(for: title.id)?.chat.last(where: { $0.role == .assistant }) {
-                        Button("Взять последний ответ за основу") { summary = String(last.text.prefix(10_000)) }
+                        Button(L10n.text("Взять последний ответ за основу")) { summary = String(last.text.prefix(10_000)) }
                     }
                 }
-                Button(showImpressions ? "Скрыть подробности" : "Добавить впечатления и вопросы") {
+                Button(showImpressions ? L10n.text("Скрыть подробности") : L10n.text("Добавить впечатления и вопросы")) {
                     showImpressions.toggle()
                 }.accessibilityIdentifier("toggleReviewDetails")
                 if showImpressions {
                     interviewSection
-                Section("Что понравилось") {
+                Section(L10n.text("Что понравилось")) {
                     if let interview { Text(interview.liked).font(.subheadline).foregroundStyle(Theme.accent).textSelection(.enabled) }
                     ReviewChoiceList(choices: choiceOptions(positive: true), selected: $likedChoices)
-                    Text("Свой вариант · необязательно").font(.caption).foregroundStyle(.secondary)
+                    Text(L10n.text("Свой вариант · необязательно")).font(.caption).foregroundStyle(.secondary)
                     TextEditor(text: $liked).frame(minHeight: 70)
                         .accessibilityIdentifier("reflectionLiked")
                         .onChange(of: liked) { _, value in if value.count > 30_000 { liked = String(value.prefix(30_000)) } }
                 }
-                Section("Что не понравилось") {
+                Section(L10n.text("Что не понравилось")) {
                     if let interview { Text(interview.disliked).font(.subheadline).foregroundStyle(Theme.accent).textSelection(.enabled) }
                     ReviewChoiceList(choices: choiceOptions(positive: false), selected: $dislikedChoices)
-                    Text("Свой вариант · необязательно").font(.caption).foregroundStyle(.secondary)
+                    Text(L10n.text("Свой вариант · необязательно")).font(.caption).foregroundStyle(.secondary)
                     TextEditor(text: $disliked).frame(minHeight: 70)
                         .accessibilityIdentifier("reflectionDisliked")
                         .onChange(of: disliked) { _, value in if value.count > 30_000 { disliked = String(value.prefix(30_000)) } }
                 }
-                Section("Вопросы на потом") {
+                Section(L10n.text("Вопросы на потом")) {
                     TextEditor(text: $questions).frame(minHeight: 70)
                         .accessibilityIdentifier("reflectionQuestions")
                         .onChange(of: questions) { _, value in if value.count > 30_000 { questions = String(value.prefix(30_000)) } }
@@ -119,12 +119,12 @@ struct ReflectionEditorView: View {
                 }
                 if let error { Section { ErrorNotice(message: error) } }
             }
-            .navigationTitle("Отзыв")
+            .navigationTitle(L10n.text("Отзыв"))
             .scrollContentBackground(.hidden).background(Theme.background)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L10n.text("Отмена")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Сохранить") {
+                    Button(L10n.text("Сохранить")) {
                         if applyRatingToEpisodes && overwriteEpisodeRatings && rating > 0 { confirmOverwrite = true }
                         else { save() }
                     }.disabled(!canSave)
@@ -151,8 +151,8 @@ struct ReflectionEditorView: View {
             .onChange(of: currentProgress) { _, _ in stopInterview(); interview = nil }
             .onChange(of: model.localeIdentifier) { _, _ in stopInterview(); interview = nil }
             .onDisappear { stopInterview() }
-            .confirmationDialog("Заменить оценки просмотренных серий? Заметки сохранятся.", isPresented: $confirmOverwrite, titleVisibility: .visible) {
-                Button("Заменить оценки") { save() }
+            .confirmationDialog(L10n.text("Заменить оценки просмотренных серий? Заметки сохранятся."), isPresented: $confirmOverwrite, titleVisibility: .visible) {
+                Button(L10n.text("Заменить оценки")) { save() }
             }
             .sheet(isPresented: $importingSource) {
                 SourceImportView(title: title, episodes: library.entry(for: title.id)?.episodes ?? [], initialEpisodeID: scopeID)
@@ -165,32 +165,32 @@ struct ReflectionEditorView: View {
             Button {
                 skippedInterview = false
                 startInterview()
-            } label: { Label(interview == nil ? "Подобрать вопросы" : "Обновить варианты", systemImage: "sparkles") }
+            } label: { Label(interview == nil ? L10n.text("Подобрать вопросы") : L10n.text("Обновить варианты"), systemImage: "sparkles") }
                 .disabled(generating || !canInterview || !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable)
             if generating {
-                HStack { ProgressView(); Text("Проверяю материалы и готовлю варианты…").font(.footnote) }
-                Button("Остановить") { stopInterview() }
+                HStack { ProgressView(); Text(L10n.text("Проверяю материалы и готовлю варианты…")).font(.footnote) }
+                Button(L10n.text("Остановить")) { stopInterview() }
             }
-            Button(skippedInterview ? "Вопросы пропущены" : "Пропустить вопросы") {
+            Button(skippedInterview ? L10n.text("Вопросы пропущены") : L10n.text("Пропустить вопросы")) {
                 stopInterview()
                 interview = nil
                 skippedInterview = true
             }.disabled(skippedInterview)
-            DisclosureGroup("Материалы для разбора") {
+            DisclosureGroup(L10n.text("Материалы для разбора")) {
                 let context = reviewContext
-                Text(context.hasEvidence ? "Есть материалы выбранного фильма или серии." : "Сохранённых материалов пока нет.")
+                Text(context.hasEvidence ? L10n.text("Есть материалы выбранного фильма или серии.") : L10n.text("Сохранённых материалов пока нет."))
                     .font(.caption).foregroundStyle(.secondary)
-                Text("Перед разбором попробую найти подробный сюжет Wikipedia. Варианты затронут только доступные источники выбранного просмотренного эпизода или фильма, включая его финал. Другие серии исключены.")
+                Text(L10n.text("Перед разбором попробую найти подробный сюжет Wikipedia. Варианты затронут только доступные источники выбранного просмотренного эпизода или фильма, включая его финал. Другие серии исключены."))
                     .font(.caption).foregroundStyle(.secondary)
-                Button("Добавить текст или субтитры") { stopInterview(); importingSource = true }
+                Button(L10n.text("Добавить текст или субтитры")) { stopInterview(); importingSource = true }
             }.font(.subheadline)
             if let sourceNotice { Text(sourceNotice).font(.caption).foregroundStyle(.secondary) }
             if !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable {
-                Text("Оценки и заметки доступны вручную. Для вариантов помощника подготовь модель и язык в настройках.")
+                Text(L10n.text("Оценки и заметки доступны вручную. Для вариантов помощника подготовь модель и язык в настройках."))
                     .font(.caption).foregroundStyle(.secondary)
             }
-        } header: { Text("Вопросы о просмотренном") } footer: {
-            Text("Необязательно: выбери несколько вариантов, добавь свой ответ или сохрани только оценку.")
+        } header: { Text(L10n.text("Вопросы о просмотренном")) } footer: {
+            Text(L10n.text("Необязательно: выбери несколько вариантов, добавь свой ответ или сохрани только оценку."))
         }
     }
 
@@ -233,9 +233,9 @@ struct ReflectionEditorView: View {
                         changed.facts.append(contentsOf: facts.filter { fact in !changed.facts.contains(where: { $0.id == fact.id }) })
                         changed.updatedAt = Date()
                         library.update(changed)
-                        sourceNotice = library.lastError ?? "Загружен подробный сюжет Wikipedia. Варианты могут затрагивать развязку просмотренного."
+                        sourceNotice = library.lastError ?? L10n.text("Загружен подробный сюжет Wikipedia. Варианты могут затрагивать развязку просмотренного.")
                     } catch is CancellationError { throw CancellationError() }
-                    catch { sourceNotice = "Подробный пересказ не загружен. Использую доступные материалы; развязки в краткой аннотации может не быть. Можно добавить свой текст или субтитры." }
+                    catch { sourceNotice = L10n.text("Подробный пересказ не загружен. Использую доступные материалы; развязки в краткой аннотации может не быть. Можно добавить свой текст или субтитры.") }
                 }
                 try Task.checkCancellation()
                 let packet = reviewContext

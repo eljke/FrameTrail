@@ -21,6 +21,7 @@ struct FrameTrailApp: App {
             RootView()
                 .environment(library)
                 .environment(model)
+                .environment(\.locale, Locale(identifier: model.localeIdentifier))
                 .tint(Theme.accent)
                 .preferredColorScheme(.dark)
                 .task { await model.restoreAccount(library: library) }

@@ -53,17 +53,17 @@ struct LibraryStatisticsView: View {
         let statistics = LibraryStatistics(entries: entries)
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 16) {
-                Label("Фильмы: \(statistics.movieCount)", systemImage: "film")
-                Label("Сериалы: \(statistics.seriesCount)", systemImage: "tv")
+                Label(L10n.text("Фильмы: %@", String(describing: statistics.movieCount)), systemImage: "film")
+                Label(L10n.text("Сериалы: %@", String(describing: statistics.seriesCount)), systemImage: "tv")
             }
             .font(.caption).foregroundStyle(Theme.muted)
             .frame(maxWidth: .infinity, alignment: .leading)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .top), count: dynamicTypeSize.isAccessibilitySize ? 1 : 2), spacing: 12) {
-                statisticCard(statistics.titleCount, label: "Историй в библиотеке", symbol: "books.vertical")
-                statisticCard(statistics.completedTitleCount, label: "Досмотрено", symbol: "checkmark.seal")
-                statisticCard(statistics.watchedEpisodeCount, label: "Просмотрено серий", symbol: "play.rectangle.on.rectangle")
-                statisticCard(statistics.reflectionCount, label: "Отзывов", symbol: "text.book.closed")
+                statisticCard(statistics.titleCount, label: L10n.text("Историй в библиотеке"), symbol: "books.vertical")
+                statisticCard(statistics.completedTitleCount, label: L10n.text("Досмотрено"), symbol: "checkmark.seal")
+                statisticCard(statistics.watchedEpisodeCount, label: L10n.text("Просмотрено серий"), symbol: "play.rectangle.on.rectangle")
+                statisticCard(statistics.reflectionCount, label: L10n.text("Отзывов"), symbol: "text.book.closed")
             }
 
             VStack(alignment: .leading, spacing: 12) {
@@ -74,32 +74,32 @@ struct LibraryStatisticsView: View {
                             .monospacedDigit().foregroundStyle(Theme.accent)
                         Text("/ 10").font(.subheadline).foregroundStyle(Theme.muted)
                     }
-                    Text("Средняя общая оценка").font(.subheadline.weight(.medium))
-                    Text("Произведений с оценкой: \(statistics.ratedTitleCount)")
+                    Text(L10n.text("Средняя общая оценка")).font(.subheadline.weight(.medium))
+                    Text(L10n.text("Произведений с оценкой: %@", String(describing: statistics.ratedTitleCount)))
                         .font(.caption).foregroundStyle(Theme.muted)
                     Chart(statistics.ratingDistribution) { bucket in
-                        BarMark(x: .value("Оценка", bucket.rating), y: .value("Произведений", bucket.count))
+                        BarMark(x: .value(L10n.text("Оценка"), bucket.rating), y: .value(L10n.text("Произведений"), bucket.count))
                             .foregroundStyle(Theme.accent.gradient)
                             .cornerRadius(4)
-                            .accessibilityLabel("Оценка \(bucket.rating)")
-                            .accessibilityValue("Произведений: \(bucket.count)")
+                            .accessibilityLabel(L10n.text("Оценка %@", String(describing: bucket.rating)))
+                            .accessibilityValue(L10n.text("Произведений: %@", String(describing: bucket.count)))
                     }
                     .chartXAxis { AxisMarks(values: [1, 5, 10]) }
                     .chartYAxis(.hidden)
                     .frame(height: 80)
-                    .accessibilityLabel("Распределение общих оценок произведений")
+                    .accessibilityLabel(L10n.text("Распределение общих оценок произведений"))
                 } else {
-                    Label("Твоя история оценок", systemImage: "star")
+                    Label(L10n.text("Твоя история оценок"), systemImage: "star")
                         .font(.subheadline.weight(.medium)).foregroundStyle(Theme.accent)
-                    Text("Оцени фильм или сериал в целом, и здесь появятся среднее значение и распределение.")
+                    Text(L10n.text("Оцени фильм или сериал в целом, и здесь появятся среднее значение и распределение."))
                         .font(.footnote).foregroundStyle(Theme.muted)
                 }
                 if let average = statistics.averageEpisodeRating {
                     Divider()
                     HStack {
-                        Text("Серий с оценкой: \(statistics.ratedEpisodeCount)")
+                        Text(L10n.text("Серий с оценкой: %@", String(describing: statistics.ratedEpisodeCount)))
                         Spacer()
-                        Text("Средняя: \(average, format: .number.precision(.fractionLength(1)))/10").foregroundStyle(Theme.accent)
+                        Text(L10n.text("Средняя: %@/10", String(describing: average.formatted(.number.precision(.fractionLength(1)).locale(L10n.locale))))).foregroundStyle(Theme.accent)
                     }.font(.caption)
                 }
             }

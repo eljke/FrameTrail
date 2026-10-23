@@ -69,25 +69,25 @@ final class OnDeviceAssistant {
         case .available:
             if localeIdentifier == "ru_RU", usesRussianTranslation {
                 guard supports(locale: Locale(identifier: "en_US")) else {
-                    return AssistantAvailability(isAvailable: false, message: "Системная модель не поддерживает английский, необходимый для локального перевода русского диалога.")
+                    return AssistantAvailability(isAvailable: false, message: L10n.text("Системная модель не поддерживает английский, необходимый для локального перевода русского диалога."))
                 }
                 return AssistantAvailability(isAvailable: translation.readiness == .installed, message: translation.message)
             }
             guard supports(locale: Locale(identifier: localeIdentifier)) else {
-                return AssistantAvailability(isAvailable: false, message: "Системная модель Apple не поддерживает выбранный язык. Выбери другой язык в настройках. Источники и заметки остаются доступны.")
+                return AssistantAvailability(isAvailable: false, message: L10n.text("Системная модель Apple не поддерживает выбранный язык. Выбери другой язык в настройках. Источники и заметки остаются доступны."))
             }
-            return AssistantAvailability(isAvailable: true, message: "Готово · системная модель Apple · без отправки диалогов")
+            return AssistantAvailability(isAvailable: true, message: L10n.text("Готово · системная модель Apple · без отправки диалогов"))
         case .unavailable(let reason):
             let message: String
             switch reason {
-            case .appleIntelligenceNotEnabled: message = "Включи Apple Intelligence в настройках iPhone, чтобы пользоваться локальным помощником."
-            case .modelNotReady: message = "Системная модель ещё не готова. Дождись её загрузки в настройках iPhone и попробуй снова."
-            case .deviceNotEligible: message = "Устройство не поддерживает системную модель Apple. Источники, прогресс и заметки продолжают работать."
-            @unknown default: message = "Системная модель Apple сейчас недоступна. Источники и заметки продолжают работать."
+            case .appleIntelligenceNotEnabled: message = L10n.text("Включи Apple Intelligence в настройках iPhone, чтобы пользоваться локальным помощником.")
+            case .modelNotReady: message = L10n.text("Системная модель ещё не готова. Дождись её загрузки в настройках iPhone и попробуй снова.")
+            case .deviceNotEligible: message = L10n.text("Устройство не поддерживает системную модель Apple. Источники, прогресс и заметки продолжают работать.")
+            @unknown default: message = L10n.text("Системная модель Apple сейчас недоступна. Источники и заметки продолжают работать.")
             }
             return AssistantAvailability(isAvailable: false, message: message)
         @unknown default:
-            return AssistantAvailability(isAvailable: false, message: "Системная модель Apple сейчас недоступна.")
+            return AssistantAvailability(isAvailable: false, message: L10n.text("Системная модель Apple сейчас недоступна."))
         }
     }
 
@@ -95,7 +95,7 @@ final class OnDeviceAssistant {
         let status = availability(localeIdentifier: localeIdentifier)
         guard status.isAvailable else { throw AssistantError(message: status.message) }
         let text = String(question.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1_500))
-        guard !text.isEmpty else { throw AssistantError(message: "Сначала напиши вопрос.") }
+        guard !text.isEmpty else { throw AssistantError(message: L10n.text("Сначала напиши вопрос.")) }
         if localeIdentifier == "ru_RU", usesRussianTranslation {
             let translated = try await translation.englishTexts([text])
             return translated[0]
@@ -108,7 +108,7 @@ final class OnDeviceAssistant {
         guard status.isAvailable else { throw AssistantError(message: status.message) }
         let passages = ReviewPassages.candidates(in: context)
         guard !passages.isEmpty else {
-            throw AssistantError(message: "Для сюжетных вариантов нужны материалы выбранной серии или фильма. Загрузи аннотацию или добавь текст; оценку и свои впечатления можно сохранить без этого.")
+            throw AssistantError(message: L10n.text("Для сюжетных вариантов нужны материалы выбранной серии или фильма. Загрузи аннотацию или добавь текст; оценку и свои впечатления можно сохранить без этого."))
         }
         let translate = localeIdentifier == "ru_RU" && usesRussianTranslation
         var notes = [String(target.prefix(300)), String(liked.prefix(800)), String(disliked.prefix(800))]
@@ -146,7 +146,7 @@ final class OnDeviceAssistant {
                 if localeIdentifier == "ru_RU", translation.readiness == .installed {
                     excerpt = try await translation.russianText(excerpt)
                 }
-                guard let choice = ReviewPassages.choice(passageID: selection.passageID, aspect: aspect, candidates: passages, localizedQuote: excerpt),
+                guard let choice = ReviewPassages.choice(passageID: selection.passageID, aspect: aspect, candidates: passages, localizedQuote: excerpt, aspectLabel: L10n.text(aspect.label)),
                       !choices.contains(where: { $0.id == choice.id }) else { continue }
                 choices.append(choice)
             }
@@ -155,15 +155,15 @@ final class OnDeviceAssistant {
         let positive = try await choices(response.content.liked)
         let negative = try await choices(response.content.disliked)
         guard !positive.isEmpty || !negative.isEmpty else {
-            throw AssistantError(message: "Не удалось подобрать варианты из разрешённых материалов. Попробуй ещё раз или запиши впечатления самостоятельно.")
+            throw AssistantError(message: L10n.text("Не удалось подобрать варианты из разрешённых материалов. Попробуй ещё раз или запиши впечатления самостоятельно."))
         }
-        return ReviewQuestions(liked: "Что понравилось больше всего?", disliked: "Что не понравилось", likedChoices: positive, dislikedChoices: negative)
+        return ReviewQuestions(liked: L10n.text("Что понравилось больше всего?"), disliked: L10n.text("Что не понравилось"), likedChoices: positive, dislikedChoices: negative)
     }
 
     func compileReflections(title: String, compilation: ReflectionCompilation, localeIdentifier: String, progress: (Int, Int) -> Void) async throws -> String {
         let status = availability(localeIdentifier: localeIdentifier)
         guard status.isAvailable else { throw AssistantError(message: status.message) }
-        guard !compilation.batches.isEmpty else { throw AssistantError(message: "Сначала сохрани оценки или впечатления о просмотренных сериях.") }
+        guard !compilation.batches.isEmpty else { throw AssistantError(message: L10n.text("Сначала сохрани оценки или впечатления о просмотренных сериях.")) }
         let translate = localeIdentifier == "ru_RU" && usesRussianTranslation
         let generationLocale = translate ? "en_US" : localeIdentifier
         var total = 1
@@ -210,9 +210,9 @@ final class OnDeviceAssistant {
         let availability = availability(localeIdentifier: localeIdentifier)
         guard availability.isAvailable else { throw AssistantError(message: availability.message) }
         let question = question.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !question.isEmpty else { throw AssistantError(message: "Сначала напиши вопрос.") }
+        guard !question.isEmpty else { throw AssistantError(message: L10n.text("Сначала напиши вопрос.")) }
         guard context.hasEvidence else {
-            throw AssistantError(message: "Нет источников в пределах просмотренного. Отметь просмотренные серии или добавь свой текст для этого произведения.")
+            throw AssistantError(message: L10n.text("Нет источников в пределах просмотренного. Отметь просмотренные серии или добавь свой текст для этого произведения."))
         }
         let translate = localeIdentifier == "ru_RU" && usesRussianTranslation
         let generationLocale = translate ? "en_US" : localeIdentifier
@@ -277,7 +277,7 @@ final class OnDeviceAssistant {
             paragraphs.append(AnswerParagraph(text: text, sourceIDs: item.sourceIDs))
         }
         let answer = SourceAnswer(paragraphs: paragraphs, evidence: selectedFacts)
-        guard !answer.text.isEmpty else { throw AssistantError(message: "Не удалось подтвердить ответ источниками. Попробуй уточнить вопрос или добавить материалы.") }
+        guard !answer.text.isEmpty else { throw AssistantError(message: L10n.text("Не удалось подтвердить ответ источниками. Попробуй уточнить вопрос или добавить материалы.")) }
         return answer
     }
 }

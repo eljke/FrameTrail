@@ -2,6 +2,21 @@ import XCTest
 
 final class FrameTrailSmokeTests: XCTestCase {
     @MainActor
+    func testSwitchApplicationLanguage() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting", "--language=en"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Library"].waitForExistence(timeout: 15))
+        app.tabBars.buttons["Settings"].tap()
+        capture("10-settings-english", app: app)
+        app.buttons["appLanguage"].tap()
+        app.buttons["Русский"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Библиотека"].waitForExistence(timeout: 5))
+        capture("11-settings-russian", app: app)
+    }
+
+    @MainActor
     func testSaveFinishedMovieAndReflection() {
         continueAfterFailure = false
         let app = XCUIApplication()

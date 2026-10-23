@@ -21,10 +21,10 @@ final class LocalTranslationService {
 
     var message: String {
         switch readiness {
-        case .checking: return "Проверяю языки локального перевода Apple…"
-        case .installed: return "Русский через локальный перевод Apple. Вопрос и ответ обрабатываются на iPhone."
-        case .downloadRequired: return "Для русского подготовь языки перевода Apple в настройках FrameTrail. Загрузка выполняется с разрешения в системном окне."
-        case .unsupported: return "На этом устройстве перевод между русским и английским недоступен. Можно выбрать English."
+        case .checking: return L10n.text("Проверяю языки локального перевода Apple…")
+        case .installed: return L10n.text("Русский через локальный перевод Apple. Вопрос и ответ обрабатываются на iPhone.")
+        case .downloadRequired: return L10n.text("Для русского подготовь языки перевода Apple в настройках FrameTrail. Загрузка выполняется с разрешения в системном окне.")
+        case .unsupported: return L10n.text("На этом устройстве перевод между русским и английским недоступен. Можно выбрать English.")
         }
     }
 
@@ -49,7 +49,7 @@ final class LocalTranslationService {
         let responses = try await session.translations(from: requests)
         try Task.checkCancellation()
         var translated = texts
-        guard responses.count == requests.count else { throw AssistantError(message: "Перевод Apple вернул неполный результат. Попробуй ещё раз.") }
+        guard responses.count == requests.count else { throw AssistantError(message: L10n.text("Перевод Apple вернул неполный результат. Попробуй ещё раз.")) }
         for (item, response) in zip(selected, responses) {
             translated[item.offset] = response.targetText
         }
@@ -66,7 +66,7 @@ final class LocalTranslationService {
         let requests = selected.map { TranslationSession.Request(sourceText: $0.element.text, clientIdentifier: String($0.offset)) }
         let responses = try await session.translations(from: requests)
         try Task.checkCancellation()
-        guard responses.count == requests.count else { throw AssistantError(message: "Перевод Apple вернул неполный результат. Попробуй ещё раз.") }
+        guard responses.count == requests.count else { throw AssistantError(message: L10n.text("Перевод Apple вернул неполный результат. Попробуй ещё раз.")) }
         for (item, response) in zip(selected, responses) {
             let leading = item.element.text.prefix(while: \.isWhitespace)
             let trailing = item.element.text.reversed().prefix(while: \.isWhitespace).reversed()
