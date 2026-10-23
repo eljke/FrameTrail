@@ -45,6 +45,7 @@ Actual iPhone Air Simulator screenshots from automated UI scenarios with demonst
 | Series retrospective | Compile saved impressions across watched episodes with the local model. Edit, share, or explicitly save the result in your journal. |
 | Viewing statistics | Title, completion, episode and reflection counts, rating average and distribution. Only the latest rating per title counts; episode ratings are calculated separately. |
 | Storage | Settings shows library and cache sizes, image-cache cleanup and separate material removal with animated feedback. Personal records and progress remain. |
+| Quick guide | Always available in Settings. Contextual inline tips do not cover controls, can be dismissed and remember their display state locally. |
 | FrameTrail account | Email/password sign-in through Supabase, with an isolated library for each user. |
 | Library synchronization | Titles, episode progress, completion and reflections with ratings synchronize between devices. Choose a version when concurrent edits conflict. |
 | TMDB connection | Approve access on the provider's website and import its watchlist into the current FrameTrail library. |
