@@ -28,7 +28,7 @@ The badges use public GitHub metadata: actual build status, published version, s
 <p align="center">
   <img src=".github/assets/screenshots/overview.png" width="230" alt="FrameTrail overview">
   <img src=".github/assets/screenshots/library.png" width="230" alt="FrameTrail library">
-  <img src=".github/assets/screenshots/journal.png" width="230" alt="Journal with an episode rating">
+  <img src=".github/assets/screenshots/journal.png" width="230" alt="Journal with a movie review">
 </p>
 
 Actual iPhone Air Simulator screenshots from automated UI scenarios with demonstration records. These scenarios do not run catalog search or generation.
