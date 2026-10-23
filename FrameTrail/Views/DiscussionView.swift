@@ -157,7 +157,7 @@ struct DiscussionView: View {
         ForEach(context.evidence) { fact in
             VStack(alignment: .leading, spacing: 8) {
                 Text(fact.id).font(.caption2.monospaced()).foregroundStyle(Theme.accent)
-                Text(fact.text).font(.footnote).textSelection(.enabled)
+                LocalizedSourceText(text: fact.text).font(.footnote)
                 if let url = fact.sourceURL { Link(L10n.text("Открыть источник"), destination: url).font(.caption) }
                 else { Text(L10n.text("Материал пользователя")).font(.caption2).foregroundStyle(Theme.muted) }
             }.padding(14).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))

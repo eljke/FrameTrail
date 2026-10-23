@@ -12,6 +12,7 @@ struct LibraryEntry: Identifiable, Codable, Hashable {
     var chat: [ChatTurn]
     var reflections: [Reflection]
     var updatedAt: Date
+    var episodeLanguage: String?
 
     init(title: MediaTitle) {
         self.title = title
@@ -224,6 +225,7 @@ final class LibraryStore {
         var next = entries
         for index in next.indices {
             next[index].episodes = []
+            next[index].episodeLanguage = nil
             next[index].facts = []
             next[index].updatedAt = Date()
         }

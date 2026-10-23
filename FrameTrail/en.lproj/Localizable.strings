@@ -419,3 +419,7 @@
 "Темп повествования" = "Pacing";
 "Источников для ответа: %@" = "Sources for this answer: %@";
 "Нет материалов для ответа. Отметь просмотренное или добавь текст." = "No sources available. Mark what you watched or add text.";
+"Показать перевод" = "Show translation";
+"Оригинал · перевод Apple" = "Original · Apple Translation";
+"Показан оригинал. Для перевода подготовь языки Apple в настройках." = "Showing the original. Prepare Apple translation languages in Settings to translate it.";
+"Перевод недоступен. Показан оригинал." = "Translation is unavailable. Showing the original.";

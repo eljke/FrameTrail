@@ -24,7 +24,8 @@ struct TitleDetailView: View {
 
     private var entry: LibraryEntry { library.entry(for: title.id) ?? LibraryEntry(title: title) }
     private var isSaved: Bool { library.entry(for: title.id) != nil }
-    private var availableEpisodes: [Episode] { mergeEpisodes(episodes + entry.episodes) }
+    private var availableEpisodes: [Episode] { mergeEpisodes(entry.episodes + episodes) }
+    private var displayedTitle: MediaTitle { model.displayTitle(title) }
     private var seasons: [Int] { Set(availableEpisodes.map(\.season)).sorted() }
     private var overallReview: Reflection? { Reflection.latest(in: entry.reflections) }
     private var canReview: Bool { entry.progress.finished || (title.kind == .series && !entry.progress.watchedEpisodeIDs.isEmpty) }
@@ -36,7 +37,10 @@ struct TitleDetailView: View {
                     PosterView(title: title, width: 82)
                     VStack(alignment: .leading, spacing: 12) {
                         Text(title.kind == .movie ? L10n.text("ФИЛЬМ") : L10n.text("СЕРИАЛ")).font(.caption2.weight(.medium)).foregroundStyle(Theme.accent)
-                        Text(title.title).font(.title2.bold()).textSelection(.enabled)
+                        Text(displayedTitle.title).font(.title2.bold()).textSelection(.enabled)
+                        if let original = displayedTitle.originalTitle, original != displayedTitle.title {
+                            Text(original).font(.caption).foregroundStyle(Theme.muted)
+                        }
                         if let year = title.year { Text(String(year)).font(.subheadline).foregroundStyle(Theme.muted) }
                         if let rating = overallReview?.rating { Label(L10n.text("Моя оценка: %@/10", String(describing: rating)), systemImage: "star.fill").font(.caption).foregroundStyle(Theme.accent) }
                         if !isSaved {
@@ -55,9 +59,9 @@ struct TitleDetailView: View {
                             .accessibilityIdentifier("undoEpisodeRatings")
                     }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
                 }
-                if !title.overview.isEmpty {
+                if !displayedTitle.overview.isEmpty {
                     DisclosureGroup(L10n.text("Описание от источника")) {
-                        Text(title.overview).font(.subheadline).foregroundStyle(Theme.muted).padding(.top, 8)
+                        LocalizedSourceText(text: displayedTitle.overview).font(.subheadline).padding(.top, 8)
                     }.font(.subheadline).tint(Theme.muted)
                 }
                 if canReview {
@@ -133,8 +137,11 @@ struct TitleDetailView: View {
             }.padding(20)
         }
         .background(Theme.background)
-        .navigationTitle(title.title).navigationBarTitleDisplayMode(.inline)
-        .task(id: library.activeAccountID) { await loadEpisodes() }
+        .navigationTitle(displayedTitle.title).navigationBarTitleDisplayMode(.inline)
+        .task(id: library.activeAccountID + model.catalogRevision.uuidString) {
+            await model.localizeTitle(title)
+            await loadEpisodes()
+        }
         .onChange(of: library.entry(for: title.id)?.episodes) { _, stored in episodes = stored ?? [] }
         .onChange(of: seasons, initial: true) { _, values in
             if !values.contains(selectedSeason), let first = values.first { selectedSeason = first }
@@ -148,7 +155,7 @@ struct TitleDetailView: View {
             NavigationStack {
                 ScrollView { VStack(alignment: .leading, spacing: 16) {
                     Text(episode.name).font(.title2.bold())
-                    Text(episode.summary).textSelection(.enabled)
+                    LocalizedSourceText(text: episode.summary)
                 }.padding(24) }.navigationTitle("S\(episode.season) E\(episode.number)")
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.text("Готово")) { episodeDetails = nil } } }
             }.presentationDetents([.medium, .large])
@@ -250,7 +257,7 @@ struct TitleDetailView: View {
 
     private func save(_ value: LibraryEntry) {
         var changed = value
-        changed.episodes = mergeEpisodes(episodes + entry.episodes + value.episodes)
+        changed.episodes = mergeEpisodes(value.episodes + episodes)
         changed.updatedAt = Date()
         library.update(changed)
         if library.lastError == nil { episodes = changed.episodes }
@@ -258,17 +265,22 @@ struct TitleDetailView: View {
 
     private func loadEpisodes() async {
         episodes = entry.episodes
-        guard title.kind == .series, episodes.isEmpty, title.provider != "local" else { return }
+        guard title.kind == .series, title.provider != "local", !model.isUITesting else { return }
+        guard episodes.isEmpty || entry.episodeLanguage != model.catalogLanguage else { return }
         let requestID = UUID()
         episodeLoadID = requestID
         loading = true
         defer { if episodeLoadID == requestID { loading = false } }
         let accountID = library.activeAccountID
         do {
-            let loaded = try await model.catalog.fetchEpisodes(for: title)
+            let loaded = try await model.catalog.fetchEpisodes(for: title, language: model.catalogLanguage)
             guard accountID == library.activeAccountID, episodeLoadID == requestID else { return }
-            episodes = mergeEpisodes(loaded + entry.episodes)
-            if isSaved { save(entry) }
+            episodes = mergeEpisodes(entry.episodes + loaded)
+            if isSaved {
+                var changed = entry
+                changed.episodeLanguage = model.catalogLanguage
+                save(changed)
+            }
         } catch is CancellationError {} catch {
             if accountID == library.activeAccountID, episodeLoadID == requestID { self.error = error.localizedDescription }
         }

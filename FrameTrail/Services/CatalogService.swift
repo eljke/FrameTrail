@@ -21,20 +21,20 @@ actor CatalogService {
         try tokenProvider() != nil
     }
 
-    func search(query: String) async throws -> [MediaTitle] {
+    func search(query: String, language: String = "en-US") async throws -> [MediaTitle] {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !query.isEmpty else { return [] }
         if let token = try tokenProvider() {
             let url = try HTTPClient.url("https://api.themoviedb.org/3/search/multi", query: [
                 URLQueryItem(name: "query", value: String(query.prefix(200))),
                 URLQueryItem(name: "include_adult", value: "false"),
-                URLQueryItem(name: "language", value: "en-US")
+                URLQueryItem(name: "language", value: language)
             ])
             let page = try await http.decode(TMDBPage.self, request: HTTPClient.request(url: url, bearer: token))
             return page.results.compactMap(\.mediaTitle)
         }
         async let series: Result<[MediaTitle], Error> = Result(catching: { try await self.searchSeries(query) })
-        async let movies: Result<[MediaTitle], Error> = Result(catching: { try await self.searchMovies(query) })
+        async let movies: Result<[MediaTitle], Error> = Result(catching: { try await self.searchMovies(query, displayLanguage: language) })
         let results = await [series, movies]
         let titles = results.flatMap { (try? $0.get()) ?? [] }
         if titles.isEmpty, results.allSatisfy({ if case .failure = $0 { return true }; return false }) {
@@ -43,9 +43,9 @@ actor CatalogService {
         return titles
     }
 
-    func featured() async throws -> [MediaTitle] {
+    func featured(language: String = "en-US") async throws -> [MediaTitle] {
         if let token = try tokenProvider() {
-            let url = try HTTPClient.url("https://api.themoviedb.org/3/trending/all/week", query: [.init(name: "language", value: "en-US")])
+            let url = try HTTPClient.url("https://api.themoviedb.org/3/trending/all/week", query: [.init(name: "language", value: language)])
             let page = try await http.decode(TMDBPage.self, request: HTTPClient.request(url: url, bearer: token))
             return Array(page.results.compactMap(\.mediaTitle).prefix(20))
         }
@@ -67,19 +67,32 @@ actor CatalogService {
         }
     }
 
-    func fetchEpisodes(for title: MediaTitle) async throws -> [Episode] {
+    func fetchEpisodes(for title: MediaTitle, language: String = "en-US") async throws -> [Episode] {
         guard title.kind == .series else { return [] }
         if title.provider == "TMDB" {
             guard let token = try tokenProvider() else { throw ServiceError.missingTMDBToken }
-            let url = try HTTPClient.url("https://api.themoviedb.org/3/tv/\(title.providerID)")
+            let url = try HTTPClient.url("https://api.themoviedb.org/3/tv/\(title.providerID)", query: [.init(name: "language", value: "en-US")])
             let show = try await http.decode(TMDBShow.self, request: HTTPClient.request(url: url, bearer: token))
             var episodes: [Episode] = []
             // Fetch sequentially to stay within API rate limits and bound memory on long-running shows.
             for season in show.seasons where season.season_number > 0 {
                 try Task.checkCancellation()
-                let url = try HTTPClient.url("https://api.themoviedb.org/3/tv/\(title.providerID)/season/\(season.season_number)")
+                let url = try HTTPClient.url("https://api.themoviedb.org/3/tv/\(title.providerID)/season/\(season.season_number)", query: [.init(name: "language", value: "en-US")])
                 let page = try await http.decode(TMDBSeason.self, request: HTTPClient.request(url: url, bearer: token))
-                episodes.append(contentsOf: page.episodes.map { $0.episode(showID: title.providerID) })
+                if language == "en-US" {
+                    episodes.append(contentsOf: page.episodes.map { $0.episode(showID: title.providerID) })
+                } else {
+                    let localizedURL = try HTTPClient.url("https://api.themoviedb.org/3/tv/\(title.providerID)/season/\(season.season_number)", query: [.init(name: "language", value: language)])
+                    let localized = try await http.decode(TMDBSeason.self, request: HTTPClient.request(url: localizedURL, bearer: token))
+                    let byID = Dictionary(localized.episodes.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+                    episodes.append(contentsOf: page.episodes.map { original in
+                        var episode = (byID[original.id] ?? original).episode(showID: title.providerID)
+                        episode.originalName = original.name
+                        if episode.name.isEmpty { episode.name = original.name }
+                        if episode.summary.isEmpty { episode.summary = original.overview ?? "" }
+                        return episode
+                    })
+                }
             }
             return episodes
         }
@@ -95,11 +108,11 @@ actor CatalogService {
         return try await http.decode([MazeSearchResult].self, request: HTTPClient.request(url: url)).map { $0.show.mediaTitle }
     }
 
-    private func searchMovies(_ query: String) async throws -> [MediaTitle] {
+    private func searchMovies(_ query: String, displayLanguage: String) async throws -> [MediaTitle] {
         let language = query.range(of: "[\\p{IsCyrillic}]", options: .regularExpression) == nil ? "en" : "ru"
         let url = try HTTPClient.url("https://www.wikidata.org/w/api.php", query: [
             .init(name: "action", value: "wbsearchentities"), .init(name: "search", value: String(query.prefix(200))),
-            .init(name: "language", value: language), .init(name: "uselang", value: "en"),
+            .init(name: "language", value: language), .init(name: "uselang", value: displayLanguage.hasPrefix("ru") ? "ru" : "en"),
             .init(name: "type", value: "item"), .init(name: "limit", value: "15"), .init(name: "format", value: "json")
         ])
         let page = try await http.decode(WikidataSearch.self, request: HTTPClient.request(url: url))
@@ -110,8 +123,52 @@ actor CatalogService {
             .init(name: "format", value: "json")
         ])
         let details = try await http.decode(WikidataEntities.self, request: HTTPClient.request(url: detailsURL))
-        return page.search.compactMap { hit in details.entities[hit.id]?.mediaTitle(for: hit) }
+        return page.search.compactMap { hit in details.entities[hit.id]?.mediaTitle(for: hit, language: displayLanguage.hasPrefix("ru") ? "ru" : "en") }
     }
+
+    func localizedTitle(_ title: MediaTitle, language: String) async throws -> MediaTitle {
+        if title.provider == "TMDB", let token = try tokenProvider() {
+            let path = title.kind == .series ? "tv" : "movie"
+            let url = try HTTPClient.url("https://api.themoviedb.org/3/\(path)/\(title.providerID)", query: [.init(name: "language", value: language)])
+            let localized = try await http.decode(TMDBTitle.self, request: HTTPClient.request(url: url, bearer: token))
+            var result = localized.mediaTitle(as: title.kind) ?? title
+            if result.overview.isEmpty { result.overview = title.overview }
+            if result.posterURL == nil { result.posterURL = title.posterURL }
+            return result
+        }
+        let code = language.hasPrefix("ru") ? "ru" : "en"
+        if title.provider == "TVmaze", code == "en" {
+            var result = title
+            result.title = title.originalTitle ?? title.title
+            return result
+        }
+        if title.provider == "TVmaze", code == "ru", Int(title.providerID) != nil {
+            let query = "SELECT ?label WHERE { ?item <http://www.wikidata.org/prop/direct/P8600> \"\(title.providerID)\"; <http://www.w3.org/2000/01/rdf-schema#label> ?label. FILTER(LANG(?label)=\"ru\") } LIMIT 2"
+            let url = try HTTPClient.url("https://query.wikidata.org/sparql", query: [.init(name: "query", value: query), .init(name: "format", value: "json")])
+            let response = try await http.decode(WikidataLabels.self, request: HTTPClient.request(url: url))
+            guard response.results.bindings.count == 1, let label = response.results.bindings.first?.label.value, !label.isEmpty else { return title }
+            var result = title
+            result.originalTitle = title.originalTitle ?? title.title
+            result.title = label
+            return result
+        }
+        if title.provider == "Wikidata" {
+            let url = try HTTPClient.url("https://www.wikidata.org/w/api.php", query: [.init(name: "action", value: "wbgetentities"), .init(name: "ids", value: title.providerID), .init(name: "props", value: "labels|descriptions"), .init(name: "languages", value: "en|ru"), .init(name: "format", value: "json")])
+            let response = try await http.decode(WikidataEntities.self, request: HTTPClient.request(url: url))
+            var result = title
+            result.title = response.entities[title.providerID]?.labels?[code]?.value ?? title.originalTitle ?? title.title
+            result.overview = response.entities[title.providerID]?.descriptions?[code]?.value ?? title.overview
+            return result
+        }
+        return title
+    }
+}
+
+private struct WikidataLabels: Decodable, Sendable {
+    let results: Results
+    struct Results: Decodable, Sendable { let bindings: [Binding] }
+    struct Binding: Decodable, Sendable { let label: Value }
+    struct Value: Decodable, Sendable { let value: String }
 }
 
 private struct MazeSearchResult: Decodable, Sendable { let show: MazeShow }
@@ -159,14 +216,14 @@ private struct WikidataEntity: Decodable, Sendable {
     struct DataValue: Decodable, Sendable { let value: Value }
     struct Value: Decodable, Sendable { let id: String?; let time: String? }
 
-    func mediaTitle(for hit: WikidataSearch.Hit) -> MediaTitle? {
+    func mediaTitle(for hit: WikidataSearch.Hit, language: String) -> MediaTitle? {
         let filmTypes: Set<String> = ["Q11424", "Q24869"]
         guard claims?.P31?.contains(where: { $0.rank != "deprecated" && $0.mainsnak.datavalue?.value.id.map(filmTypes.contains) == true }) == true,
-              let name = hit.label ?? labels?["en"]?.value ?? labels?["ru"]?.value else { return nil }
+              let name = labels?[language]?.value ?? hit.label ?? labels?["en"]?.value ?? labels?["ru"]?.value else { return nil }
         let date = claims?.P577?.first(where: { $0.rank != "deprecated" && $0.mainsnak.datavalue?.value.time != nil })?.mainsnak.datavalue?.value.time
         let year = date.flatMap { $0.hasPrefix("+") ? Int($0.dropFirst().prefix(4)) : nil }
         return MediaTitle(id: "wikidata:\(hit.id)", title: name, originalTitle: labels?["en"]?.value,
-                          kind: .movie, year: year, overview: descriptions?["en"]?.value ?? "",
+                          kind: .movie, year: year, overview: descriptions?[language]?.value ?? descriptions?["en"]?.value ?? "",
                           sourceURL: URL(string: "https://www.wikidata.org/wiki/\(hit.id)"), provider: "Wikidata", providerID: hit.id)
     }
 }

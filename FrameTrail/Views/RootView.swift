@@ -100,7 +100,7 @@ struct DiscoverView: View {
             error = nil
             do {
                 try await Task.sleep(for: .milliseconds(350))
-                let found = try await model.catalog.search(query: search)
+                let found = try await model.catalog.search(query: search, language: model.catalogLanguage)
                 try Task.checkCancellation()
                 results = found
                 isSearching = false

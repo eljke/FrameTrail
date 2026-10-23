@@ -11,7 +11,7 @@ struct CitationDetailView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     Label(citation.label.isEmpty ? L10n.text("Добавленный текст") : citation.label, systemImage: "doc.text")
                         .font(.headline).foregroundStyle(Theme.accent)
-                    Text(citation.quote).textSelection(.enabled)
+                    LocalizedSourceText(text: citation.quote)
                     Text(L10n.text("Фрагмент сохранён вместе с ответом на языке оригинала."))
                         .font(.caption).foregroundStyle(Theme.muted)
                     if let url = citation.sourceURL { Link(L10n.text("Открыть оригинал"), destination: url).buttonStyle(.bordered) }

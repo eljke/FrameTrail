@@ -49,6 +49,7 @@ public struct Episode: Identifiable, Hashable, Codable, Sendable {
     public var name: String
     public var summary: String
     public var sourceURL: URL?
+    public var originalName: String?
 
     public init(
         id: String,
@@ -56,7 +57,8 @@ public struct Episode: Identifiable, Hashable, Codable, Sendable {
         number: Int,
         name: String,
         summary: String = "",
-        sourceURL: URL? = nil
+        sourceURL: URL? = nil,
+        originalName: String? = nil
     ) {
         self.id = id
         self.season = season
@@ -64,6 +66,7 @@ public struct Episode: Identifiable, Hashable, Codable, Sendable {
         self.name = name
         self.summary = summary
         self.sourceURL = sourceURL
+        self.originalName = originalName
     }
 }
 

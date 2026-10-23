@@ -19,6 +19,10 @@ final class AppModel {
     var catalogRevision = UUID()
     var alertMessage: String?
     var hasCatalogToken = false
+    private var displayedTitles: [String: MediaTitle] = [:]
+    private var displayedTitleOrder: [String] = []
+    private var titleRequests: [String: UUID] = [:]
+    var catalogLanguage: String { localeIdentifier == "ru_RU" ? "ru-RU" : "en-US" }
     var localeIdentifier: String {
         didSet {
             UserDefaults.standard.set(localeIdentifier, forKey: "assistant.locale")
@@ -74,7 +78,7 @@ final class AppModel {
         guard featured.isEmpty, !isUITesting else { return }
         let revision = catalogRevision
         do {
-            let loaded = try await catalog.featured()
+            let loaded = try await catalog.featured(language: catalogLanguage)
             try Task.checkCancellation()
             guard revision == catalogRevision else { return }
             featured = loaded
@@ -84,7 +88,27 @@ final class AppModel {
 
     func catalogDidChange() {
         featured = []
+        displayedTitles = [:]
+        displayedTitleOrder = []
+        titleRequests = [:]
         catalogRevision = UUID()
+    }
+
+    func displayTitle(_ title: MediaTitle) -> MediaTitle { displayedTitles[title.id] ?? title }
+
+    func localizeTitle(_ title: MediaTitle) async {
+        guard !isUITesting, title.provider != "local", displayedTitles[title.id] == nil, titleRequests[title.id] == nil else { return }
+        let requestID = UUID()
+        let revision = catalogRevision
+        titleRequests[title.id] = requestID
+        defer { if titleRequests[title.id] == requestID { titleRequests[title.id] = nil } }
+        let localized = (try? await catalog.localizedTitle(title, language: catalogLanguage)) ?? title
+        guard !Task.isCancelled, revision == catalogRevision else { return }
+        if displayedTitleOrder.count >= 128 {
+            displayedTitles[displayedTitleOrder.removeFirst()] = nil
+        }
+        displayedTitleOrder.append(title.id)
+        displayedTitles[title.id] = localized
     }
 
     func finishAuthorization(library: LibraryStore) async throws {

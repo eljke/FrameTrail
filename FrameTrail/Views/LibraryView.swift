@@ -3,6 +3,7 @@ import FrameTrailCore
 
 struct LibraryView: View {
     @Environment(LibraryStore.self) private var library
+    @Environment(AppModel.self) private var model
     @State private var filter = 0
     @State private var query = ""
     @State private var manualEntry = false
@@ -11,7 +12,7 @@ struct LibraryView: View {
     private var entries: [LibraryEntry] {
         library.entries.filter {
             (filter == 0 || (filter == 1 && !$0.progress.finished && !$0.progress.watchedEpisodeIDs.isEmpty) || (filter == 2 && $0.progress.finished) || (filter == 3 && !$0.progress.finished && $0.progress.watchedEpisodeIDs.isEmpty)) &&
-            (query.isEmpty || $0.title.title.localizedCaseInsensitiveContains(query) || $0.title.originalTitle?.localizedCaseInsensitiveContains(query) == true)
+            (query.isEmpty || model.displayTitle($0.title).title.localizedCaseInsensitiveContains(query) || $0.title.title.localizedCaseInsensitiveContains(query) || $0.title.originalTitle?.localizedCaseInsensitiveContains(query) == true)
         }.sorted { $0.updatedAt > $1.updatedAt }
     }
 
@@ -35,7 +36,7 @@ struct LibraryView: View {
                             HStack(spacing: 14) {
                                 PosterView(title: entry.title, width: 65)
                                 VStack(alignment: .leading, spacing: 8) {
-                                    Text(entry.title.title).font(.headline).foregroundStyle(.white)
+                                    Text(model.displayTitle(entry.title).title).font(.headline).foregroundStyle(.white)
                                     Label(entry.progress.finished ? L10n.text("Досмотрено") : (entry.progress.watchedEpisodeIDs.isEmpty ? L10n.text("В планах") : L10n.text("Просмотрено серий: %@", String(describing: entry.progress.watchedEpisodeIDs.count))), systemImage: entry.progress.finished ? "checkmark.circle.fill" : "play.circle")
                                         .font(.caption).foregroundStyle(Theme.accent)
                                     Text(L10n.text("Обсуждений: %@ · Итогов: %@", String(describing: entry.chat.filter { $0.role == .assistant }.count), String(describing: entry.reflections.count)))
@@ -47,6 +48,7 @@ struct LibraryView: View {
                         }
                         .buttonStyle(.plain)
                         .contextMenu { Button(L10n.text("Удалить из библиотеки"), role: .destructive) { pendingRemoval = entry } }
+                        .task(id: model.catalogRevision) { await model.localizeTitle(entry.title) }
                     }
                 }
             }.padding(20)
@@ -64,6 +66,7 @@ struct LibraryView: View {
 
 struct JournalView: View {
     @Environment(LibraryStore.self) private var library
+    @Environment(AppModel.self) private var model
 
     private var records: [(entry: LibraryEntry, reflection: Reflection)] {
         library.entries.flatMap { entry in entry.reflections.map { (entry: entry, reflection: $0) } }
@@ -81,7 +84,7 @@ struct JournalView: View {
                     NavigationLink(value: record.entry.title) {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
-                                Text(record.entry.title.title).font(.headline)
+                                Text(model.displayTitle(record.entry.title).title).font(.headline)
                                 Spacer()
                                 if let rating = record.reflection.rating { Label("\(rating)/10", systemImage: "star.fill").font(.caption.bold()).foregroundStyle(Theme.accent) }
                             }

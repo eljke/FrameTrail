@@ -30,16 +30,18 @@ struct PosterView: View {
 
 struct TitleCard: View {
     let title: MediaTitle
+    @Environment(AppModel.self) private var model
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             PosterView(title: title, width: 140)
-            Text(title.title).font(.subheadline.weight(.semibold)).lineLimit(2).frame(width: 140, alignment: .leading)
+            Text(model.displayTitle(title).title).font(.subheadline.weight(.semibold)).lineLimit(2).frame(width: 140, alignment: .leading)
             Text([title.kind == .movie ? L10n.text("Фильм") : L10n.text("Сериал"), title.year.map(String.init) ?? ""].filter { !$0.isEmpty }.joined(separator: " · "))
                 .font(.caption).foregroundStyle(Theme.muted)
         }
         .foregroundStyle(.white)
         .accessibilityElement(children: .combine)
+        .task(id: model.catalogRevision) { await model.localizeTitle(title) }
     }
 }
 

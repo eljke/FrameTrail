@@ -32,11 +32,11 @@ actor WikiPlotService {
         let name = title.originalTitle ?? title.title
         let url = try HTTPClient.url("https://en.wikipedia.org/w/api.php", query: [
             .init(name: "action", value: "query"), .init(name: "list", value: "search"),
-            .init(name: "srsearch", value: "\"\(String(episode.name.prefix(120)))\" \"\(String(name.prefix(120)))\" television episode"),
+            .init(name: "srsearch", value: "\"\(String((episode.originalName ?? episode.name).prefix(120)))\" \"\(String(name.prefix(120)))\" television episode"),
             .init(name: "srlimit", value: "5"), .init(name: "srnamespace", value: "0"), .init(name: "format", value: "json")
         ])
         let result = try await http.decode(WikiSearch.self, request: HTTPClient.request(url: url))
-        let episodeName = normalized(episode.name)
+        let episodeName = normalized(episode.originalName ?? episode.name)
         guard !episodeName.isEmpty else { throw ServiceError.noPlot }
         let matches = result.query.search.filter {
             let candidate = normalized($0.title)

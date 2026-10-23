@@ -3,6 +3,38 @@ import FrameTrailCore
 @testable import FrameTrail
 
 final class ServicesTests: XCTestCase {
+    func testLocalizedEpisodeKeepsOriginalNameForPlotResearch() async throws {
+        ServiceURLProtocol.setHandler { request in
+            if request.url?.path == "/3/tv/9" { return .json("{\"seasons\":[{\"season_number\":1}]}") }
+            let language = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "language" }?.value
+            if language == "ru-RU" {
+                return .json("{\"episodes\":[{\"id\":1,\"season_number\":1,\"episode_number\":1,\"name\":\"Пилот\",\"overview\":\"Описание первой серии.\"}]}")
+            }
+            return .json("{\"episodes\":[{\"id\":1,\"season_number\":1,\"episode_number\":1,\"name\":\"Pilot\",\"overview\":\"Original overview.\"}]}")
+        }
+        let title = MediaTitle(id: "tmdb:tv:9", title: "Show", kind: .series, provider: "TMDB", providerID: "9")
+        let episodes = try await CatalogService(http: client(), tokenProvider: { "read-token" }).fetchEpisodes(for: title, language: "ru-RU")
+        XCTAssertEqual(episodes.first?.id, "tmdb-episode:1")
+        XCTAssertEqual(episodes.first?.name, "Пилот")
+        XCTAssertEqual(episodes.first?.originalName, "Pilot")
+        XCTAssertEqual(episodes.first?.summary, "Описание первой серии.")
+    }
+
+    func testTVmazeLocalizationUsesExactExternalIdentifier() async throws {
+        ServiceURLProtocol.setHandler { request in
+            XCTAssertEqual(request.url?.host, "query.wikidata.org")
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "query" }?.value ?? ""
+            XCTAssertTrue(query.contains("P8600> \"169\""))
+            return .json("{\"results\":{\"bindings\":[{\"label\":{\"value\":\"Во все тяжкие\"}}]}}")
+        }
+        let title = MediaTitle(id: "tvmaze:169", title: "Breaking Bad", kind: .series, overview: "Original source text", provider: "TVmaze", providerID: "169")
+        let localized = try await CatalogService(http: client(), tokenProvider: { nil }).localizedTitle(title, language: "ru-RU")
+        XCTAssertEqual(localized.id, title.id)
+        XCTAssertEqual(localized.title, "Во все тяжкие")
+        XCTAssertEqual(localized.originalTitle, "Breaking Bad")
+        XCTAssertEqual(localized.overview, title.overview)
+    }
+
     override func tearDown() {
         ServiceURLProtocol.setHandler(nil)
         super.tearDown()
