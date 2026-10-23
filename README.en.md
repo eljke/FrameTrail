@@ -25,6 +25,14 @@ The badges use public GitHub metadata: actual build status, published version, s
 
 ## What the beta does
 
+<p align="center">
+  <img src=".github/assets/screenshots/overview.png" width="230" alt="FrameTrail overview">
+  <img src=".github/assets/screenshots/library.png" width="230" alt="FrameTrail library">
+  <img src=".github/assets/screenshots/journal.png" width="230" alt="Journal with an episode rating">
+</p>
+
+Actual iPhone Air Simulator screenshots from automated UI scenarios with demonstration records. These scenarios do not run catalog search or generation.
+
 | Feature | How it works |
 | --- | --- |
 | Movie and show search | TVmaze shows and Wikidata movies work without a key. A personal TMDB API Read Access Token enables the expanded TMDB catalog. |

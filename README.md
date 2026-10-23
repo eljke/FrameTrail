@@ -25,6 +25,14 @@
 
 ## Что умеет бета
 
+<p align="center">
+  <img src=".github/assets/screenshots/overview.png" width="230" alt="Обзор FrameTrail">
+  <img src=".github/assets/screenshots/library.png" width="230" alt="Библиотека FrameTrail">
+  <img src=".github/assets/screenshots/journal.png" width="230" alt="Дневник с оценкой серии">
+</p>
+
+Реальные снимки iPhone Air Simulator из автоматических UI-сценариев с демонстрационными записями. Поиск и генерация в этих сценариях не запускаются.
+
 | Возможность | Как использовать |
 | --- | --- |
 | Поиск фильмов и сериалов | Сериалы TVmaze и фильмы Wikidata доступны без ключа. Личный TMDB API Read Access Token подключает расширенный каталог TMDB. |
