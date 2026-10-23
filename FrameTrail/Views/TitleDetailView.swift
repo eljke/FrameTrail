@@ -44,6 +44,14 @@ struct TitleDetailView: View {
                     Spacer(minLength: 0)
                 }
                 if let error { ErrorNotice(message: error) }
+                if let undo = library.ratingUndo, undo.titleID == title.id && undo.accountID == library.activeAccountID {
+                    HStack {
+                        Text("Изменено оценок серий: \(undo.count)").font(.caption)
+                        Spacer()
+                        Button("Отменить") { library.undoEpisodeRatings(for: title.id) }
+                            .accessibilityIdentifier("undoEpisodeRatings")
+                    }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
+                }
                 if !title.overview.isEmpty {
                     DisclosureGroup("Описание от источника") {
                         Text(title.overview).font(.subheadline).foregroundStyle(Theme.muted).padding(.top, 8)

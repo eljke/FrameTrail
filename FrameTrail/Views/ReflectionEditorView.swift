@@ -25,6 +25,9 @@ struct ReflectionEditorView: View {
     @State private var skippedInterview = false
     @State private var importingSource = false
     @State private var sourceNotice: String?
+    @State private var applyRatingToEpisodes = false
+    @State private var overwriteEpisodeRatings = false
+    @State private var confirmOverwrite = false
 
     private var scopeID: String? { reflection?.episodeID ?? episode?.id }
     private var scopeSeason: Int? { reflection?.episodeSeason ?? episode?.season }
@@ -66,6 +69,19 @@ struct ReflectionEditorView: View {
                     }
                     RatingSelector(rating: $rating)
                 }
+                if title.kind == .series && scopeID == nil && rating > 0 {
+                    Section {
+                        Toggle("Применить к просмотренным сериям", isOn: $applyRatingToEpisodes)
+                            .accessibilityIdentifier("applyRatingToEpisodes")
+                        if applyRatingToEpisodes {
+                            Toggle("Заменить уже выставленные оценки", isOn: $overwriteEpisodeRatings)
+                            let entry = library.entry(for: title.id) ?? LibraryEntry(title: title)
+                            let plan = EpisodeRatingPlan(titleID: title.id, episodes: entry.episodes, watchedEpisodeIDs: entry.progress.watchedEpisodeIDs,
+                                                         records: entry.reflections, rating: rating, season: seasonScope, overwrite: overwriteEpisodeRatings)
+                            Text("Изменится оценок: \(plan.changedCount). Заметки сохранятся.").font(.caption).foregroundStyle(.secondary)
+                        }
+                    } footer: { Text("Только просмотренные серии выбранного сезона или сериала. Действие можно отменить в карточке.") }
+                }
                 interviewSection
                 Section("Что осталось после просмотра?") {
                     TextEditor(text: $summary).frame(minHeight: 140).accessibilityIdentifier("reflectionSummary")
@@ -102,7 +118,10 @@ struct ReflectionEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Сохранить") { save() }.disabled(!canSave)
+                    Button("Сохранить") {
+                        if applyRatingToEpisodes && overwriteEpisodeRatings && rating > 0 { confirmOverwrite = true }
+                        else { save() }
+                    }.disabled(!canSave)
                         .accessibilityIdentifier("saveReflection")
                 }
             }
@@ -128,6 +147,9 @@ struct ReflectionEditorView: View {
             .onChange(of: currentProgress) { _, _ in stopInterview(); interview = nil }
             .onChange(of: model.localeIdentifier) { _, _ in stopInterview(); interview = nil }
             .onDisappear { stopInterview() }
+            .confirmationDialog("Заменить оценки просмотренных серий? Заметки сохранятся.", isPresented: $confirmOverwrite, titleVisibility: .visible) {
+                Button("Заменить оценки") { save() }
+            }
             .sheet(isPresented: $importingSource) {
                 SourceImportView(title: title, episodes: library.entry(for: title.id)?.episodes ?? [], initialEpisodeID: scopeID)
             }
@@ -248,7 +270,11 @@ struct ReflectionEditorView: View {
             entry.reflections.append(saved)
         }
         entry.updatedAt = Date()
-        library.update(entry)
+        if applyRatingToEpisodes && rating > 0 && scopeID == nil {
+            library.updateWithEpisodeRatings(entry, rating: rating, season: seasonScope, overwrite: overwriteEpisodeRatings)
+        } else {
+            library.update(entry)
+        }
         if library.lastError == nil { InteractionFeedback.success(); dismiss() } else { error = library.lastError }
     }
 

@@ -56,6 +56,15 @@ final class LibraryStore {
     private(set) var lastError: String?
     private(set) var activeAccountID = "guest"
     private(set) var syncBaseline = LibrarySyncBaseline()
+    private(set) var ratingUndo: RatingUndo?
+
+    struct RatingUndo {
+        let accountID: String
+        let titleID: String
+        let before: [Reflection]
+        let after: [Reflection]
+        let count: Int
+    }
 
     private let directory: URL
     private var unreadableAccountIDs: Set<String> = []
@@ -99,6 +108,7 @@ final class LibraryStore {
             lastError = LibraryStoreError.invalidData("некорректный идентификатор аккаунта").localizedDescription
             return
         }
+        ratingUndo = nil
         unreadableBaselineAccountIDs.remove(id)
         do {
             let loaded = try load(accountID: id)
@@ -161,7 +171,32 @@ final class LibraryStore {
         commit(entries.filter { $0.id != titleID })
     }
 
+    func updateWithEpisodeRatings(_ entry: LibraryEntry, rating: Int, season: Int?, overwrite: Bool) {
+        let plan = EpisodeRatingPlan(titleID: entry.id, episodes: entry.episodes, watchedEpisodeIDs: entry.progress.watchedEpisodeIDs,
+                                     records: entry.reflections, rating: rating, season: season, overwrite: overwrite)
+        var changed = entry
+        changed.reflections = plan.records
+        update(changed)
+        if lastError == nil && plan.changedCount > 0 {
+            ratingUndo = RatingUndo(accountID: activeAccountID, titleID: entry.id, before: entry.reflections, after: plan.records, count: plan.changedCount)
+        }
+    }
+
+    func undoEpisodeRatings(for titleID: String) {
+        guard let undo = ratingUndo, undo.accountID == activeAccountID, undo.titleID == titleID,
+              var entry = entry(for: titleID) else { return }
+        guard entry.reflections == undo.after else {
+            ratingUndo = nil
+            lastError = "Оценки уже изменились. Массовое действие нельзя отменить без потери новых записей."
+            return
+        }
+        entry.reflections = undo.before
+        update(entry)
+        if lastError == nil { ratingUndo = nil }
+    }
+
     func eraseCurrentAccount() throws {
+        ratingUndo = nil
         let url = fileURL(accountID: activeAccountID)
         if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
         entries = []
