@@ -233,7 +233,7 @@ struct DiscussionView: View {
             if let failure = library.lastError { error = failure }
             else if question.trimmingCharacters(in: .whitespacesAndNewlines) == text { question = "" }
         } catch is CancellationError {} catch {
-            if activeRequestID == requestID { self.error = error.localizedDescription }
+            if activeRequestID == requestID { self.error = L10n.error(error) }
         }
     }
 }

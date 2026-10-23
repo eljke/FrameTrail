@@ -10,6 +10,7 @@ final class LocalizationTests: XCTestCase {
         defaults.set("en", forKey: "app.language")
         XCTAssertEqual(L10n.text("Библиотека"), "Library")
         XCTAssertEqual(L10n.text("Сезон %@ · Серия %@", "2", "4"), "Season 2 · Episode 4")
+        XCTAssertEqual(L10n.error(URLError(.timedOut)), "The server took too long to respond. Try again.")
         XCTAssertEqual(L10n.text("Нет оценки"), "Нет оценки")
         defaults.set("ru", forKey: "app.language")
         XCTAssertEqual(L10n.text("Библиотека"), "Библиотека")

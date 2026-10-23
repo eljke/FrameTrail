@@ -247,7 +247,7 @@ struct ReflectionEditorView: View {
                       currentProgress == entry.progress, model.localeIdentifier == locale else { return }
                 interview = result
             } catch is CancellationError {} catch {
-                if generationID == id { self.error = error.localizedDescription }
+                if generationID == id { self.error = L10n.error(error) }
             }
         }
     }

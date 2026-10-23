@@ -76,7 +76,7 @@ final class LibrarySyncCoordinator {
         } catch is CancellationError {
             if operation == generation { status = L10n.text("Синхронизация прервана. Локальные изменения сохранены.") }
         } catch {
-            if operation == generation { status = error.localizedDescription }
+            if operation == generation { status = L10n.error(error) }
         }
     }
 
@@ -102,7 +102,7 @@ final class LibrarySyncCoordinator {
             conflicts.removeAll { $0.id == conflict.id }
             status = L10n.text("Выбранная версия сохранена. Повтори синхронизацию для проверки.")
         } catch {
-            if operation == generation { status = error.localizedDescription }
+            if operation == generation { status = L10n.error(error) }
         }
     }
 

@@ -62,7 +62,7 @@ struct SourceImportView: View {
                         text = String(cues.map(\.text).joined(separator: "\n").prefix(40_000))
                     } else { text = String(imported.prefix(40_000)) }
                     error = nil
-                } catch { self.error = error.localizedDescription }
+                } catch { self.error = L10n.error(error) }
             }
             .onChange(of: library.activeAccountID) { _, _ in dismiss() }
             .onAppear {

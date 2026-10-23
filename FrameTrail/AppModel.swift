@@ -59,12 +59,12 @@ final class AppModel {
     func restoreAccount(library: LibraryStore) async {
         guard !isUITesting else { return }
         do { try await refreshAccountState(library: library) }
-        catch { alertMessage = error.localizedDescription }
+        catch { alertMessage = L10n.error(error) }
         guard let cloudAuth else { return }
         do { activate(try await cloudAuth.restoreSession(), library: library) }
         catch {
             activate(await cloudAuth.session, library: library)
-            alertMessage = error.localizedDescription
+            alertMessage = L10n.error(error)
         }
         await sync?.syncNow(library: library)
     }
@@ -84,7 +84,7 @@ final class AppModel {
             guard revision == catalogRevision else { return }
             featured = loaded
         }
-        catch is CancellationError {} catch { alertMessage = error.localizedDescription }
+        catch is CancellationError {} catch { alertMessage = L10n.error(error) }
     }
 
     func catalogDidChange() {
@@ -120,9 +120,9 @@ final class AppModel {
 
     func signOut(library: LibraryStore) async {
         do { try await auth.logout() }
-        catch { alertMessage = error.localizedDescription }
+        catch { alertMessage = L10n.error(error) }
         do { try await refreshAccountState(library: library) }
-        catch { alertMessage = error.localizedDescription }
+        catch { alertMessage = L10n.error(error) }
     }
 
     func signInFrameTrail(email: String, password: String, createAccount: Bool, library: LibraryStore) async throws -> Bool {
@@ -140,7 +140,7 @@ final class AppModel {
         guard let cloudAuth else { return }
         sync?.activate(accountID: nil)
         do { try await cloudAuth.signOut() }
-        catch { alertMessage = error.localizedDescription }
+        catch { alertMessage = L10n.error(error) }
         activate(await cloudAuth.session, library: library)
     }
 

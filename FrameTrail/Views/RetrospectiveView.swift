@@ -103,7 +103,7 @@ struct RetrospectiveView: View {
                 result = text
                 resultEpisodeCount = plan.episodeCount
             } catch is CancellationError {} catch {
-                if generationID == id { self.error = error.localizedDescription }
+                if generationID == id { self.error = L10n.error(error) }
             }
         }
     }

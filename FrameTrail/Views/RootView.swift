@@ -106,7 +106,7 @@ struct DiscoverView: View {
                 isSearching = false
             } catch is CancellationError {} catch {
                 guard !Task.isCancelled else { return }
-                self.error = error.localizedDescription
+                self.error = L10n.error(error)
                 isSearching = false
             }
         }

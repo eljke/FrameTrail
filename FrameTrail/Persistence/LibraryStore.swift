@@ -83,7 +83,7 @@ final class LibraryStore {
             if !unreadableBaselineAccountIDs.contains(activeAccountID) {
                 unreadableAccountIDs.insert(activeAccountID)
             }
-            lastError = error.localizedDescription
+            lastError = L10n.error(error)
         }
     }
 
@@ -124,7 +124,7 @@ final class LibraryStore {
                 syncBaseline = LibrarySyncBaseline()
                 unreadableAccountIDs.insert(id)
             }
-            lastError = error.localizedDescription
+            lastError = L10n.error(error)
         }
     }
 
@@ -152,7 +152,7 @@ final class LibraryStore {
             lastError = nil
             return added
         } catch {
-            lastError = error.localizedDescription
+            lastError = L10n.error(error)
             throw error
         }
     }
@@ -292,7 +292,7 @@ final class LibraryStore {
             syncBaseline = baseline
             lastError = nil
         } catch {
-            lastError = error.localizedDescription
+            lastError = L10n.error(error)
             throw error
         }
     }
@@ -314,7 +314,7 @@ final class LibraryStore {
             entries = safe
             lastError = nil
         } catch {
-            lastError = error.localizedDescription
+            lastError = L10n.error(error)
             throw error
         }
     }
@@ -326,7 +326,7 @@ final class LibraryStore {
             entries = scoped
             lastError = nil
         } catch {
-            lastError = error.localizedDescription
+            lastError = L10n.error(error)
         }
     }
 

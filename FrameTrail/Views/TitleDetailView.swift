@@ -290,7 +290,7 @@ struct TitleDetailView: View {
                 save(changed)
             }
         } catch is CancellationError {} catch {
-            if accountID == library.activeAccountID, episodeLoadID == requestID { self.error = error.localizedDescription }
+            if accountID == library.activeAccountID, episodeLoadID == requestID { self.error = L10n.error(error) }
         }
     }
 
@@ -315,7 +315,7 @@ struct TitleDetailView: View {
             changed.facts.append(contentsOf: facts)
             save(changed)
             plotInfo = L10n.text("Загружен сюжет S%@ E%@. Он доступен для обсуждения и вариантов впечатлений.", String(describing: episode.season), String(describing: episode.number))
-        } catch is CancellationError {} catch { self.error = error.localizedDescription }
+        } catch is CancellationError {} catch { self.error = L10n.error(error) }
     }
 
     private func loadPlot() async {
@@ -331,7 +331,7 @@ struct TitleDetailView: View {
             changed.facts.append(contentsOf: facts)
             save(changed)
             plotInfo = L10n.text("Сюжет загружен. Источники можно открыть в обсуждении.")
-        } catch is CancellationError {} catch { self.error = error.localizedDescription }
+        } catch is CancellationError {} catch { self.error = L10n.error(error) }
     }
 
     private func mergeEpisodes(_ values: [Episode]) -> [Episode] {

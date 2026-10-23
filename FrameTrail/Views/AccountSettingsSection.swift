@@ -44,7 +44,7 @@ struct AccountSettingsSection: View {
                                 try await auth.updatePassword(password: newPassword)
                                 newPassword = ""
                                 notice = L10n.text("Пароль изменён.")
-                            } catch { self.error = error.localizedDescription }
+                            } catch { self.error = L10n.error(error) }
                             busy = false
                         }
                     }.disabled(busy || newPassword.count < 8)
@@ -82,7 +82,7 @@ struct AccountSettingsSection: View {
                     busy = true
                     error = nil
                     do { try await model.deleteFrameTrailAccount(library: library); notice = L10n.text("Аккаунт удалён.") }
-                    catch { self.error = error.localizedDescription }
+                    catch { self.error = L10n.error(error) }
                     busy = false
                 }
             }
@@ -102,7 +102,7 @@ struct AccountSettingsSection: View {
                 createAccount = false
                 notice = L10n.text("Проверь почту и подтверди email, затем войди. Если адрес уже зарегистрирован, используй существующий пароль.")
             }
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = L10n.error(error) }
     }
 }
 

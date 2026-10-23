@@ -91,7 +91,7 @@ struct SettingsView: View {
             if awaitingApproval { Task { await finishLogin() } }
         }) { SafariPage(url: $0.url).ignoresSafeArea() }
         .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .json, defaultFilename: "FrameTrail-library") { result in
-            if case .failure(let failure) = result { error = failure.localizedDescription }
+            if case .failure(let failure) = result { error = L10n.error(failure) }
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { result in
             do {
@@ -104,7 +104,7 @@ struct SettingsView: View {
                 try library.importData(data)
                 notice = L10n.text("Библиотека восстановлена. Новые записи объединены с текущими по дате изменения.")
                 error = nil
-            } catch { self.error = error.localizedDescription }
+            } catch { self.error = L10n.error(error) }
         }
     }
 
@@ -167,7 +167,7 @@ struct SettingsView: View {
             Section {
                 Button(L10n.text("Экспортировать библиотеку")) {
                     do { exportDocument = LibraryDocument(data: try library.exportData()); exporting = true }
-                    catch { self.error = error.localizedDescription }
+                    catch { self.error = L10n.error(error) }
                 }
                 Button(L10n.text("Импортировать резервную копию")) { importing = true }
             } header: { Text(L10n.text("Данные и место")) }
@@ -200,9 +200,9 @@ struct SettingsView: View {
             authorization = nil
             notice = model.hasCatalogToken ? L10n.text("Токен сохранён в Keychain.") : L10n.text("Токен удалён.")
         } catch {
-            self.error = error.localizedDescription
+            self.error = L10n.error(error)
             do { try await model.refreshAccountState(library: library) }
-            catch { self.error = error.localizedDescription }
+            catch { self.error = L10n.error(error) }
         }
     }
 
@@ -233,7 +233,7 @@ struct SettingsView: View {
             translationConfiguration = nil
             busy = false
         } catch {
-            self.error = error.localizedDescription
+            self.error = L10n.error(error)
             await model.assistant.refreshAvailability()
             preparationStep = 0
             translationConfiguration = nil
@@ -249,7 +249,7 @@ struct SettingsView: View {
             let url = try await model.auth.beginAuthorization()
             authorization = AuthorizationPage(url: url)
             awaitingApproval = true
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = L10n.error(error) }
     }
 
     private func finishLogin() async {
@@ -263,7 +263,7 @@ struct SettingsView: View {
         } catch ServiceError.http(401) {
             self.error = L10n.text("TMDB пока не подтвердил вход. Одобри доступ на сайте и нажми «Я подтвердил вход» или начни заново.")
         } catch is CancellationError {
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = L10n.error(error) }
     }
 
     private func importWatchlist() async {
@@ -276,7 +276,7 @@ struct SettingsView: View {
             guard accountID == library.activeAccountID else { return }
             let added = try library.addTitles(titles)
             notice = L10n.text("Добавлено: %@, получено: %@. Существующие записи сохранены. Импорт ограничен первыми 10 страницами каждого типа.", String(describing: added), String(describing: titles.count))
-        } catch { self.error = error.localizedDescription }
+        } catch { self.error = L10n.error(error) }
     }
 }
 

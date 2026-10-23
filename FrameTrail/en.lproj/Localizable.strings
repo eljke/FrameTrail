@@ -435,3 +435,9 @@
 "Перевод не сохранил имена. Показан оригинальный текст." = "Translation could not preserve the names. The original text is shown.";
 "Не удалось сохранить имена при переводе. Попробуй английский язык или уточни словарь." = "Names could not be preserved during translation. Try English or adjust the glossary.";
 "Сезонов с оценкой: %@" = "Rated seasons: %@";
+"Запрос отменён." = "Request cancelled.";
+"Сервер не ответил вовремя. Попробуй ещё раз." = "The server took too long to respond. Try again.";
+"Нет соединения с сервером. Проверь интернет и попробуй снова." = "Cannot connect to the server. Check your internet connection and try again.";
+"Не удалось прочитать данные. Попробуй ещё раз или проверь формат файла." = "The data could not be read. Try again or check the file format.";
+"Файл слишком большой." = "This file is too large.";
+"Нет доступа к файлу. Выбери его заново." = "File access was denied. Select the file again.";

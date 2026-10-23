@@ -14,4 +14,23 @@ enum L10n {
         guard !arguments.isEmpty else { return format }
         return String(format: format, locale: locale, arguments: arguments.map { $0 as CVarArg })
     }
+
+    static func error(_ error: Error) -> String {
+        if let network = error as? URLError {
+            switch network.code {
+            case .cancelled: return text("Запрос отменён.")
+            case .timedOut: return text("Сервер не ответил вовремя. Попробуй ещё раз.")
+            default: return text("Нет соединения с сервером. Проверь интернет и попробуй снова.")
+            }
+        }
+        if error is DecodingError { return text("Не удалось прочитать данные. Попробуй ещё раз или проверь формат файла.") }
+        if let file = error as? CocoaError {
+            switch file.code {
+            case .fileReadTooLarge: return text("Файл слишком большой.")
+            case .fileReadNoPermission, .fileWriteNoPermission: return text("Нет доступа к файлу. Выбери его заново.")
+            default: break
+            }
+        }
+        return error.localizedDescription
+    }
 }
