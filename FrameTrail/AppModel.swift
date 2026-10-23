@@ -34,11 +34,12 @@ final class AppModel {
     init() {
         let defaultLocale = Locale.preferredLanguages.first?.hasPrefix("ru") == true ? "ru_RU" : "en_US"
         let arguments = ProcessInfo.processInfo.arguments
-        localeIdentifier = arguments.contains("--uitesting")
+        let selectedLocale = arguments.contains("--uitesting")
             ? (arguments.contains("--language=en") ? "en_US" : "ru_RU")
             : (UserDefaults.standard.string(forKey: "app.language").map { $0 == "ru" ? "ru_RU" : "en_US" }
                 ?? UserDefaults.standard.string(forKey: "assistant.locale") ?? defaultLocale)
-        UserDefaults.standard.set(localeIdentifier.hasPrefix("ru") ? "ru" : "en", forKey: "app.language")
+        localeIdentifier = selectedLocale
+        UserDefaults.standard.set(selectedLocale.hasPrefix("ru") ? "ru" : "en", forKey: "app.language")
         do {
             let config = try SupabaseConfiguration.bundled()
             let auth = SupabaseAuthService(config: config)
