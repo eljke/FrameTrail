@@ -27,8 +27,10 @@ struct LibraryView: View {
                 }.pickerStyle(.segmented)
                 if entries.isEmpty {
                     EmptyState(symbol: "books.vertical", title: L10n.text("Библиотека пока пуста"), text: L10n.text("Найди фильм в обзоре или добавь свой. Прогресс, материалы и обсуждения сохранятся на устройстве."))
+                    Button { model.selectedTab = 0 } label: { Label(L10n.text("Фильм или сериал"), systemImage: "magnifyingglass") }
+                        .buttonStyle(.borderedProminent).foregroundStyle(Theme.background)
                     Button { manualEntry = true } label: { Label(L10n.text("Добавить фильм или сериал"), systemImage: "plus.circle.fill") }
-                        .buttonStyle(.borderedProminent).foregroundStyle(Theme.background).accessibilityIdentifier("libraryAddTitle")
+                        .buttonStyle(.bordered).accessibilityIdentifier("libraryAddTitle")
                 }
                 LazyVStack(spacing: 12) {
                     ForEach(entries) { entry in

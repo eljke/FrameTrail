@@ -22,7 +22,6 @@ struct RootView: View {
                 NavigationStack { DiscoverView().navigationDestination(for: MediaTitle.self) { TitleDetailView(title: $0) } }
             }
         }
-        .tabBarMinimizeBehavior(.onScrollDown)
         .id(library.activeAccountID + model.localeIdentifier)
         .alert("FrameTrail", isPresented: Binding(get: { model.alertMessage != nil || library.lastError != nil }, set: { if !$0 { model.alertMessage = nil; library.dismissError() } })) {
             Button(L10n.text("Понятно")) { model.alertMessage = nil; library.dismissError() }
@@ -87,6 +86,12 @@ struct DiscoverView: View {
         .navigationTitle("FrameTrail")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: L10n.text("Фильм или сериал"))
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { model.selectedTab = 3 } label: { Image(systemName: "gearshape") }
+                    .accessibilityLabel(L10n.text("Настройки"))
+            }
+        }
         .sheet(isPresented: $manualEntry) { ManualTitleView() }
         .sheet(isPresented: $quickGuide) { NavigationStack { QuickGuideView() } }
         .onChange(of: library.entries.isEmpty) { _, empty in

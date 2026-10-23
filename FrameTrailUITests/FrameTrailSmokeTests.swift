@@ -25,6 +25,7 @@ final class FrameTrailSmokeTests: XCTestCase {
 
         let tabs = app.tabBars.firstMatch
         XCTAssertTrue(tabs.waitForExistence(timeout: 15))
+        tabs.buttons["Поиск"].tap()
         XCTAssertTrue(app.buttons["addManualTitle"].waitForExistence(timeout: 5))
         capture("01-overview", app: app)
 
@@ -101,6 +102,7 @@ final class FrameTrailSmokeTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--uitesting"]
         app.launch()
+        app.tabBars.buttons["Поиск"].tap()
         let add = app.buttons["addManualTitle"]
         XCTAssertTrue(add.waitForExistence(timeout: 15))
         add.tap()
@@ -149,6 +151,7 @@ final class FrameTrailSmokeTests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--uitesting"]
         app.launch()
+        app.tabBars.buttons["Поиск"].tap()
         let add = app.buttons["addManualTitle"]
         XCTAssertTrue(add.waitForExistence(timeout: 15))
         add.tap()
@@ -161,7 +164,7 @@ final class FrameTrailSmokeTests: XCTestCase {
         let title = app.staticTexts["My series"].firstMatch
         XCTAssertTrue(title.waitForExistence(timeout: 5))
         title.tap()
-        let disclosure = app.buttons["sourcesDisclosure"]
+        let disclosure = app.buttons["Источники"].firstMatch
         reveal(disclosure, app: app)
         disclosure.tap()
         let source = app.buttons["importSource"]

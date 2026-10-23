@@ -14,7 +14,7 @@ final class AppModel {
     let sync: LibrarySyncCoordinator?
     var cloudSession: SupabaseSession?
     var account: AuthAccount?
-    var selectedTab = 0
+    var selectedTab = 1
     var featured: [MediaTitle] = []
     var catalogRevision = UUID()
     var alertMessage: String?

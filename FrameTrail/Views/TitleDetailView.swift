@@ -128,7 +128,7 @@ struct TitleDetailView: View {
                             .accessibilityIdentifier("importSource")
                         if let source = title.sourceURL { Link(L10n.text("Открыть страницу произведения"), destination: source).font(.footnote) }
                     }.padding(.top, 10)
-                }.accessibilityIdentifier("sourcesDisclosure")
+                }
                 if let recent = entry.reflections.filter({ !$0.summary.isEmpty || !$0.allLiked.isEmpty || !$0.allDisliked.isEmpty }).sorted(by: { $0.createdAt > $1.createdAt }).first {
                     reflectionCard(recent)
                 }
@@ -145,10 +145,8 @@ struct TitleDetailView: View {
                 Button(L10n.text("Добавить текст или субтитры"), systemImage: "doc.badge.plus") { sourceImport = true }
             } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel(L10n.text("Действия с произведением"))
         }
-        .task(id: library.activeAccountID + model.catalogRevision.uuidString) {
-            await model.localizeTitle(title)
-            await loadEpisodes()
-        }
+        .task(id: model.catalogRevision) { await model.localizeTitle(title) }
+        .task(id: library.activeAccountID + model.catalogRevision.uuidString) { await loadEpisodes() }
         .onChange(of: library.entry(for: title.id)?.episodes) { _, stored in episodes = stored ?? [] }
         .onChange(of: seasons, initial: true) { _, values in
             if !values.contains(selectedSeason), let first = values.first { selectedSeason = first }
