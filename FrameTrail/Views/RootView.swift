@@ -120,7 +120,7 @@ struct ManualTitleView: View {
                     Picker("Тип", selection: $kind) {
                         Text("Фильм").tag(MediaKind.movie)
                         Text("Сериал").tag(MediaKind.series)
-                    }
+                    }.accessibilityIdentifier("manualTitleKind")
                 }
                 Section { Text("Добавь собственные материалы в карточке произведения. До отметки «Досмотрел» полный сюжет фильма не используется в ответах.").font(.footnote) }
             }

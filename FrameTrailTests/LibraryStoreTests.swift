@@ -488,4 +488,31 @@ final class LibraryStoreTests: XCTestCase {
     private func title(_ id: String, kind: MediaKind = .movie) -> MediaTitle {
         MediaTitle(id: id, title: "Test \(id)", kind: kind, provider: "test", providerID: id)
     }
+
+    func testEpisodeImpressionsSurviveCloudRoundTripWithoutEpisodeCache() async throws {
+        let firstDirectory = temporaryDirectory()
+        let secondDirectory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: firstDirectory); try? FileManager.default.removeItem(at: secondDirectory) }
+        let first = LibraryStore(directory: firstDirectory)
+        first.switchAccount("supabase-first")
+        var entry = LibraryEntry(title: title("show", kind: .series))
+        entry.progress.watchedEpisodeIDs = ["e1"]
+        entry.episodes = [Episode(id: "e1", season: 2, number: 3, name: "Episode")]
+        entry.reflections = [Reflection(titleID: "show", liked: ["Performance"], rating: 8, disliked: ["Pacing"], episodeID: "e1", episodeSeason: 2, episodeNumber: 3)]
+        first.update(entry)
+        let payload = try XCTUnwrap(first.cloudItems().first)
+        let second = LibraryStore(directory: secondDirectory)
+        second.switchAccount("supabase-first")
+
+        try second.applyCloudRecord(CloudLibraryRecord(mediaID: "show", payload: payload, revision: 1, deleted: false))
+
+        let received = try XCTUnwrap(second.entry(for: "show"))
+        XCTAssertTrue(received.episodes.isEmpty)
+        XCTAssertEqual(received.reflections, entry.reflections)
+        XCTAssertEqual(received.reflections.first?.episodeSeason, 2)
+        XCTAssertEqual(LibraryStore(directory: secondDirectory).entries, [])
+        let reopened = LibraryStore(directory: secondDirectory)
+        reopened.switchAccount("supabase-first")
+        XCTAssertEqual(reopened.entries.first?.reflections, entry.reflections)
+    }
 }

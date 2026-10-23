@@ -43,6 +43,15 @@ jobs:
         run: python3 scripts/validate.py --version "$RELEASE_TAG"
       - name: Test core behavior
         run: swift test --package-path Packages/FrameTrailCore
+      - name: Check release branch
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          BASE_VERSION="$(python3 -c 'from scripts.validate import semantic_version; import os; print(semantic_version(os.environ["RELEASE_TAG"])[1])')"
+          RELEASE_BRANCH="release/$BASE_VERSION"
+          git fetch origin "refs/heads/$RELEASE_BRANCH:refs/remotes/origin/$RELEASE_BRANCH"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/remotes/origin/$RELEASE_BRANCH")"
       - name: Generate Xcode project
         run: xcodegen generate
       - name: Select iPhone simulator

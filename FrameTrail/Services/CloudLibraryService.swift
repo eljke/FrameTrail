@@ -9,7 +9,7 @@ enum CloudLibraryError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidRecord: return "Сервер вернул некорректную запись библиотеки. Локальные данные сохранены."
-        case .limitExceeded: return "Превышен лимит облачной библиотеки: 10 000 записей или 128 КБ на историю."
+        case .limitExceeded: return "Превышен лимит облачной библиотеки: 10 000 записей или 512 КБ на историю."
         case .changedDuringSync: return "Облачная запись изменилась во время синхронизации. Повтори синхронизацию для сравнения версий."
         }
     }
@@ -27,20 +27,20 @@ actor CloudLibraryService {
     func fetchAll(accessToken: String) async throws -> [CloudLibraryRecord] {
         var records: [CloudLibraryRecord] = []
         var cursor: String?
-        for _ in 0..<1_001 {
+        for _ in 0..<3_334 {
             var query: [URLQueryItem] = [
                 .init(name: "select", value: "media_id,payload,revision,deleted"),
-                .init(name: "order", value: "media_id.asc"), .init(name: "limit", value: "10")
+                .init(name: "order", value: "media_id.asc"), .init(name: "limit", value: "3")
             ]
             if let cursor { query.append(.init(name: "media_id", value: "gt.\(cursor)")) }
             let url = try HTTPClient.url(config.projectURL.appendingPathComponent("rest/v1/library_items").absoluteString, query: query)
             let data = try await http.data(for: request(url: url, accessToken: accessToken))
             let page = try JSONDecoder().decode([RecordDTO].self, from: data).map { try $0.record() }
-            guard page.count <= 10, page.allSatisfy({ cursor == nil || $0.mediaID > cursor! }),
+            guard page.count <= 3, page.allSatisfy({ cursor == nil || $0.mediaID > cursor! }),
                   Set(page.map(\.mediaID)).count == page.count else { throw CloudLibraryError.invalidRecord }
             records.append(contentsOf: page)
             guard records.count <= 10_000 else { throw CloudLibraryError.limitExceeded }
-            if page.count < 10 { return records }
+            if page.count < 3 { return records }
             cursor = page.last!.mediaID
         }
         throw CloudLibraryError.limitExceeded
@@ -48,7 +48,7 @@ actor CloudLibraryService {
 
     func put(mediaID: String, item: CloudLibraryItem?, expectedRevision: Int64, accessToken: String) async throws -> CloudLibraryRecord? {
         let body = try JSONEncoder().encode(WriteBody(p_media_id: mediaID, p_payload: item, p_expected_revision: expectedRevision, p_deleted: item == nil))
-        if let item, try JSONEncoder().encode(item).count > 128 * 1_024 { throw CloudLibraryError.limitExceeded }
+        if let item, try JSONEncoder().encode(item).count > 512 * 1_024 { throw CloudLibraryError.limitExceeded }
         let url = config.projectURL.appendingPathComponent("rest/v1/rpc/put_library_item")
         let data = try await http.data(for: request(url: url, accessToken: accessToken, method: "POST", body: body))
         let rows = try JSONDecoder().decode([RecordDTO].self, from: data)

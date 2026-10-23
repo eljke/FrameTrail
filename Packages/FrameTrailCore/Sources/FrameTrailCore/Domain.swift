@@ -135,9 +135,13 @@ public struct Reflection: Identifiable, Hashable, Codable, Sendable {
     public var titleID: String
     public var summary: String
     public var liked: [String]
+    public var disliked: [String]
     public var questions: [String]
     public var rating: Int?
     public var createdAt: Date
+    public var episodeID: String?
+    public var episodeSeason: Int?
+    public var episodeNumber: Int?
 
     public init(
         id: UUID = UUID(),
@@ -146,14 +150,48 @@ public struct Reflection: Identifiable, Hashable, Codable, Sendable {
         liked: [String] = [],
         questions: [String] = [],
         rating: Int? = nil,
-        createdAt: Date = Date()
+        createdAt: Date = Date(),
+        disliked: [String] = [],
+        episodeID: String? = nil,
+        episodeSeason: Int? = nil,
+        episodeNumber: Int? = nil
     ) {
         self.id = id
         self.titleID = titleID
         self.summary = summary
         self.liked = liked
+        self.disliked = disliked
         self.questions = questions
         self.rating = rating
         self.createdAt = createdAt
+        self.episodeID = episodeID
+        self.episodeSeason = episodeSeason
+        self.episodeNumber = episodeNumber
+    }
+
+    public static func latest(in records: [Reflection], episodeID: String? = nil) -> Reflection? {
+        records.filter { $0.episodeID == episodeID }.max {
+            if $0.createdAt != $1.createdAt { return $0.createdAt < $1.createdAt }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, titleID, summary, liked, disliked, questions, rating, createdAt, episodeID, episodeSeason, episodeNumber
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(UUID.self, forKey: .id)
+        titleID = try values.decode(String.self, forKey: .titleID)
+        summary = try values.decode(String.self, forKey: .summary)
+        liked = try values.decode([String].self, forKey: .liked)
+        disliked = try values.decodeIfPresent([String].self, forKey: .disliked) ?? []
+        questions = try values.decode([String].self, forKey: .questions)
+        rating = try values.decodeIfPresent(Int.self, forKey: .rating)
+        createdAt = try values.decode(Date.self, forKey: .createdAt)
+        episodeID = try values.decodeIfPresent(String.self, forKey: .episodeID)
+        episodeSeason = try values.decodeIfPresent(Int.self, forKey: .episodeSeason)
+        episodeNumber = try values.decodeIfPresent(Int.self, forKey: .episodeNumber)
     }
 }

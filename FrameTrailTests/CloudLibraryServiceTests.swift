@@ -16,8 +16,9 @@ final class CloudLibraryServiceTests: XCTestCase {
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
             XCTAssertFalse(query.contains { $0.name == "user_id" })
             let after = query.first { $0.name == "media_id" }?.value
-            let page = after == nil ? Array(titles.prefix(10)) : Array(titles.suffix(1))
-            if after != nil { XCTAssertEqual(after, "gt.local:09") }
+            XCTAssertEqual(query.first { $0.name == "limit" }?.value, "3")
+            let cursor = after.map { String($0.dropFirst(3)) }
+            let page = Array(titles.filter { cursor == nil || $0.id > cursor! }.prefix(3))
             return (200, try Self.rows(page))
         }
         let records = try await service().fetchAll(accessToken: "owner-session")

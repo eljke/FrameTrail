@@ -42,6 +42,8 @@ final class FrameTrailSmokeTests: XCTestCase {
 
         let summary = app.textViews["reflectionSummary"]
         XCTAssertTrue(summary.waitForExistence(timeout: 5))
+        app.buttons["rating-8"].tap()
+        reveal(summary, app: app)
         summary.tap()
         let thought = "The ending reframes the earlier choices. I want to revisit the opening scene."
         summary.typeText(thought)
@@ -58,6 +60,87 @@ final class FrameTrailSmokeTests: XCTestCase {
         tabs.buttons["Настройки"].tap()
         XCTAssertTrue(tabs.buttons["Настройки"].isSelected)
         capture("05-settings", app: app)
+    }
+
+    @MainActor
+    func testSaveImpressionsWithoutSummaryOrRating() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting"]
+        app.launch()
+        let add = app.buttons["addManualTitle"]
+        XCTAssertTrue(add.waitForExistence(timeout: 15))
+        add.tap()
+        let name = app.textFields["manualTitleName"]
+        name.tap()
+        name.typeText("A personal memory")
+        app.buttons["confirmManualTitle"].tap()
+        app.tabBars.buttons["Библиотека"].tap()
+        let title = app.staticTexts["A personal memory"].firstMatch
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap()
+        let finished = app.switches["finishedToggle"]
+        reveal(finished, app: app)
+        finished.tap()
+        let write = app.buttons["writeReflection"]
+        reveal(write, app: app)
+        write.tap()
+        let liked = app.textViews["reflectionLiked"]
+        XCTAssertTrue(liked.waitForExistence(timeout: 5))
+        reveal(liked, app: app)
+        liked.tap()
+        liked.typeText("The music stayed with me")
+        XCTAssertTrue(app.buttons["saveReflection"].isEnabled)
+        app.buttons["saveReflection"].tap()
+        app.tabBars.buttons["Дневник"].tap()
+        XCTAssertTrue(app.staticTexts["+ The music stayed with me"].waitForExistence(timeout: 5))
+        capture("06-impressions-only", app: app)
+    }
+
+    @MainActor
+    func testRateWatchedEpisodeAndKeepItsImpressions() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting"]
+        app.launch()
+        let add = app.buttons["addManualTitle"]
+        XCTAssertTrue(add.waitForExistence(timeout: 15))
+        add.tap()
+        app.textFields["manualTitleName"].tap()
+        app.textFields["manualTitleName"].typeText("My series")
+        app.buttons["manualTitleKind"].tap()
+        app.buttons["Сериал"].tap()
+        app.buttons["confirmManualTitle"].tap()
+        app.tabBars.buttons["Библиотека"].tap()
+        let title = app.staticTexts["My series"].firstMatch
+        XCTAssertTrue(title.waitForExistence(timeout: 5))
+        title.tap()
+        let source = app.buttons["importSource"]
+        reveal(source, app: app)
+        source.tap()
+        let text = app.textViews["sourceText"]
+        XCTAssertTrue(text.waitForExistence(timeout: 5))
+        text.tap()
+        text.typeText("A character chooses to return home.")
+        app.buttons["saveSource"].tap()
+        let watched = app.buttons["Просмотрено: сезон 1, серия 1"]
+        XCTAssertTrue(watched.waitForExistence(timeout: 5))
+        reveal(watched, app: app)
+        watched.tap()
+        app.buttons["Действия с серией"].firstMatch.tap()
+        app.buttons["Оценить серию и впечатления"].tap()
+        let rating = app.buttons["rating-9"]
+        XCTAssertTrue(rating.waitForExistence(timeout: 5))
+        rating.tap()
+        let disliked = app.textViews["reflectionDisliked"]
+        reveal(disliked, app: app)
+        disliked.tap()
+        disliked.typeText("The final scene felt rushed")
+        app.buttons["saveReflection"].tap()
+        app.tabBars.buttons["Дневник"].tap()
+        XCTAssertTrue(app.staticTexts["Сезон 1 · Серия 1"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["− The final scene felt rushed"].waitForExistence(timeout: 5))
+        capture("07-episode-review", app: app)
     }
 
     @MainActor

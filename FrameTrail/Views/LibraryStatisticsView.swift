@@ -15,8 +15,10 @@ struct LibraryStatistics {
     let reflectionCount: Int
     let movieCount: Int
     let seriesCount: Int
-    let ratedReflectionCount: Int
+    let ratedTitleCount: Int
     let averageRating: Double?
+    let ratedEpisodeCount: Int
+    let averageEpisodeRating: Double?
     let ratingDistribution: [RatingBucket]
 
     init(entries: [LibraryEntry]) {
@@ -27,9 +29,17 @@ struct LibraryStatistics {
         seriesCount = entries.filter { $0.title.kind == .series }.count
         let reflections = entries.flatMap { $0.reflections }
         reflectionCount = reflections.count
-        let ratings = reflections.compactMap { $0.rating }
-        ratedReflectionCount = ratings.count
+        let current: [Reflection] = entries.flatMap { entry in
+            Dictionary(grouping: entry.reflections, by: \.episodeID).values.compactMap { records in
+                Reflection.latest(in: records, episodeID: records[0].episodeID)
+            }
+        }
+        let ratings = current.filter { $0.episodeID == nil }.compactMap(\.rating)
+        ratedTitleCount = ratings.count
         averageRating = ratings.isEmpty ? nil : Double(ratings.reduce(0, +)) / Double(ratings.count)
+        let episodeRatings = current.filter { $0.episodeID != nil }.compactMap(\.rating)
+        ratedEpisodeCount = episodeRatings.count
+        averageEpisodeRating = episodeRatings.isEmpty ? nil : Double(episodeRatings.reduce(0, +)) / Double(episodeRatings.count)
         let frequencies = Dictionary(grouping: ratings, by: { $0 }).mapValues(\.count)
         ratingDistribution = (1...10).map { RatingBucket(rating: $0, count: frequencies[$0, default: 0]) }
     }
@@ -64,25 +74,33 @@ struct LibraryStatisticsView: View {
                             .monospacedDigit().foregroundStyle(Theme.accent)
                         Text("/ 10").font(.subheadline).foregroundStyle(Theme.muted)
                     }
-                    Text("Средняя оценка записей").font(.subheadline.weight(.medium))
-                    Text("Записей с оценкой: \(statistics.ratedReflectionCount)")
+                    Text("Средняя общая оценка").font(.subheadline.weight(.medium))
+                    Text("Произведений с оценкой: \(statistics.ratedTitleCount)")
                         .font(.caption).foregroundStyle(Theme.muted)
                     Chart(statistics.ratingDistribution) { bucket in
-                        BarMark(x: .value("Оценка", bucket.rating), y: .value("Записей", bucket.count))
+                        BarMark(x: .value("Оценка", bucket.rating), y: .value("Произведений", bucket.count))
                             .foregroundStyle(Theme.accent.gradient)
                             .cornerRadius(4)
                             .accessibilityLabel("Оценка \(bucket.rating)")
-                            .accessibilityValue("Записей: \(bucket.count)")
+                            .accessibilityValue("Произведений: \(bucket.count)")
                     }
                     .chartXAxis { AxisMarks(values: [1, 5, 10]) }
                     .chartYAxis(.hidden)
                     .frame(height: 80)
-                    .accessibilityLabel("Распределение оценок личных итогов")
+                    .accessibilityLabel("Распределение общих оценок произведений")
                 } else {
                     Label("Твоя история оценок", systemImage: "star")
                         .font(.subheadline.weight(.medium)).foregroundStyle(Theme.accent)
-                    Text("Добавь оценку в личном итоге, и здесь появятся среднее значение и распределение.")
+                    Text("Оцени фильм или сериал в целом, и здесь появятся среднее значение и распределение.")
                         .font(.footnote).foregroundStyle(Theme.muted)
+                }
+                if let average = statistics.averageEpisodeRating {
+                    Divider()
+                    HStack {
+                        Text("Серий с оценкой: \(statistics.ratedEpisodeCount)")
+                        Spacer()
+                        Text("Средняя: \(average, format: .number.precision(.fractionLength(1)))/10").foregroundStyle(Theme.accent)
+                    }.font(.caption)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

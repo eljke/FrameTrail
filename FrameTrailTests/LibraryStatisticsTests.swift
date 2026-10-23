@@ -13,7 +13,8 @@ final class LibraryStatisticsTests: XCTestCase {
         XCTAssertEqual(statistics.reflectionCount, 0)
         XCTAssertEqual(statistics.movieCount, 0)
         XCTAssertEqual(statistics.seriesCount, 0)
-        XCTAssertEqual(statistics.ratedReflectionCount, 0)
+        XCTAssertEqual(statistics.ratedTitleCount, 0)
+        XCTAssertEqual(statistics.ratedEpisodeCount, 0)
         XCTAssertNil(statistics.averageRating)
         XCTAssertTrue(statistics.ratingDistribution.allSatisfy { $0.count == 0 })
     }
@@ -39,24 +40,38 @@ final class LibraryStatisticsTests: XCTestCase {
         XCTAssertNil(statistics.averageRating)
     }
 
-    func testAverageAndDistributionUseRatedRecordsRatherThanTitles() throws {
+    func testWholeTitleAndEpisodeRatingsAreCountedSeparately() throws {
         var movie = entry("film", kind: .movie)
         movie.reflections = [
-            Reflection(titleID: "film", summary: "First viewing.", rating: 6),
-            Reflection(titleID: "film", summary: "Second viewing.", rating: 9),
-            Reflection(titleID: "film", summary: "A thought without a rating.")
+            Reflection(titleID: "film", summary: "First viewing.", rating: 6, createdAt: Date(timeIntervalSince1970: 1)),
+            Reflection(titleID: "film", summary: "Second viewing.", rating: 9, createdAt: Date(timeIntervalSince1970: 2))
         ]
         var series = entry("show", kind: .series)
-        series.reflections = [Reflection(titleID: "show", summary: "The final season.", rating: 9)]
+        series.reflections = [
+            Reflection(titleID: "show", summary: "Overall.", rating: 7),
+            Reflection(titleID: "show", rating: 4, createdAt: Date(timeIntervalSince1970: 1), episodeID: "e1", episodeSeason: 1, episodeNumber: 1),
+            Reflection(titleID: "show", rating: 8, createdAt: Date(timeIntervalSince1970: 2), episodeID: "e1", episodeSeason: 1, episodeNumber: 1)
+        ]
 
         let statistics = LibraryStatistics(entries: [movie, series])
 
-        XCTAssertEqual(statistics.reflectionCount, 4)
-        XCTAssertEqual(statistics.ratedReflectionCount, 3)
+        XCTAssertEqual(statistics.reflectionCount, 5)
+        XCTAssertEqual(statistics.ratedTitleCount, 2)
+        XCTAssertEqual(statistics.ratedEpisodeCount, 1)
+        XCTAssertEqual(try XCTUnwrap(statistics.averageEpisodeRating), 8, accuracy: 0.000_001)
         XCTAssertEqual(try XCTUnwrap(statistics.averageRating), 8, accuracy: 0.000_001)
-        XCTAssertEqual(statistics.ratingDistribution.first { $0.rating == 6 }?.count, 1)
-        XCTAssertEqual(statistics.ratingDistribution.first { $0.rating == 9 }?.count, 2)
-        XCTAssertEqual(statistics.ratingDistribution.reduce(0) { $0 + $1.count }, 3)
+        XCTAssertEqual(statistics.ratingDistribution.first { $0.rating == 6 }?.count, 0)
+        XCTAssertEqual(statistics.ratingDistribution.first { $0.rating == 9 }?.count, 1)
+        XCTAssertEqual(statistics.ratingDistribution.reduce(0) { $0 + $1.count }, 2)
+    }
+
+    func testLatestUnratedReviewClearsCurrentRating() {
+        var movie = entry("film", kind: .movie)
+        movie.reflections = [
+            Reflection(titleID: "film", rating: 9, createdAt: Date(timeIntervalSince1970: 1)),
+            Reflection(titleID: "film", summary: "No score now.", createdAt: Date(timeIntervalSince1970: 2))
+        ]
+        XCTAssertNil(LibraryStatistics(entries: [movie]).averageRating)
     }
 
     private func entry(_ id: String, kind: MediaKind) -> LibraryEntry {

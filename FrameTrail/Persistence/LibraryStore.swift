@@ -435,7 +435,7 @@ final class LibraryStore {
                 throw LibraryStoreError.invalidData("некорректная карточка произведения")
             }
             guard entry.episodes.count <= 5_000, entry.facts.count <= 10_000, entry.chat.count <= 500,
-                  entry.reflections.count <= 200, entry.progress.watchedEpisodeIDs.count <= 5_000,
+                  entry.reflections.count <= 5_000, entry.progress.watchedEpisodeIDs.count <= 5_000,
                   entry.progress.watchedEpisodeIDs.allSatisfy({ validIdentifier($0, maximum: 256) }),
                   entry.progress.currentSeason.map({ $0 >= 0 && $0 <= 10_000 }) ?? true,
                   entry.progress.currentEpisode.map({ $0 >= 0 && $0 <= 100_000 }) ?? true else {
@@ -469,9 +469,15 @@ final class LibraryStore {
             }
             for reflection in entry.reflections {
                 guard reflection.titleID == entry.id, reflection.summary.count <= 30_000,
-                      reflection.liked.count <= 100, reflection.questions.count <= 100,
+                      reflection.liked.count <= 100, reflection.disliked.count <= 100, reflection.questions.count <= 100,
                       reflection.liked.allSatisfy({ $0.count <= 5_000 }), reflection.questions.allSatisfy({ $0.count <= 5_000 }),
+                      reflection.disliked.allSatisfy({ $0.count <= 5_000 }),
                       reflection.rating.map({ (1...10).contains($0) }) ?? true,
+                      reflection.episodeID.map({ validIdentifier($0, maximum: 256) }) ?? true,
+                      reflection.episodeSeason.map({ (0...10_000).contains($0) }) ?? true,
+                      reflection.episodeNumber.map({ (0...100_000).contains($0) }) ?? true,
+                      (reflection.episodeID == nil) == (reflection.episodeSeason == nil && reflection.episodeNumber == nil),
+                      reflection.episodeID == nil || (title.kind == .series && reflection.episodeSeason != nil && reflection.episodeNumber != nil),
                       reflection.createdAt.timeIntervalSince1970.isFinite else {
                     throw LibraryStoreError.invalidData("некорректная запись впечатлений")
                 }

@@ -16,11 +16,15 @@ struct TitleDetailView: View {
     @State private var plotInfo: String?
     @State private var selectedSeason = 1
     @State private var pendingReflectionRemoval: Reflection?
+    @State private var episodeToReview: Episode?
+    @State private var showRetrospective = false
 
     private var entry: LibraryEntry { library.entry(for: title.id) ?? LibraryEntry(title: title) }
     private var isSaved: Bool { library.entry(for: title.id) != nil }
     private var availableEpisodes: [Episode] { mergeEpisodes(episodes + entry.episodes) }
     private var seasons: [Int] { Set(availableEpisodes.map(\.season)).sorted() }
+    private var overallReview: Reflection? { Reflection.latest(in: entry.reflections) }
+    private var canReview: Bool { entry.progress.finished || (title.kind == .series && !entry.progress.watchedEpisodeIDs.isEmpty) }
 
     var body: some View {
         ScrollView {
@@ -31,6 +35,7 @@ struct TitleDetailView: View {
                         Text(title.kind == .movie ? "ФИЛЬМ" : "СЕРИАЛ").font(.caption2.bold()).tracking(2).foregroundStyle(Theme.accent)
                         Text(title.title).font(.title2.bold()).textSelection(.enabled)
                         if let year = title.year { Text(String(year)).font(.subheadline).foregroundStyle(Theme.muted) }
+                        if let rating = overallReview?.rating { Label("Моя оценка: \(rating)/10", systemImage: "star.fill").font(.caption).foregroundStyle(Theme.accent) }
                         Button { save(entry) } label: { Label(isSaved ? "В библиотеке" : "В библиотеку", systemImage: isSaved ? "checkmark" : "plus") }
                             .buttonStyle(.bordered).disabled(isSaved)
                     }
@@ -61,6 +66,12 @@ struct TitleDetailView: View {
                     episodeSection
                 }
                 if let plotInfo { Text(plotInfo).font(.footnote).foregroundStyle(Theme.muted) }
+                if title.kind == .series && canReview {
+                    Button { showRetrospective = true } label: {
+                        Label("Собрать общую картину по сериям", systemImage: "sparkles.rectangle.stack")
+                    }.buttonStyle(.bordered).accessibilityIdentifier("compileSeriesImpressions")
+                    Text("Сводка Apple по сохранённым оценкам и впечатлениям о просмотренных сериях.").font(.caption).foregroundStyle(Theme.muted)
+                }
                 NavigationLink {
                     DiscussionView(title: title, initialEpisodes: availableEpisodes)
                 } label: {
@@ -79,36 +90,17 @@ struct TitleDetailView: View {
                     Text("Сохранено материалов: \(entry.facts.count). Аннотации серий используются только после отметки о просмотре.")
                         .font(.footnote).foregroundStyle(Theme.muted)
                     Button { sourceImport = true } label: { Label("Добавить текст или субтитры", systemImage: "doc.badge.plus") }
+                        .accessibilityIdentifier("importSource")
                     if let source = title.sourceURL { Link("Карточка у источника", destination: source).font(.footnote) }
                 }
-                if entry.progress.finished {
+                if canReview {
+                    Button { editingReflection = overallReview; reflectionEditor = true } label: {
+                        Label(overallReview?.rating == nil ? "Оценить и разобрать впечатления" : "Моя оценка и впечатления", systemImage: "star.bubble")
+                    }.buttonStyle(.bordered).accessibilityIdentifier("rateTitle")
                     Button { editingReflection = nil; reflectionEditor = true } label: { Label("Сохранить личный итог", systemImage: "square.and.pencil") }
                         .buttonStyle(.borderedProminent).accessibilityIdentifier("writeReflection")
-                    ForEach(entry.reflections.sorted { $0.createdAt > $1.createdAt }) { reflection in
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                Text("Мой итог").font(.headline)
-                                Spacer()
-                                if let rating = reflection.rating { Text("★ \(rating)/10").foregroundStyle(Theme.accent) }
-                                Button {
-                                    editingReflection = reflection
-                                    reflectionEditor = true
-                                } label: { Image(systemName: "pencil") }
-                                    .accessibilityLabel("Изменить личный итог")
-                                Menu {
-                                    ShareLink(item: shareText(reflection)) {
-                                        Label("Поделиться итогом", systemImage: "square.and.arrow.up")
-                                    }
-                                    Button("Удалить итог", role: .destructive) { pendingReflectionRemoval = reflection }
-                                } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("Действия с итогом")
-                            }
-                            Text(reflection.summary).font(.subheadline).textSelection(.enabled)
-                            ForEach(Array(reflection.liked.enumerated()), id: \.offset) { item in Text("+ " + item.element).font(.caption).foregroundStyle(Theme.muted) }
-                            ForEach(Array(reflection.questions.enumerated()), id: \.offset) { item in Text("? " + item.element).font(.caption).foregroundStyle(Theme.muted) }
-                            Text(reflection.createdAt, style: .date).font(.caption2).foregroundStyle(Theme.muted)
-                        }.padding(16).background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
-                    }
                 }
+                ForEach(entry.reflections.sorted { $0.createdAt > $1.createdAt }) { reflection in reflectionCard(reflection) }
             }.padding(20)
         }
         .background(Theme.background)
@@ -120,6 +112,10 @@ struct TitleDetailView: View {
         }
         .sheet(isPresented: $sourceImport) { SourceImportView(title: title, episodes: availableEpisodes) }
         .sheet(isPresented: $reflectionEditor) { ReflectionEditorView(title: title, reflection: editingReflection) }
+        .sheet(item: $episodeToReview) { episode in
+            ReflectionEditorView(title: title, reflection: Reflection.latest(in: entry.reflections, episodeID: episode.id), episode: episode)
+        }
+        .sheet(isPresented: $showRetrospective) { RetrospectiveView(title: title) }
         .confirmationDialog("Удалить личный итог? После синхронизации он исчезнет и на других устройствах.", isPresented: Binding(get: { pendingReflectionRemoval != nil }, set: { if !$0 { pendingReflectionRemoval = nil } }), titleVisibility: .visible) {
             Button("Удалить итог", role: .destructive) {
                 if let reflection = pendingReflectionRemoval {
@@ -159,6 +155,9 @@ struct TitleDetailView: View {
                     VStack(alignment: .leading, spacing: 5) {
                         Text("S\(episode.season) · E\(episode.number)").font(.caption.bold()).foregroundStyle(Theme.accent)
                         Text(watched ? episode.name : "Серия \(episode.number)").font(.subheadline)
+                        if watched, let rating = Reflection.latest(in: entry.reflections, episodeID: episode.id)?.rating {
+                            Label("\(rating)/10", systemImage: "star.fill").font(.caption).foregroundStyle(Theme.accent)
+                        }
                         if watched && !episode.summary.isEmpty {
                             DisclosureGroup("Напомнить события") { Text(episode.summary).font(.footnote).foregroundStyle(Theme.muted).padding(.vertical, 6) }
                                 .font(.caption).tint(Theme.muted)
@@ -167,6 +166,7 @@ struct TitleDetailView: View {
                     Spacer(minLength: 0)
                     Menu {
                         Button("Просмотрено всё до этой серии") { markThrough(episode) }
+                        Button("Оценить серию и впечатления") { episodeToReview = episode }.disabled(!watched)
                     } label: { Image(systemName: "ellipsis").padding(6).foregroundStyle(Theme.muted) }.accessibilityLabel("Действия с серией")
                 }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
             }
@@ -240,8 +240,35 @@ struct TitleDetailView: View {
 
     private func shareText(_ reflection: Reflection) -> String {
         var lines = [title.title, reflection.summary]
+        if let season = reflection.episodeSeason, let number = reflection.episodeNumber { lines.insert("S\(season) E\(number)", at: 1) }
+        if let rating = reflection.rating { lines.append("★ \(rating)/10") }
         lines.append(contentsOf: reflection.liked.map { "+ " + $0 })
+        lines.append(contentsOf: reflection.disliked.map { "− " + $0 })
         lines.append(contentsOf: reflection.questions.map { "? " + $0 })
         return lines.filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+
+    private func reflectionCard(_ reflection: Reflection) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Мой итог").font(.headline)
+                Spacer()
+                if let rating = reflection.rating { Text("★ \(rating)/10").foregroundStyle(Theme.accent) }
+                Button { editingReflection = reflection; reflectionEditor = true } label: { Image(systemName: "pencil") }
+                    .accessibilityLabel("Изменить личный итог")
+                Menu {
+                    ShareLink(item: shareText(reflection)) { Label("Поделиться итогом", systemImage: "square.and.arrow.up") }
+                    Button("Удалить итог", role: .destructive) { pendingReflectionRemoval = reflection }
+                } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("Действия с итогом")
+            }
+            if let season = reflection.episodeSeason, let number = reflection.episodeNumber {
+                Text("Сезон \(season) · Серия \(number)").font(.caption).foregroundStyle(Theme.accent)
+            }
+            if !reflection.summary.isEmpty { Text(reflection.summary).font(.subheadline).textSelection(.enabled) }
+            ForEach(Array(reflection.liked.enumerated()), id: \.offset) { item in Text("+ " + item.element).font(.caption).foregroundStyle(Theme.muted) }
+            ForEach(Array(reflection.disliked.enumerated()), id: \.offset) { item in Text("− " + item.element).font(.caption).foregroundStyle(Theme.muted) }
+            ForEach(Array(reflection.questions.enumerated()), id: \.offset) { item in Text("? " + item.element).font(.caption).foregroundStyle(Theme.muted) }
+            Text(reflection.createdAt, style: .date).font(.caption2).foregroundStyle(Theme.muted)
+        }.padding(16).background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
     }
 }
