@@ -55,7 +55,7 @@ jobs:
           -derivedDataPath build/simulator
           -resultBundlePath build/FrameTrailTests.xcresult
           -parallel-testing-enabled NO
-          CODE_SIGNING_ALLOWED=NO test
+          CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES test
       - name: Export test screenshots
         if: always()
         continue-on-error: true

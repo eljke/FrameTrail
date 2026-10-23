@@ -129,6 +129,22 @@ final class LibraryStore {
         commit(entries + [LibraryEntry(title: title)])
     }
 
+    func addTitles(_ titles: [MediaTitle]) throws -> Int {
+        do {
+            var known = Set(entries.map(\.id))
+            var next = entries
+            for title in titles where known.insert(title.id).inserted { next.append(LibraryEntry(title: title)) }
+            let added = next.count - entries.count
+            try persist(next)
+            entries = next
+            lastError = nil
+            return added
+        } catch {
+            lastError = error.localizedDescription
+            throw error
+        }
+    }
+
     func update(_ entry: LibraryEntry) {
         var updated = entry
         updated.updatedAt = Date()

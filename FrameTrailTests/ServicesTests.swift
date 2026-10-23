@@ -292,6 +292,38 @@ final class ServicesTests: XCTestCase {
         configuration.protocolClasses = [ServiceURLProtocol.self]
         return HTTPClient(session: URLSession(configuration: configuration))
     }
+
+    func testCancelledApprovalCannotRestoreAccountAndRevokesCreatedSession() async throws {
+        let accountStarted = expectation(description: "account lookup started")
+        let revoked = expectation(description: "abandoned session revoked")
+        defer {
+            try? KeychainStore.set(nil, for: "tmdb.session-id")
+            try? KeychainStore.set(nil, for: "tmdb.account")
+        }
+        ServiceURLProtocol.setHandler { request in
+            switch request.url?.path {
+            case "/3/authentication/token/new": return .json("{\"success\":true,\"request_token\":\"pending\"}")
+            case "/3/authentication/session/new": return .json("{\"success\":true,\"session_id\":\"abandoned\"}")
+            case "/3/account":
+                accountStarted.fulfill()
+                Thread.sleep(forTimeInterval: 0.1)
+                return .json("{\"id\":42,\"username\":\"viewer\"}")
+            case "/3/authentication/session": revoked.fulfill(); return .json("{\"success\":true}")
+            default: throw URLError(.unsupportedURL)
+            }
+        }
+        let service = TMDBAuthService(http: client(), tokenProvider: { "read-token" })
+        _ = try await service.beginAuthorization()
+        let pending = Task { try await service.completeAuthorization() }
+        await fulfillment(of: [accountStarted], timeout: 2)
+        await service.cancelAuthorization()
+        do { _ = try await pending.value; XCTFail("Cancelled approval must not persist an account") }
+        catch is CancellationError {}
+        await fulfillment(of: [revoked], timeout: 2)
+        let cached = try await service.cachedAccount()
+        XCTAssertNil(cached)
+        XCTAssertNil(try KeychainStore.string(for: "tmdb.session-id"))
+    }
 }
 
 private final class ServiceURLProtocol: URLProtocol, @unchecked Sendable {

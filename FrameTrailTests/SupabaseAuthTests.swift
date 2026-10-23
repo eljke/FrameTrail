@@ -22,7 +22,7 @@ final class SupabaseAuthTests: XCTestCase {
             XCTAssertEqual(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.query, "grant_type=password")
             XCTAssertEqual(request.value(forHTTPHeaderField: "apikey"), "sb_publishable_test")
             XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
-            let body = try JSONDecoder().decode([String: String].self, from: request.httpBody!)
+            let body = try JSONDecoder().decode([String: String].self, from: request.testBodyData())
             XCTAssertEqual(body, ["email": "viewer@example.org", "password": "test-password"])
             return .json(Self.tokenJSON())
         }
@@ -56,7 +56,7 @@ final class SupabaseAuthTests: XCTestCase {
         refreshed.assertForOverFulfill = true
         AuthURLProtocol.setHandler { request in
             XCTAssertEqual(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.query, "grant_type=refresh_token")
-            XCTAssertEqual(try JSONDecoder().decode([String: String].self, from: request.httpBody!), ["refresh_token": "refresh-old"])
+            XCTAssertEqual(try JSONDecoder().decode([String: String].self, from: request.testBodyData()), ["refresh_token": "refresh-old"])
             refreshed.fulfill()
             Thread.sleep(forTimeInterval: 0.05)
             return .json(Self.tokenJSON(refresh: "refresh-rotated"))
@@ -171,7 +171,7 @@ final class SupabaseAuthTests: XCTestCase {
             XCTAssertEqual(request.url?.path, "/auth/v1/user")
             XCTAssertEqual(request.httpMethod, "PUT")
             XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer access-old")
-            XCTAssertEqual(try JSONDecoder().decode([String: String].self, from: request.httpBody!), ["password": "new-password"])
+            XCTAssertEqual(try JSONDecoder().decode([String: String].self, from: request.testBodyData()), ["password": "new-password"])
             return .json("{\"id\":\"11111111-2222-3333-4444-555555555555\"}")
         }
         let service = try service()
@@ -183,7 +183,7 @@ final class SupabaseAuthTests: XCTestCase {
         AuthURLProtocol.setHandler { request in
             XCTAssertEqual(request.url?.path, "/auth/v1/recover")
             XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
-            XCTAssertEqual(try JSONDecoder().decode([String: String].self, from: request.httpBody!), ["email": "viewer@example.org"])
+            XCTAssertEqual(try JSONDecoder().decode([String: String].self, from: request.testBodyData()), ["email": "viewer@example.org"])
             return .json("{}")
         }
         try await service().requestPasswordReset(email: "viewer@example.org")

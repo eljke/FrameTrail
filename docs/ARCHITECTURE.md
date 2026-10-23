@@ -6,11 +6,18 @@ FrameTrail keeps story scope independent of the model. The system selects eviden
 flowchart TB
     UI[SwiftUI feature screens] --> App[Application composition]
     UI --> Store[Account-scoped LibraryStore]
-    App --> Catalog[Catalog and account actors]
+    App --> Catalog[Catalog actors]
+    App --> Sync[LibrarySyncCoordinator]
+    Sync --> Planner[Core three-way sync planner]
+    Sync --> Store
+    Sync --> Cloud[Supabase REST actors]
+    Cloud --> Auth[Supabase Auth]
+    Cloud --> DB[PostgreSQL: owner RLS and revision CAS]
+    Cloud --> Keys[Keychain]
     UI --> Core[FrameTrailCore: scope and retrieval]
     Core --> Context[Allowed evidence]
     Context --> Model[Apple on-device model]
-    Catalog --> Public[TVmaze / iTunes / TMDB / Wikipedia]
+    Catalog --> Public[TVmaze / Wikidata / TMDB / Wikipedia]
     Store --> JSON[Atomic protected account files]
     Catalog --> Keys[Keychain]
 ```
@@ -19,7 +26,11 @@ flowchart TB
 
 The core package accepts values and produces values. It cannot reach the network, inspect account tokens or invoke inference. Providers translate external JSON at their boundaries. A typed HTTP client enforces transport limits and cancellation. The local model receives a bounded evidence packet and cannot autonomously fetch more data.
 
-LibraryStore commits files before publishing changed state. Each provider account has its own SHA-256-derived path. Invalid imports do not mutate state. Authentication secrets are stored by KeychainStore and never enter LibraryEntry. Signing out switches the visible namespace; guest records remain local and separate.
+LibraryStore commits files before publishing changed state. Each FrameTrail account has its own SHA-256-derived path; guest records remain local and separate. Its archive atomically stores the library and acknowledged synchronization baseline. Exports exclude baselines and credentials. Remote projections contain title metadata, progress and reflections only; source texts, episode descriptions and conversations are never in that projection. A remote progress rewind clears the affected discussion while preserving source material.
+
+The pure core planner compares local values, remote records and the previous baseline. One-sided changes synchronize; concurrent divergent changes require explicit resolution. Compare-and-swap RPC writes use server revisions, including deletion tombstones. A private SECURITY DEFINER implementation enforces auth.uid ownership and verified-account existence; its exposed SECURITY INVOKER wrapper grants no direct table mutation rights. Authenticated reads use owner RLS. The account-deletion function verifies the caller through Auth before using server-only administrative credentials to delete that same user.
+
+SupabaseAuthService serializes refreshes and guards credential writes against logout/account-change races. Keychain stores refreshable sessions, never passwords. AppModel activates the authenticated user's offline namespace; TMDB authorization is a separate optional watchlist connection and cannot change that namespace. The bundled project URL and publishable key are public configuration, not privileged credentials.
 
 Views compose domain operations and display current state. They do not implement episode eligibility or deserialize provider payloads. AppModel owns the service instances and account lifecycle. Small native components keep layout consistent without introducing a separate design-system dependency.
 
@@ -33,6 +44,6 @@ The installed system model is shared by the OS and is not copied into the app bu
 
 ## Delivery
 
-XcodeGen defines the project. The standalone core is tested before iOS simulator tests, then a device app is built without signing. Packaging validates bundle version and size, produces a standard Payload archive and checksum, and the gated tag workflow publishes an unsigned IPA for AltStore. Physical model performance and LiveContainer behavior remain separate acceptance checks.
+XcodeGen defines the project. The standalone core is tested before iOS simulator tests, then a device app is built without signing. Packaging validates bundle version and size, produces a standard Payload archive and checksum, and the gated tag workflow publishes an unsigned IPA for AltStore. Prepare each version in a retained release branch; merge into main through a pull request only after checks and published-asset verification. Physical model performance and LiveContainer behavior remain separate acceptance checks.
 
 The maintained behavior contract is [the release canvas](specs/1.0.0-beta.1.md). Changes in requirements update it before implementation; refactoring synchronizes this boundary map with the resulting code.

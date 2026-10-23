@@ -452,6 +452,39 @@ final class LibraryStoreTests: XCTestCase {
         FileManager.default.temporaryDirectory.appendingPathComponent("FrameTrailTests-\(UUID().uuidString)", isDirectory: true)
     }
 
+    func testBulkImportPreservesExistingRecordsAndDeduplicates() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        store.add(title("existing"))
+        var entry = try XCTUnwrap(store.entry(for: "existing"))
+        entry.progress.finished = true
+        store.update(entry)
+
+        let added = try store.addTitles([title("existing"), title("new"), title("new")])
+
+        XCTAssertEqual(added, 1)
+        XCTAssertTrue(try XCTUnwrap(store.entry(for: "existing")).progress.finished)
+        XCTAssertEqual(store.entries.count, 2)
+        let reopened = LibraryStore(directory: directory)
+        XCTAssertEqual(reopened.entries, store.entries)
+    }
+
+    func testInvalidBulkImportLeavesArchiveUnchanged() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        store.add(title("existing"))
+        let before = try store.exportData()
+        var invalid = title("bad")
+        invalid.title = ""
+
+        XCTAssertThrowsError(try store.addTitles([title("new"), invalid]))
+
+        XCTAssertEqual(try store.exportData(), before)
+        XCTAssertEqual(LibraryStore(directory: directory).entries, store.entries)
+    }
+
     private func title(_ id: String, kind: MediaKind = .movie) -> MediaTitle {
         MediaTitle(id: id, title: "Test \(id)", kind: kind, provider: "test", providerID: id)
     }

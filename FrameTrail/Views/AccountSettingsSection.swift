@@ -11,6 +11,7 @@ struct AccountSettingsSection: View {
     @State private var error: String?
     @State private var notice: String?
     @State private var confirmDeletion = false
+    @State private var newPassword = ""
 
     var body: some View {
         Section {
@@ -32,6 +33,22 @@ struct AccountSettingsSection: View {
                 Button("Выйти из FrameTrail") {
                     Task { busy = true; await model.signOutFrameTrail(library: library); busy = false }
                 }.disabled(busy || model.sync?.isSyncing == true)
+                DisclosureGroup("Сменить пароль") {
+                    SecureField("Новый пароль · от 8 символов", text: $newPassword).textContentType(.newPassword)
+                    Button("Обновить пароль") {
+                        Task {
+                            busy = true
+                            error = nil
+                            do {
+                                guard let auth = model.cloudAuth else { throw SupabaseAuthError.notConfigured }
+                                try await auth.updatePassword(password: newPassword)
+                                newPassword = ""
+                                notice = "Пароль изменён."
+                            } catch { self.error = error.localizedDescription }
+                            busy = false
+                        }
+                    }.disabled(busy || newPassword.count < 8)
+                }.disabled(busy)
                 Button("Удалить аккаунт и облачные данные", role: .destructive) { confirmDeletion = true }
                     .disabled(busy || model.sync?.isSyncing == true)
             } else {

@@ -4,6 +4,7 @@ import FrameTrailCore
 struct ReflectionEditorView: View {
     let title: MediaTitle
     var reflection: Reflection? = nil
+    var initialSummary: String = ""
     @Environment(\.dismiss) private var dismiss
     @Environment(LibraryStore.self) private var library
     @State private var summary = ""
@@ -31,10 +32,12 @@ struct ReflectionEditorView: View {
                 }
                 Section("Что понравилось — по пункту на строку") {
                     TextEditor(text: $liked).frame(minHeight: 70)
+                        .accessibilityIdentifier("reflectionLiked")
                         .onChange(of: liked) { _, value in if value.count > 30_000 { liked = String(value.prefix(30_000)) } }
                 }
                 Section("О чём ещё хочется подумать?") {
                     TextEditor(text: $questions).frame(minHeight: 70)
+                        .accessibilityIdentifier("reflectionQuestions")
                         .onChange(of: questions) { _, value in if value.count > 30_000 { questions = String(value.prefix(30_000)) } }
                 }
                 if let error { Section { ErrorNotice(message: error) } }
@@ -43,7 +46,7 @@ struct ReflectionEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Сохранить") { save() }.disabled(summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && rating == 0)
+                    Button("Сохранить") { save() }.disabled([summary, liked, questions].allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } && rating == 0)
                         .accessibilityIdentifier("saveReflection")
                 }
             }
@@ -53,6 +56,8 @@ struct ReflectionEditorView: View {
                     liked = reflection.liked.joined(separator: "\n")
                     questions = reflection.questions.joined(separator: "\n")
                     rating = reflection.rating ?? 0
+                } else {
+                    summary = String(initialSummary.prefix(10_000))
                 }
             }
             .onChange(of: library.activeAccountID) { _, _ in dismiss() }

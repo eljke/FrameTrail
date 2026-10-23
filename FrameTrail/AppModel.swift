@@ -110,8 +110,8 @@ final class AppModel {
         }
         // The server has already removed the account and revoked its refresh sessions.
         try? await cloudAuth.signOut()
+        defer { activate(nil, library: library) }
         if library.activeAccountID == accountID { try library.eraseCurrentAccount() }
-        activate(nil, library: library)
     }
 
     private func activate(_ session: SupabaseSession?, library: LibraryStore) {

@@ -14,10 +14,13 @@ struct TitleDetailView: View {
     @State private var reflectionEditor = false
     @State private var editingReflection: Reflection?
     @State private var plotInfo: String?
+    @State private var selectedSeason = 1
+    @State private var pendingReflectionRemoval: Reflection?
 
     private var entry: LibraryEntry { library.entry(for: title.id) ?? LibraryEntry(title: title) }
     private var isSaved: Bool { library.entry(for: title.id) != nil }
     private var availableEpisodes: [Episode] { mergeEpisodes(episodes + entry.episodes) }
+    private var seasons: [Int] { Set(availableEpisodes.map(\.season)).sorted() }
 
     var body: some View {
         ScrollView {
@@ -92,6 +95,12 @@ struct TitleDetailView: View {
                                     reflectionEditor = true
                                 } label: { Image(systemName: "pencil") }
                                     .accessibilityLabel("Изменить личный итог")
+                                Menu {
+                                    ShareLink(item: title.title + "\n\n" + reflection.summary + "\n" + reflection.liked.map { "+ " + $0 }.joined(separator: "\n") + "\n" + reflection.questions.map { "? " + $0 }.joined(separator: "\n")) {
+                                        Label("Поделиться итогом", systemImage: "square.and.arrow.up")
+                                    }
+                                    Button("Удалить итог", role: .destructive) { pendingReflectionRemoval = reflection }
+                                } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("Действия с итогом")
                             }
                             Text(reflection.summary).font(.subheadline).textSelection(.enabled)
                             ForEach(Array(reflection.liked.enumerated()), id: \.offset) { item in Text("+ " + item.element).font(.caption).foregroundStyle(Theme.muted) }
@@ -106,8 +115,21 @@ struct TitleDetailView: View {
         .navigationTitle(title.title).navigationBarTitleDisplayMode(.inline)
         .task(id: library.activeAccountID) { await loadEpisodes() }
         .onChange(of: library.entry(for: title.id)?.episodes) { _, stored in episodes = stored ?? [] }
+        .onChange(of: seasons, initial: true) { _, values in
+            if !values.contains(selectedSeason), let first = values.first { selectedSeason = first }
+        }
         .sheet(isPresented: $sourceImport) { SourceImportView(title: title, episodes: availableEpisodes) }
         .sheet(isPresented: $reflectionEditor) { ReflectionEditorView(title: title, reflection: editingReflection) }
+        .confirmationDialog("Удалить личный итог? После синхронизации он исчезнет и на других устройствах.", isPresented: Binding(get: { pendingReflectionRemoval != nil }, set: { if !$0 { pendingReflectionRemoval = nil } }), titleVisibility: .visible) {
+            Button("Удалить итог", role: .destructive) {
+                if let reflection = pendingReflectionRemoval {
+                    var changed = entry
+                    changed.reflections.removeAll { $0.id == reflection.id }
+                    save(changed)
+                }
+                pendingReflectionRemoval = nil
+            }
+        }
     }
 
     @ViewBuilder private var episodeSection: some View {
@@ -117,7 +139,14 @@ struct TitleDetailView: View {
             if availableEpisodes.isEmpty && !loading {
                 InfoCard(symbol: "rectangle.stack", title: "Список серий пока недоступен", text: "Можно добавить своё описание серии вместе с материалами. Поиск по оригинальному названию и подключение TMDB расширяют покрытие.")
             }
-            ForEach(availableEpisodes) { episode in
+            if seasons.count > 1 {
+                Picker("Сезон", selection: $selectedSeason) {
+                    ForEach(seasons, id: \.self) { season in Text(season == 0 ? "Спецвыпуски" : "Сезон \(season)").tag(season) }
+                }.pickerStyle(.menu)
+            }
+            Text("Просмотрено: \(entry.progress.watchedEpisodeIDs.count) · В списке: \(availableEpisodes.count)")
+                .font(.caption).foregroundStyle(Theme.muted)
+            ForEach(availableEpisodes.filter { $0.season == selectedSeason }) { episode in
                 let watched = entry.progress.watchedEpisodeIDs.contains(episode.id)
                 HStack(alignment: .top, spacing: 12) {
                     Button {

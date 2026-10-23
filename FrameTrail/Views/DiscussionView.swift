@@ -14,6 +14,9 @@ struct DiscussionView: View {
     @State private var sourceSearch = ""
     @State private var task: Task<Void, Never>?
     @State private var activeRequestID: UUID?
+    @State private var confirmClear = false
+    @State private var showReflection = false
+    @State private var reflectionDraft = ""
 
     private var entry: LibraryEntry { library.entry(for: title.id) ?? LibraryEntry(title: title) }
     private var context: GroundedContext {
@@ -59,6 +62,14 @@ struct DiscussionView: View {
                                 Label(turn.role == .user ? "Ты" : "FrameTrail · локально", systemImage: turn.role == .user ? "person.crop.circle" : "sparkles")
                                     .font(.caption.bold()).foregroundStyle(turn.role == .user ? Theme.muted : Theme.accent)
                                 Text(turn.text).font(.body).textSelection(.enabled)
+                                if turn.role == .assistant {
+                                    HStack {
+                                        ShareLink(item: title.title + "\n\n" + turn.text) { Label("Поделиться", systemImage: "square.and.arrow.up") }
+                                        if entry.progress.finished {
+                                            Button("Сохранить личный итог") { reflectionDraft = turn.text; showReflection = true }
+                                        }
+                                    }.font(.caption)
+                                }
                             }
                             .padding(16).frame(maxWidth: .infinity, alignment: .leading)
                             .background(turn.role == .user ? Color.clear : Theme.card, in: RoundedRectangle(cornerRadius: 16))
@@ -90,7 +101,8 @@ struct DiscussionView: View {
         .navigationTitle("Обсуждение").navigationBarTitleDisplayMode(.inline)
         .toolbar {
             Menu {
-                Button("Очистить обсуждение", role: .destructive) { stopResponse(); library.clearChat(for: title.id) }
+                if entry.progress.finished { Button("Личный итог", systemImage: "square.and.pencil") { reflectionDraft = ""; showReflection = true } }
+                Button("Очистить обсуждение", role: .destructive) { confirmClear = true }
             } label: { Image(systemName: "ellipsis.circle") }
         }
         .task { _ = prepareEntry(); await model.assistant.refreshAvailability() }
@@ -101,6 +113,10 @@ struct DiscussionView: View {
         .onChange(of: entry.progress) { _, _ in stopResponse() }
         .onChange(of: model.localeIdentifier) { _, _ in stopResponse() }
         .onDisappear { stopResponse() }
+        .sheet(isPresented: $showReflection) { ReflectionEditorView(title: title, initialSummary: reflectionDraft) }
+        .confirmationDialog("Удалить весь диалог этой истории с устройства?", isPresented: $confirmClear, titleVisibility: .visible) {
+            Button("Очистить обсуждение", role: .destructive) { stopResponse(); library.clearChat(for: title.id) }
+        }
     }
 
     private var suggestions: [String] {

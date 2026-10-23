@@ -74,7 +74,10 @@ struct SettingsView: View {
                     Button("Войти через TMDB") { Task { await beginLogin() } }.disabled(busy || !model.hasCatalogToken)
                     if awaitingApproval {
                         Button("Я подтвердил вход в TMDB") { Task { await finishLogin() } }.disabled(busy)
-                        Button("Отменить вход", role: .cancel) { awaitingApproval = false }
+                        Button("Отменить вход", role: .cancel) {
+                            awaitingApproval = false
+                            Task { await model.auth.cancelAuthorization() }
+                        }.disabled(busy)
                     }
                 }
                 Text("TMDB — дополнительное подключение для импорта списка просмотра. Оно не меняет аккаунт FrameTrail или активную библиотеку.")
@@ -121,7 +124,9 @@ struct SettingsView: View {
             if phase == .active { Task { await model.assistant.refreshAvailability() } }
         }
         .translationTask(translationConfiguration) { session in await prepareTranslation(using: session) }
-        .sheet(item: $authorization) { SafariPage(url: $0.url).ignoresSafeArea() }
+        .sheet(item: $authorization, onDismiss: {
+            if awaitingApproval { Task { await finishLogin() } }
+        }) { SafariPage(url: $0.url).ignoresSafeArea() }
         .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .json, defaultFilename: "FrameTrail-library") { result in
             if case .failure(let failure) = result { error = failure.localizedDescription }
         }
@@ -214,8 +219,14 @@ struct SettingsView: View {
         busy = true
         error = nil
         defer { busy = false }
-        do { try await model.finishAuthorization(library: library); awaitingApproval = false }
-        catch { self.error = error.localizedDescription }
+        do {
+            try await model.finishAuthorization(library: library)
+            awaitingApproval = false
+            notice = "TMDB подключён. Можно импортировать список просмотра."
+        } catch ServiceError.http(401) {
+            self.error = "TMDB пока не подтвердил вход. Одобри доступ на сайте и нажми «Я подтвердил вход» или начни заново."
+        } catch is CancellationError {
+        } catch { self.error = error.localizedDescription }
     }
 
     private func importWatchlist() async {
@@ -226,8 +237,8 @@ struct SettingsView: View {
         do {
             let titles = try await model.auth.watchlist()
             guard accountID == library.activeAccountID else { return }
-            for title in titles { library.add(title) }
-            notice = "Обработано историй: \(titles.count). Существующие заметки не заменялись. Импорт ограничен первыми 10 страницами каждого типа."
+            let added = try library.addTitles(titles)
+            notice = "Добавлено: \(added), получено: \(titles.count). Существующие записи сохранены. Импорт ограничен первыми 10 страницами каждого типа."
         } catch { self.error = error.localizedDescription }
     }
 }

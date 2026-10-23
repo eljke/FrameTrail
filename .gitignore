@@ -22,3 +22,4 @@ __pycache__/
 *.iws
 out/
 dist/
+supabase/.temp/

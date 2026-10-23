@@ -34,11 +34,13 @@ The badges use public GitHub metadata: actual build status, published version, s
 | Your own sources | Paste text or import UTF-8 TXT, SRT, and VTT files. Assign a specific episode when importing material for a show. |
 | Personal reflection | Save thoughts, favorite details, open questions, and a 1–10 rating. Find saved reflections in the journal. |
 | Viewing statistics | The journal shows saved titles, completed titles, watched episodes, reflections, and a rating average and distribution. Ratings use reflection records: multiple records for one title count separately. |
-| TMDB account | Approve sign-in on the provider's website. Each account has a separate local library. |
+| FrameTrail account | Email/password sign-in through Supabase, with an isolated library for each user. |
+| Library synchronization | Titles, episode progress, completion and reflections with ratings synchronize between devices. Choose a version when concurrent edits conflict. |
+| TMDB connection | Approve access on the provider's website and import its watchlist into the current FrameTrail library. |
 | Watchlist import | An explicit action reads up to 10 movie pages and 10 show pages from TMDB: up to 400 titles with the standard page size. Existing entries are preserved. |
 | Data portability | Export or import a JSON library, merge by entry modification time, and clear source materials separately from your notes. |
 
-Catalogs provide information and links to titles. The app does not contain a video player, free access to paid movies, or a complete screenplay database. TVmaze and Wikidata coverage differs from TMDB; searching the original title often helps. Wikidata movie results are restricted to entities explicitly classified as a film or feature film. Their cards provide a name, an available release year, and a short description without a poster. This is not a detailed plot: load Wikipedia or import your own material for a deeper discussion. Progress, conversations, and reflections do not automatically synchronize between devices. Watchlist import only runs when requested and makes no changes to TMDB.
+Catalogs provide information and links to titles. The app does not contain a video player, free access to paid movies, or a complete screenplay database. TVmaze and Wikidata coverage differs from TMDB; searching the original title often helps. Wikidata movie results are restricted to entities explicitly classified as a film or feature film. Their cards provide a name, an available release year, and a short description without a poster. This is not a detailed plot: load Wikipedia or import your own material for a deeper discussion. Progress and reflections synchronize after signing in to FrameTrail; conversations stay on the device. Watchlist import only runs when requested and makes no changes to TMDB.
 
 ## Requirements and first launch
 
@@ -55,7 +57,17 @@ The interface is primarily Russian. On first launch, the response language is **
 
 Discussing saved sources does not require a network request to a language model; Russian through translation requires language packs to be prepared beforehand. Search, episodes, posters, plot downloads, and TMDB sign-in require internet access. Apple separately downloads and updates the system model and translation packs. Foundation Models and Apple Translation inside LiveContainer, and the behavior of a particular re-signed installation, still require physical-device verification. Compatibility is not guaranteed.
 
-## Connect TMDB and sign in
+## FrameTrail accounts and synchronization
+
+Register in Settings → FrameTrail account, confirm your email using the message, then sign in with your password. The beta uses a dedicated Supabase project in EU Central (Frankfurt). Supabase's built-in email service sends confirmations only to organization members, so this is currently a closed beta for the owner. Public signup requires custom SMTP; email confirmation remains enabled.
+
+The library synchronizes after changes and when returning to the app. A manual action and visible status are available. The local cache works offline. Concurrent edits to one title require choosing the device or cloud version; choosing replaces that title's progress and reflections together. Deletions propagate on synchronization.
+
+Title metadata, viewing progress and personal reflections/ratings synchronize. Conversations, source texts and episode descriptions stay on the device. The journal and statistics derive from the active account's library. Each cloud title record is limited to 128 KB; the local archive including its sync baseline is limited to 10 MiB. Writes require the expected server revision and owner authorization.
+
+Guest records are never uploaded automatically: export them, sign in, and explicitly import the file to transfer them. Sign-out retains the isolated account cache. Confirmed account deletion removes the user, cloud records and that account's cache on the current device. Independent exports and local discussions on other devices must be removed separately.
+
+## Connect TMDB
 
 1. Create an account at [TMDB](https://www.themoviedb.org) or use an existing one.
 2. Obtain your application's **API Read Access Token** in [TMDB API settings](https://www.themoviedb.org/settings/api), following TMDB's terms. Paste the token itself without a `Bearer` prefix. This field is not for a password or the short v3 API key.
@@ -64,7 +76,7 @@ Discussing saved sources does not require a network request to a language model;
 5. Close the browser, return to FrameTrail, and tap **«Я подтвердил вход в TMDB»** (“I approved sign-in on TMDB”). Completion is manual; this beta does not complete sign-in automatically through a callback link.
 6. Optionally use the TMDB watchlist import action.
 
-TMDB handles your password. The app stores its API token and session in Keychain. Guest and account libraries are separate; signing in does not upload or automatically merge guest entries. Signing out retains that account's library on the device, making it available when you sign in to the same account again. Use explicit export and import to move entries between libraries.
+TMDB handles its own password. The app stores its API token and session in Keychain. This is a secondary catalog and import connection: connecting or disconnecting TMDB never changes the FrameTrail account or switches its library.
 
 ## Viewing boundaries and accuracy
 
@@ -108,7 +120,7 @@ xcodebuild -project FrameTrail.xcodeproj -scheme FrameTrail \
   -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
   -derivedDataPath build/simulator \
   -resultBundlePath build/FrameTrailTests.xcresult \
-  -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test
+  -parallel-testing-enabled NO CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES test
 ```
 
 Build an unsigned device IPA:
@@ -126,6 +138,8 @@ python3 scripts/package_ipa.py \
 CI runs domain, service, filesystem, and UI checks; retains simulator results and screenshots; and builds the device app and IPA. A simulator run does not establish system-model availability on a physical iPhone. See the actual result in [Actions](https://github.com/eljke/FrameTrail/actions).
 
 ## Versions and contributions
+
+Prepare each version in a retained `release/<version>` branch, currently `release/1.0.0`. Run checks, publish the IPA, and verify the published assets before merging that release branch into `main` through a pull request. IPA files belong in Releases; GitHub Packages is unnecessary because this app does not publish separate dependency packages or containers.
 
 `VERSION` contains the release's SemVer string, `1.0.0-beta.1`, and is bundled as a resource. Settings shows this value alongside the actual bundle build number. The bundle uses numeric version `1.0.0` and build `1`. Tag `v1.0.0-beta.1` must match `VERSION` exactly. The workflow publishes the prerelease with its IPA and SHA-256 only after successful checks. Stable version tags are not marked as prereleases.
 

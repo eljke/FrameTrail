@@ -17,6 +17,7 @@ struct RootView: View {
             NavigationStack { SettingsView() }
                 .tabItem { Label("Настройки", systemImage: "slider.horizontal.3") }.tag(3)
         }
+        .id(library.activeAccountID)
         .alert("FrameTrail", isPresented: Binding(get: { model.alertMessage != nil || library.lastError != nil }, set: { if !$0 { model.alertMessage = nil; library.dismissError() } })) {
             Button("Понятно") { model.alertMessage = nil; library.dismissError() }
         } message: { Text(model.alertMessage ?? library.lastError ?? "") }

@@ -28,7 +28,7 @@ final class CloudLibraryServiceTests: XCTestCase {
         CloudURLProtocol.handler = { request in
             XCTAssertEqual(request.url?.path, "/rest/v1/rpc/put_library_item")
             XCTAssertEqual(request.httpMethod, "POST")
-            let body = try XCTUnwrap(try JSONSerialization.jsonObject(with: Self.body(request)) as? [String: Any])
+            let body = try XCTUnwrap(try JSONSerialization.jsonObject(with: request.testBodyData()) as? [String: Any])
             XCTAssertEqual(body["p_media_id"] as? String, "local:gone")
             XCTAssertEqual(body["p_expected_revision"] as? Int, 4)
             XCTAssertEqual(body["p_deleted"] as? Bool, true)
@@ -83,21 +83,7 @@ final class CloudLibraryServiceTests: XCTestCase {
         return try JSONSerialization.data(withJSONObject: rows)
     }
 
-    private static func body(_ request: URLRequest) throws -> Data {
-        if let body = request.httpBody { return body }
-        let stream = try XCTUnwrap(request.httpBodyStream)
-        stream.open()
-        defer { stream.close() }
-        var result = Data()
-        var buffer = [UInt8](repeating: 0, count: 1_024)
-        while stream.hasBytesAvailable {
-            let count = stream.read(&buffer, maxLength: buffer.count)
-            if count < 0 { throw stream.streamError ?? URLError(.cannotDecodeContentData) }
-            if count == 0 { break }
-            result.append(contentsOf: buffer.prefix(count))
-        }
-        return result
-    }
+
 }
 
 private final class CloudURLProtocol: URLProtocol, @unchecked Sendable {
