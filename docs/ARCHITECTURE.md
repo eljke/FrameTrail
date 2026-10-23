@@ -52,6 +52,8 @@ The installed system model is shared by the OS and is not copied into the app bu
 
 ## Delivery
 
+Push and PR builds of the same repository/branch share a concurrency group, cancelling obsolete or duplicate runs. PR checkout uses the exact head commit, so its artifact has the same source identity as a branch build. A release tag must match the retained release branch head and an already successful build of that exact commit. The release job promotes that tested IPA and verifies its checksum instead of rebuilding a different binary.
+
 XcodeGen defines the project. The standalone core is tested before iOS simulator tests, then a device app is built without signing. Packaging validates bundle version and size, produces a standard Payload archive and checksum, and the gated tag workflow publishes an unsigned IPA for AltStore. Prepare each version in a retained release branch; merge into main through a pull request only after checks and published-asset verification. Physical model performance and LiveContainer behavior remain separate acceptance checks.
 
 The maintained behavior contract is [the release canvas](specs/1.0.0-beta.1.md). Changes in requirements update it before implementation; refactoring synchronizes this boundary map with the resulting code.

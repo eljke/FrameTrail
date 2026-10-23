@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: build-${{ github.ref }}
+  group: build-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
@@ -21,6 +21,8 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Select stable Xcode
         run: echo "DEVELOPER_DIR=$(python3 scripts/select_xcode.py)" >> "$GITHUB_ENV"
       - name: Show toolchain
@@ -115,7 +117,7 @@ jobs:
           git fetch origin "refs/heads/$RELEASE_BRANCH:refs/remotes/origin/$RELEASE_BRANCH"
           RELEASE_SHA="$(git rev-parse HEAD)"
           test "$RELEASE_SHA" = "$(git rev-parse "refs/remotes/origin/$RELEASE_BRANCH")"
-          VERIFIED_RUN="$(gh run list --workflow build.yml --branch "$RELEASE_BRANCH" --commit "$RELEASE_SHA" --event push --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          VERIFIED_RUN="$(gh run list --workflow build.yml --branch "$RELEASE_BRANCH" --commit "$RELEASE_SHA" --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
           test -n "$VERIFIED_RUN"
           echo "run_id=$VERIFIED_RUN" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
