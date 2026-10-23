@@ -63,9 +63,8 @@ final class FrameTrailSmokeTests: XCTestCase {
         XCTAssertEqual(app.staticTexts["ratingValue"].label, "8")
         reveal(summary, app: app)
         XCTAssertTrue(summary.exists)
-        summary.tap()
         let thought = "The ending reframes the earlier choices. I want to revisit the opening scene."
-        summary.typeText(thought)
+        enter(thought, in: summary, app: app)
         let save = app.buttons["saveReflection"]
         XCTAssertTrue(save.isEnabled)
         save.tap()
@@ -136,8 +135,7 @@ final class FrameTrailSmokeTests: XCTestCase {
         let liked = app.textViews["reflectionLiked"]
         reveal(liked, app: app)
         XCTAssertTrue(liked.exists)
-        liked.tap()
-        liked.typeText("The music stayed with me")
+        enter("The music stayed with me", in: liked, app: app)
         XCTAssertTrue(app.buttons["saveReflection"].isEnabled)
         app.buttons["saveReflection"].tap()
         app.tabBars.buttons["Дневник"].tap()
@@ -192,8 +190,7 @@ final class FrameTrailSmokeTests: XCTestCase {
         app.buttons["toggleReviewDetails"].tap()
         let disliked = app.textViews["reflectionDisliked"]
         reveal(disliked, app: app)
-        disliked.tap()
-        disliked.typeText("The final scene felt rushed")
+        enter("The final scene felt rushed", in: disliked, app: app)
         app.buttons["saveReflection"].tap()
         let rateSeason = app.buttons["rateSeason"]
         reveal(rateSeason, app: app)
@@ -201,15 +198,15 @@ final class FrameTrailSmokeTests: XCTestCase {
         let seasonStars = app.descendants(matching: .any).matching(identifier: "starRating").firstMatch
         XCTAssertTrue(seasonStars.waitForExistence(timeout: 5))
         seasonStars.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.5)).tap()
-        app.switches["applyRatingToEpisodes"].tap()
+        toggle(app.switches["applyRatingToEpisodes"], app: app)
         app.buttons["saveReflection"].tap()
         XCTAssertTrue(app.staticTexts["9/10"].firstMatch.waitForExistence(timeout: 5))
         reveal(rateSeason, app: app)
         rateSeason.tap()
         XCTAssertEqual(app.switches["applyRatingToEpisodes"].value as? String, "0")
-        app.switches["applyRatingToEpisodes"].tap()
+        toggle(app.switches["applyRatingToEpisodes"], app: app)
         XCTAssertEqual(app.switches["applyRatingToEpisodes"].value as? String, "1")
-        app.switches["overwriteEpisodeRatings"].tap()
+        toggle(app.switches["overwriteEpisodeRatings"], app: app)
         app.buttons["saveReflection"].tap()
         app.buttons["confirmRatingOverwrite"].tap()
         let undo = app.buttons["undoEpisodeRatings"]
@@ -231,7 +228,26 @@ final class FrameTrailSmokeTests: XCTestCase {
             if element.exists && element.isHittable { return }
             app.swipeUp()
         }
+        for _ in 0..<5 {
+            if element.exists && element.isHittable { return }
+            app.swipeDown()
+        }
         XCTAssertTrue(element.isHittable, "Expected control must be visible before interaction")
+    }
+
+    @MainActor
+    private func toggle(_ row: XCUIElement, app: XCUIApplication) {
+        let control = row.switches.firstMatch
+        XCTAssertTrue(control.waitForExistence(timeout: 5))
+        reveal(control, app: app)
+        control.tap()
+    }
+
+    @MainActor
+    private func enter(_ text: String, in editor: XCUIElement, app: XCUIApplication) {
+        reveal(editor, app: app)
+        editor.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.2)).tap()
+        editor.typeText(text)
     }
 
     @MainActor
