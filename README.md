@@ -28,7 +28,7 @@
 <p align="center">
   <img src=".github/assets/screenshots/overview.png" width="230" alt="Поиск FrameTrail">
   <img src=".github/assets/screenshots/library.png" width="230" alt="Библиотека FrameTrail">
-  <img src=".github/assets/screenshots/journal.png" width="230" alt="Дневник с оценкой серии">
+  <img src=".github/assets/screenshots/journal.png" width="230" alt="Дневник с отзывом о фильме">
 </p>
 
 Реальные снимки iPhone Air Simulator из автоматических UI-сценариев с демонстрационными записями. Поиск и генерация в этих сценариях не запускаются.
