@@ -10,5 +10,6 @@
 *.sql text eol=lf
 *.ts text eol=lf
 *.toml text eol=lf
+*.strings text eol=lf
 *.png binary
 VERSION text eol=lf
