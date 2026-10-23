@@ -442,3 +442,6 @@
 "Файл слишком большой." = "This file is too large.";
 "Нет доступа к файлу. Выбери его заново." = "File access was denied. Select the file again.";
 "Введи название в поиске. Если его нет в каталоге, добавь вручную." = "Enter a title in Search. If it is missing from the catalog, add it manually.";
+"Предложить русское написание" = "Suggest Russian spellings";
+"Надёжных совпадений нет. Можно указать написание вручную." = "No reliable matches found. You can enter spellings manually.";
+"Проверь предложенные соответствия перед сохранением. Они ещё не применены." = "Review the suggested matches before saving. They have not been applied yet.";

@@ -3,6 +3,13 @@ import Foundation
 @testable import FrameTrailCore
 
 final class NameAliasTests: XCTestCase {
+    func testSuggestedSpellingsMustExistInPermittedRussianSource() {
+        let proposals = [NameSpellingSuggestion(nameID: "N1", russian: "Уолтер"), NameSpellingSuggestion(nameID: "N2", russian: "Джесси"), NameSpellingSuggestion(nameID: "N3", russian: "Уолтер"), NameSpellingSuggestion(nameID: "N1", russian: "Вальт")]
+        let aliases = NameAlias.suggested(proposals, originals: ["Walter", "Jesse"], russianSource: "Уолтер возвращается домой. О Джесси здесь не сказано.")
+        XCTAssertEqual(aliases, [NameAlias(original: "Walter", russian: "Уолтер"), NameAlias(original: "Jesse", russian: "Джесси")])
+        XCTAssertTrue(NameAlias.suggested([NameSpellingSuggestion(nameID: "N1", russian: "Уолт")], originals: ["Walter"], russianSource: "Уолтер").isEmpty)
+    }
+
     func testAliasesAndSeasonReviewRoundTripTogether() throws {
         let title = MediaTitle(id: "show", title: "Show", kind: .series, provider: "local", providerID: "show")
         let item = CloudLibraryItem(title: title, progress: WatchProgress(), reflections: [Reflection(titleID: title.id, rating: 8, seasonNumber: 1)], nameAliases: [NameAlias(original: "Walt", russian: "Уолт")])

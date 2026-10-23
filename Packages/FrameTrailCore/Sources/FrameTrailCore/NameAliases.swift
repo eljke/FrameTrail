@@ -8,6 +8,26 @@ public struct NameAlias: Hashable, Codable, Sendable {
         self.original = original
         self.russian = russian
     }
+
+    public static func suggested(_ proposals: [NameSpellingSuggestion], originals: [String], russianSource: String) -> [NameAlias] {
+        let originals = Dictionary(uniqueKeysWithValues: originals.enumerated().map { ("N\($0.offset + 1)", $0.element) })
+        var seen: Set<String> = []
+        return proposals.prefix(30).compactMap { proposal in
+            guard let original = originals[proposal.nameID], !seen.contains(original),
+                  proposal.russian.range(of: "^[А-ЯЁ][А-Яа-яЁё .’'-]{1,79}$", options: .regularExpression) != nil else { return nil }
+            let pattern = "(?<![\\p{L}\\p{N}_])" + NSRegularExpression.escapedPattern(for: proposal.russian) + "(?![\\p{L}\\p{N}_])"
+            guard russianSource.range(of: pattern, options: .regularExpression) != nil else { return nil }
+            seen.insert(original)
+            return NameAlias(original: original, russian: proposal.russian)
+        }
+    }
+}
+
+public struct NameSpellingSuggestion: Sendable {
+    public let nameID: String
+    public let russian: String
+
+    public init(nameID: String, russian: String) { self.nameID = nameID; self.russian = russian }
 }
 
 public struct ProtectedTranslationText: Sendable {
