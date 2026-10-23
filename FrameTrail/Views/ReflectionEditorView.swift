@@ -149,6 +149,7 @@ struct ReflectionEditorView: View {
             .task { await model.assistant.refreshAvailability() }
             .onChange(of: library.activeAccountID) { _, _ in dismiss() }
             .onChange(of: currentProgress) { _, _ in stopInterview(); interview = nil }
+            .onChange(of: library.entry(for: title.id)?.nameAliases) { _, _ in stopInterview(); interview = nil }
             .onChange(of: model.localeIdentifier) { _, _ in stopInterview(); interview = nil }
             .onDisappear { stopInterview() }
             .confirmationDialog(L10n.text("Заменить оценки просмотренных серий? Заметки сохранятся."), isPresented: $confirmOverwrite, titleVisibility: .visible) {
@@ -239,7 +240,7 @@ struct ReflectionEditorView: View {
                 }
                 try Task.checkCancellation()
                 let packet = reviewContext
-                let result = try await model.assistant.reviewQuestions(target: targetName, context: packet, rating: rating == 0 ? nil : rating, liked: liked, disliked: disliked, localeIdentifier: locale)
+                let result = try await model.assistant.reviewQuestions(target: targetName, context: packet, rating: rating == 0 ? nil : rating, liked: liked, disliked: disliked, localeIdentifier: locale, aliases: entry.nameAliases ?? [])
                 try Task.checkCancellation()
                 guard generationID == id, library.activeAccountID == accountID,
                       currentProgress == entry.progress, model.localeIdentifier == locale else { return }

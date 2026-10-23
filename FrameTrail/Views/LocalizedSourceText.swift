@@ -1,8 +1,10 @@
 import NaturalLanguage
 import SwiftUI
+import FrameTrailCore
 
 struct LocalizedSourceText: View {
     let text: String
+    var aliases: [NameAlias] = []
     @Environment(AppModel.self) private var model
     @State private var translation: String?
     @State private var showOriginal = false
@@ -19,7 +21,7 @@ struct LocalizedSourceText: View {
             }
             if let notice { Text(notice).font(.caption).foregroundStyle(Theme.muted) }
         }
-        .task(id: model.localeIdentifier + text) {
+        .task(id: model.localeIdentifier + text + aliases.map { $0.original + $0.russian }.joined()) {
             translation = nil
             notice = nil
             showOriginal = false
@@ -34,7 +36,7 @@ struct LocalizedSourceText: View {
                 return
             }
             do {
-                let localized = russian ? try await model.assistant.translation.russianText(text) : try await model.assistant.translation.englishTexts([text])[0]
+                let localized = russian ? try await model.assistant.translation.russianText(text, aliases: aliases) : try await model.assistant.translation.englishTexts([text], aliases: aliases)[0]
                 try Task.checkCancellation()
                 translation = localized
             } catch is CancellationError {} catch {

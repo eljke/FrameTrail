@@ -2,6 +2,7 @@ import SwiftUI
 
 struct StorageView: View {
     @Environment(LibraryStore.self) private var library
+    @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var confirmMaterials = false
     @State private var imageBytes = 0
@@ -63,6 +64,7 @@ struct StorageView: View {
     }
 
     private func clean(includeMaterials: Bool) {
+        model.catalogDidChange()
         let before = totalBytes
         if includeMaterials {
             library.clearDownloadedMaterials()

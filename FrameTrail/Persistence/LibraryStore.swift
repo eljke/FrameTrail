@@ -13,6 +13,7 @@ struct LibraryEntry: Identifiable, Codable, Hashable {
     var reflections: [Reflection]
     var updatedAt: Date
     var episodeLanguage: String?
+    var nameAliases: [NameAlias]?
 
     init(title: MediaTitle) {
         self.title = title
@@ -240,7 +241,7 @@ final class LibraryStore {
     }
 
     func cloudItems() -> [CloudLibraryItem] {
-        entries.map { CloudLibraryItem(title: $0.title, progress: $0.progress, reflections: $0.reflections) }
+        entries.map { CloudLibraryItem(title: $0.title, progress: $0.progress, reflections: $0.reflections, nameAliases: $0.nameAliases) }
     }
 
     func applyCloudRecord(_ record: CloudLibraryRecord) throws {
@@ -279,6 +280,7 @@ final class LibraryStore {
                     entry.title = item.title
                     entry.progress = item.progress
                     entry.reflections = item.reflections
+                    entry.nameAliases = item.nameAliases
                     entry.updatedAt = Date()
                     if let index = next.firstIndex(where: { $0.id == item.id }) { next[index] = entry }
                     else { next.append(entry) }
@@ -450,6 +452,7 @@ final class LibraryStore {
             var entry = LibraryEntry(title: item.title)
             entry.progress = item.progress
             entry.reflections = item.reflections
+            entry.nameAliases = item.nameAliases
             try validate([entry])
         }
     }
@@ -469,6 +472,12 @@ final class LibraryStore {
             throw LibraryStoreError.invalidData(L10n.text("слишком много произведений или повторяющиеся идентификаторы"))
         }
         for entry in entries {
+            if let aliases = entry.nameAliases {
+                guard aliases.count <= 100, Set(aliases.map(\.original)).count == aliases.count,
+                      aliases.allSatisfy({ validIdentifier($0.original, maximum: 128) && validIdentifier($0.russian, maximum: 128) }) else {
+                    throw LibraryStoreError.invalidData(L10n.text("Некорректный словарь имён"))
+                }
+            }
             let title = entry.title
             guard validIdentifier(title.id, maximum: 256), validIdentifier(title.provider, maximum: 64),
                   validIdentifier(title.providerID, maximum: 128), !title.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,

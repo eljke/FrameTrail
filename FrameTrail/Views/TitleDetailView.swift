@@ -21,6 +21,7 @@ struct TitleDetailView: View {
     @State private var showRetrospective = false
     @State private var reviewingSeason = false
     @State private var episodeDetails: Episode?
+    @State private var showNames = false
 
     private var entry: LibraryEntry { library.entry(for: title.id) ?? LibraryEntry(title: title) }
     private var isSaved: Bool { library.entry(for: title.id) != nil }
@@ -61,7 +62,7 @@ struct TitleDetailView: View {
                 }
                 if !displayedTitle.overview.isEmpty {
                     DisclosureGroup(L10n.text("Описание от источника")) {
-                        LocalizedSourceText(text: displayedTitle.overview).font(.subheadline).padding(.top, 8)
+                        LocalizedSourceText(text: displayedTitle.overview, aliases: entry.nameAliases ?? []).font(.subheadline).padding(.top, 8)
                     }.font(.subheadline).tint(Theme.muted)
                 }
                 if canReview {
@@ -138,6 +139,12 @@ struct TitleDetailView: View {
         }
         .background(Theme.background)
         .navigationTitle(displayedTitle.title).navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            Menu {
+                Button(L10n.text("Имена и названия"), systemImage: "textformat.abc") { showNames = true }.disabled(!isSaved)
+                Button(L10n.text("Добавить текст или субтитры"), systemImage: "doc.badge.plus") { sourceImport = true }
+            } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel(L10n.text("Действия с произведением"))
+        }
         .task(id: library.activeAccountID + model.catalogRevision.uuidString) {
             await model.localizeTitle(title)
             await loadEpisodes()
@@ -147,6 +154,7 @@ struct TitleDetailView: View {
             if !values.contains(selectedSeason), let first = values.first { selectedSeason = first }
         }
         .sheet(isPresented: $sourceImport) { SourceImportView(title: title, episodes: availableEpisodes) }
+        .sheet(isPresented: $showNames) { NameGlossaryView(title: title) }
         .sheet(isPresented: $reflectionEditor) { ReflectionEditorView(title: title, reflection: editingReflection) }
         .sheet(item: $episodeToReview) { episode in
             ReflectionEditorView(title: title, reflection: Reflection.latest(in: entry.reflections, episodeID: episode.id), episode: episode)
@@ -155,7 +163,7 @@ struct TitleDetailView: View {
             NavigationStack {
                 ScrollView { VStack(alignment: .leading, spacing: 16) {
                     Text(episode.name).font(.title2.bold())
-                    LocalizedSourceText(text: episode.summary)
+                    LocalizedSourceText(text: episode.summary, aliases: entry.nameAliases ?? [])
                 }.padding(24) }.navigationTitle("S\(episode.season) E\(episode.number)")
                     .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.text("Готово")) { episodeDetails = nil } } }
             }.presentationDetents([.medium, .large])

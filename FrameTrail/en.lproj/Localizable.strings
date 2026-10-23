@@ -423,3 +423,14 @@
 "Оригинал · перевод Apple" = "Original · Apple Translation";
 "Показан оригинал. Для перевода подготовь языки Apple в настройках." = "Showing the original. Prepare Apple translation languages in Settings to translate it.";
 "Перевод недоступен. Показан оригинал." = "Translation is unavailable. Showing the original.";
+"Укажи привычное написание имён. Без него перевод сохранит оригинал. Словарь действует только для этого произведения и синхронизируется с аккаунтом." = "Set preferred name spellings. Without a match, translation keeps the original. This title-specific glossary syncs with your account.";
+"Найти имена в просмотренном" = "Find names in watched sources";
+"Оригинальное имя" = "Original name";
+"Русское написание" = "Russian spelling";
+"Добавить имя" = "Add name";
+"Оставь русское написание пустым, чтобы использовать оригинал. Нажми на строку и смахни влево, чтобы удалить её." = "Leave the Russian spelling empty to keep the original. Swipe left on a row to delete it.";
+"Имена и названия" = "Names and terms";
+"Действия с произведением" = "Title actions";
+"Некорректный словарь имён" = "Invalid name glossary";
+"Перевод не сохранил имена. Показан оригинальный текст." = "Translation could not preserve the names. The original text is shown.";
+"Не удалось сохранить имена при переводе. Попробуй английский язык или уточни словарь." = "Names could not be preserved during translation. Try English or adjust the glossary.";

@@ -133,10 +133,11 @@ struct DiscussionView: View {
         }
         .onChange(of: library.activeAccountID) { _, _ in stopResponse() }
         .onChange(of: entry.progress) { _, _ in stopResponse() }
+        .onChange(of: entry.nameAliases) { _, _ in stopResponse() }
         .onChange(of: model.localeIdentifier) { _, _ in stopResponse() }
         .onDisappear { stopResponse() }
         .sheet(isPresented: $showReflection) { ReflectionEditorView(title: title, initialSummary: reflectionDraft) }
-        .sheet(item: $selectedCitation) { CitationDetailView(citation: $0) }
+        .sheet(item: $selectedCitation) { CitationDetailView(citation: $0, aliases: entry.nameAliases ?? []) }
         .confirmationDialog(L10n.text("Удалить весь диалог этой истории с устройства?"), isPresented: $confirmClear, titleVisibility: .visible) {
             Button(L10n.text("Очистить обсуждение"), role: .destructive) { stopResponse(); library.clearChat(for: title.id) }
         }
@@ -157,7 +158,7 @@ struct DiscussionView: View {
         ForEach(context.evidence) { fact in
             VStack(alignment: .leading, spacing: 8) {
                 Text(fact.id).font(.caption2.monospaced()).foregroundStyle(Theme.accent)
-                LocalizedSourceText(text: fact.text).font(.footnote)
+                LocalizedSourceText(text: fact.text, aliases: entry.nameAliases ?? []).font(.footnote)
                 if let url = fact.sourceURL { Link(L10n.text("Открыть источник"), destination: url).font(.caption) }
                 else { Text(L10n.text("Материал пользователя")).font(.caption2).foregroundStyle(Theme.muted) }
             }.padding(14).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
@@ -205,7 +206,7 @@ struct DiscussionView: View {
         let accountID = library.activeAccountID
         let localeIdentifier = model.localeIdentifier
         do {
-            let prepared = try await model.assistant.prepareQuestion(question: text, localeIdentifier: localeIdentifier)
+            let prepared = try await model.assistant.prepareQuestion(question: text, localeIdentifier: localeIdentifier, aliases: snapshot.nameAliases ?? [])
             try Task.checkCancellation()
             guard activeRequestID == requestID, accountID == library.activeAccountID,
                   localeIdentifier == model.localeIdentifier, let afterTranslation = library.entry(for: title.id),
@@ -213,7 +214,7 @@ struct DiscussionView: View {
                   afterTranslation.facts == snapshot.facts, afterTranslation.episodes == snapshot.episodes else { return }
             let packet = SpoilerContextBuilder.build(title: title, episodes: snapshot.episodes, progress: snapshot.progress, facts: snapshot.facts, question: prepared, maxCharacters: 9_000)
             guard packet.hasEvidence else { error = L10n.text("Для ответа нужны материалы в пределах просмотренного."); return }
-            let response = try await model.assistant.respond(question: text, context: packet, history: snapshot.chat, localeIdentifier: localeIdentifier, preparedQuestion: prepared)
+            let response = try await model.assistant.respond(question: text, context: packet, history: snapshot.chat, localeIdentifier: localeIdentifier, preparedQuestion: prepared, aliases: snapshot.nameAliases ?? [])
             try Task.checkCancellation()
             guard activeRequestID == requestID, accountID == library.activeAccountID,
                   localeIdentifier == model.localeIdentifier, let current = library.entry(for: title.id),

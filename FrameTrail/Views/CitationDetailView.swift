@@ -3,6 +3,7 @@ import FrameTrailCore
 
 struct CitationDetailView: View {
     let citation: AnswerCitation
+    var aliases: [NameAlias] = []
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -11,7 +12,7 @@ struct CitationDetailView: View {
                 VStack(alignment: .leading, spacing: 20) {
                     Label(citation.label.isEmpty ? L10n.text("Добавленный текст") : citation.label, systemImage: "doc.text")
                         .font(.headline).foregroundStyle(Theme.accent)
-                    LocalizedSourceText(text: citation.quote)
+                    LocalizedSourceText(text: citation.quote, aliases: aliases)
                     Text(L10n.text("Фрагмент сохранён вместе с ответом на языке оригинала."))
                         .font(.caption).foregroundStyle(Theme.muted)
                     if let url = citation.sourceURL { Link(L10n.text("Открыть оригинал"), destination: url).buttonStyle(.bordered) }

@@ -87,6 +87,7 @@ final class AppModel {
     }
 
     func catalogDidChange() {
+        assistant.translation.clearCache()
         featured = []
         displayedTitles = [:]
         displayedTitleOrder = []
@@ -162,7 +163,7 @@ final class AppModel {
     private func activate(_ session: SupabaseSession?, library: LibraryStore) {
         cloudSession = session
         let id = session.map { LibrarySyncCoordinator.accountID($0.userID) } ?? "guest"
-        if library.activeAccountID != id { library.switchAccount(id) }
+        if library.activeAccountID != id { assistant.translation.clearCache(); library.switchAccount(id) }
         sync?.activate(accountID: session == nil ? nil : id)
     }
 }

@@ -90,12 +90,12 @@ struct RetrospectiveView: View {
         generationTask = Task {
             defer { if generationID == id { busy = false; generationID = nil; generationTask = nil } }
             do {
-                let text = try await model.assistant.compileReflections(title: title.title, compilation: plan, localeIdentifier: locale) { done, count in
+                let text = try await model.assistant.compileReflections(title: title.title, compilation: plan, localeIdentifier: locale, aliases: snapshot.nameAliases ?? []) { done, count in
                     if generationID == id { completed = done; total = count }
                 }
                 try Task.checkCancellation()
                 guard generationID == id, library.activeAccountID == accountID,
-                      entry?.progress == snapshot.progress, model.localeIdentifier == locale else { return }
+                      entry?.progress == snapshot.progress, entry?.nameAliases == snapshot.nameAliases, model.localeIdentifier == locale else { return }
                 guard entry?.reflections == snapshot.reflections else {
                     error = L10n.text("За время обработки записи изменились. Запусти сборку сводки ещё раз.")
                     return
