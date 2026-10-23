@@ -1,0 +1,25 @@
+name: Enhancement / Улучшение
+description: Propose a feature or interaction improvement / Предложить функцию или улучшение
+title: "feat: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Задача пользователя / User need
+      description: What is difficult or missing today? / Что сейчас неудобно или недоступно?
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Ожидаемое поведение / Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Критерии проверки / Acceptance criteria
+      description: Include important boundaries and data to preserve. / Укажите ограничения и какие данные нужно сохранить.
+    validations:
+      required: true
