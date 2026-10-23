@@ -32,8 +32,11 @@ The badges use public GitHub metadata: actual build status, published version, s
 | Recall watched events | Read a watched episode's summary or ask the assistant. Inspect available source material and links without generation. |
 | Discussion after the ending | Mark a title as finished to use its available full-film material and discuss a recap, ending, motivations, or open questions. Answer quality depends on the sources. |
 | Your own sources | Paste text or import UTF-8 TXT, SRT, and VTT files. Assign a specific episode when importing material for a show. |
-| Personal reflection | Save thoughts, favorite details, open questions, and a 1–10 rating. Find saved reflections in the journal. |
-| Viewing statistics | The journal shows saved titles, completed titles, watched episodes, reflections, and a rating average and distribution. Ratings use reflection records: multiple records for one title count separately. |
+| Ratings and impressions | Rate a movie, an overall show, or a watched episode from 1–10. Save likes, dislikes and notes; every field and question is optional. |
+| Prepared Apple suggestions | The local model selects allowed plot excerpts. Choose multiple answers, add your text, or save just a rating. |
+| Series retrospective | Compile saved impressions across watched episodes with the local model. Edit, share, or explicitly save the result in your journal. |
+| Viewing statistics | Title, completion, episode and reflection counts, rating average and distribution. Only the latest rating per title counts; episode ratings are calculated separately. |
+| Storage | Settings shows library and cache sizes, image-cache cleanup and separate material removal with animated feedback. Personal records and progress remain. |
 | FrameTrail account | Email/password sign-in through Supabase, with an isolated library for each user. |
 | Library synchronization | Titles, episode progress, completion and reflections with ratings synchronize between devices. Choose a version when concurrent edits conflict. |
 | TMDB connection | Approve access on the provider's website and import its watchlist into the current FrameTrail library. |
@@ -63,7 +66,7 @@ Register in Settings → FrameTrail account, confirm your email using the messag
 
 The library synchronizes after changes and when returning to the app. A manual action and visible status are available. The local cache works offline. Concurrent edits to one title require choosing the device or cloud version; choosing replaces that title's progress and reflections together. Deletions propagate on synchronization.
 
-Title metadata, viewing progress and personal reflections/ratings synchronize. Conversations, source texts and episode descriptions stay on the device. The journal and statistics derive from the active account's library. Each cloud title record is limited to 128 KB; the local archive including its sync baseline is limited to 10 MiB. Writes require the expected server revision and owner authorization.
+Title metadata, progress, ratings, selected answers and custom impressions synchronize. Conversations, full source texts and episode descriptions stay on the device; selected excerpts belong to saved personal impressions. Statistics derive from the active account's library. Each cloud title record is limited to 512 KiB; the local archive including its sync baseline is limited to 10 MiB per account. Writes require the expected server revision and owner authorization.
 
 Guest records are never uploaded automatically: export them, sign in, and explicitly import the file to transfer them. Sign-out retains the isolated account cache. Confirmed account deletion removes the user, cloud records and that account's cache on the current device. Independent exports and local discussions on other devices must be removed separately.
 
@@ -73,12 +76,20 @@ Guest records are never uploaded automatically: export them, sign in, and explic
 2. Obtain your application's **API Read Access Token** in [TMDB API settings](https://www.themoviedb.org/settings/api), following TMDB's terms. Paste the token itself without a `Bearer` prefix. This field is not for a password or the short v3 API key.
 3. Open FrameTrail Settings, find the expanded catalog section, paste the token, and save it.
 4. Tap the TMDB sign-in action. Sign in on the provider's website in the browser and approve the request.
-5. Close the browser, return to FrameTrail, and tap **«Я подтвердил вход в TMDB»** (“I approved sign-in on TMDB”). Completion is manual; this beta does not complete sign-in automatically through a callback link.
+5. Close the browser after approving access; FrameTrail attempts to complete the connection. If approval has not arrived yet, use **«Я подтвердил вход в TMDB»** (“I approved sign-in on TMDB”) to retry.
 6. Optionally use the TMDB watchlist import action.
 
 TMDB handles its own password. The app stores its API token and session in Keychain. This is a secondary catalog and import connection: connecting or disconnecting TMDB never changes the FrameTrail account or switches its library.
 
 ## Viewing boundaries and accuracy
+
+TMDB overviews are source material, not complete plots or guaranteed spoiler-free text. After viewing, the review action attempts to load an English Wikipedia Plot/Synopsis. Episode articles must match the episode title, series, season and episode number; the episode must be explicitly watched. Only the plot section from the validated revision becomes evidence, excluding the lead, chronology, season overview and later impact. Plot downloads are also available independently from the movie card or episode menu.
+
+Prepared answers sample up to twelve excerpts across the permitted plot, including its ending. The model chooses passage identifiers and aspects; the app builds cards from those sources. A single-episode review excludes every other episode, even already watched ones. Missing plots or unverifiable identity produce a coverage notice; import text or subtitles for additional detail. Coverage is not universal.
+
+All questions, answers and ratings are optional. Series retrospectives use the latest saved impressions for each watched episode, excluding older versions and unwatched episodes. Long fields are shortened for bounded context with a notice; original records remain. Cancel generation, edit the result and explicitly save it as a new journal entry.
+
+Settings → Storage separates image-cache cleanup from source removal. The cache is capped at 16 MiB disk and 8 MiB memory. Estimated material size is included in library size. Removing materials also deletes imported texts, so retain original files separately. Ratings, selected excerpts, notes, saved compilations and progress remain. System model and translation resources are managed by iOS and excluded from these figures.
 
 Before sending text to the model, application code selects sources for the current title and only episodes explicitly marked as watched. Movie plot material is allowed after completion. Material assigned to a future episode is excluded from that source packet. Reducing viewing progress clears the previous conversation because its answers may discuss events that are now outside your boundary. Every question creates a new model session; previous assistant answers are not treated as evidence.
 
