@@ -45,7 +45,7 @@ struct RatingSelector: View {
             HStack {
                 Text("Коснись звезды или проведи пальцем").font(.caption).foregroundStyle(.secondary)
                 Spacer(minLength: 8)
-                Button("Без оценки") { rating = 0 }.font(.caption).disabled(rating == 0)
+                Button("Без оценки") { rating = 0 }.font(.caption).frame(minHeight: 44).disabled(rating == 0)
             }
         }
         .padding(.vertical, 8)

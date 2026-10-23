@@ -33,6 +33,10 @@ struct ReflectionEditorView: View {
         if let scopeID { return currentProgress.watchedEpisodeIDs.contains(scopeID) }
         return currentProgress.finished || (title.kind == .series && !currentProgress.watchedEpisodeIDs.isEmpty)
     }
+    private var canSave: Bool {
+        reflection != nil || rating > 0 || !likedChoices.isEmpty || !dislikedChoices.isEmpty
+            || [summary, liked, disliked, questions].contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
     private var targetName: String {
         guard let scopeSeason, let scopeNumber else { return title.title + (title.kind == .movie ? " · whole film" : " · series overall") }
         return "\(title.title) · S\(scopeSeason) E\(scopeNumber) only"
@@ -90,7 +94,7 @@ struct ReflectionEditorView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Сохранить") { save() }.disabled([summary, liked, disliked, questions].allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } && likedChoices.isEmpty && dislikedChoices.isEmpty && rating == 0)
+                    Button("Сохранить") { save() }.disabled(!canSave)
                         .accessibilityIdentifier("saveReflection")
                 }
             }

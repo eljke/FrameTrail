@@ -95,6 +95,18 @@ final class FrameTrailSmokeTests: XCTestCase {
         let finished = app.switches["finishedToggle"]
         reveal(finished, app: app)
         finished.tap()
+        let rate = app.buttons["rateTitle"]
+        reveal(rate, app: app)
+        rate.tap()
+        let stars = app.descendants(matching: .any).matching(identifier: "starRating").firstMatch
+        XCTAssertTrue(stars.waitForExistence(timeout: 5))
+        stars.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5)).tap()
+        app.buttons["saveReflection"].tap()
+        reveal(rate, app: app)
+        rate.tap()
+        app.buttons["Без оценки"].tap()
+        XCTAssertTrue(app.buttons["saveReflection"].isEnabled, "An existing rating-only review must allow clearing its score")
+        app.buttons["saveReflection"].tap()
         let write = app.buttons["writeReflection"]
         reveal(write, app: app)
         write.tap()
