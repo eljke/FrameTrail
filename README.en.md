@@ -62,6 +62,8 @@ Discussing saved sources does not require a network request to a language model;
 
 ## FrameTrail accounts and synchronization
 
+See [Backend](docs/BACKEND.md) for the architecture and self-hosting setup. This beta exposes email sign-in; Apple ID and Google are not configured yet.
+
 Register in Settings → FrameTrail account, confirm your email using the message, then sign in with your password. The beta uses a dedicated Supabase project in EU Central (Frankfurt). Supabase's built-in email service sends confirmations only to organization members, so this is currently a closed beta for the owner. Public signup requires custom SMTP; email confirmation remains enabled.
 
 The library synchronizes after changes and when returning to the app. A manual action and visible status are available. The local cache works offline. Concurrent edits to one title require choosing the device or cloud version; choosing replaces that title's progress and reflections together. Deletions propagate on synchronization.
