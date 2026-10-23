@@ -51,8 +51,16 @@ def main():
         first = refreshed
         sessions[0] = first
         media_id = "local:integration-" + uuid.uuid4().hex
-        item = {"title": {"id": media_id, "title": "Integration film", "kind": "movie", "overview": "", "provider": "local", "providerID": media_id},
-                "progress": {"finished": False, "watchedEpisodeIDs": []}, "reflections": []}
+        review = {"id": str(uuid.uuid4()), "titleID": media_id, "summary": "A saved personal impression. " * 80,
+                  "liked": ["Acting"], "disliked": ["Pacing"], "questions": [], "rating": 9, "createdAt": 0,
+                  "episodeID": "e1", "episodeSeason": 1, "episodeNumber": 1,
+                  "likedChoices": [{"id": "plot#0:characters", "aspect": "characters", "text": "A decision to return home",
+                                    "sourceQuote": "A character decides to return home.", "sourceID": "plot", "episodeID": "e1",
+                                    "sourceURL": "https://en.wikipedia.org/w/index.php?oldid=123"}], "dislikedChoices": []}
+        reviews = [dict(copy.deepcopy(review), id=str(uuid.uuid4())) for _ in range(80)]
+        item = {"title": {"id": media_id, "title": "Integration series", "kind": "series", "overview": "", "provider": "local", "providerID": media_id},
+                "progress": {"finished": False, "watchedEpisodeIDs": ["e1"]}, "reflections": reviews}
+        assert 128 * 1024 < len(json.dumps(item).encode()) < 512 * 1024, "Capacity regression fixture must exercise the expanded record limit"
 
         def put(session, payload, revision):
             return call("/rest/v1/rpc/put_library_item", session["access_token"],
@@ -88,7 +96,7 @@ def main():
         assert read(second_device)[0]["deleted"], "Deletion did not propagate"
         status, _ = call("/functions/v1/delete-account", "invalid-token", method="DELETE")
         assert status == 401, "Unauthenticated account deletion was permitted"
-        print("Passed: password login, refresh, second-device read, owner isolation, CAS conflict, direct-write denial, anonymous denial, deletion tombstone, invalid-token denial.")
+        print("Passed: password login, refresh, second-device review/choice round-trip above 128 KiB, owner isolation, CAS conflict, direct-write denial, anonymous denial, deletion tombstone, invalid-token denial.")
     finally:
         for session in sessions:
             status, _ = call("/functions/v1/delete-account", session["access_token"], method="DELETE")
