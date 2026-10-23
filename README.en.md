@@ -2,7 +2,7 @@
   <img src="FrameTrail/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="112" height="112" alt="FrameTrail app icon">
 </p>
 <h1 align="center">FrameTrail</h1>
-<p align="center"><strong>Every story leaves something behind.</strong><br>Remember what you watched. Discuss the ending. Keep what stayed with you.</p>
+<p align="center"><strong>Movies, shows, and your impressions.</strong><br>Track viewing, rate what you watched, and discuss the story with Apple’s on-device model.</p>
 <p align="center"><a href="README.md">Русский</a> · <strong>English</strong></p>
 <p align="center">
   <a href="https://github.com/eljke/FrameTrail/actions/workflows/build.yml"><img src="https://img.shields.io/github/actions/workflow/status/eljke/FrameTrail/build.yml?branch=main&amp;style=for-the-badge&amp;logo=githubactions&amp;logoColor=white&amp;label=CI&amp;labelColor=241d42" alt="Current CI status"></a>
@@ -19,7 +19,7 @@ A companion for movies and television: recall watched events, discuss an ending,
 
 [Download IPA](https://github.com/eljke/FrameTrail/releases) · [Builds and checks](https://github.com/eljke/FrameTrail/actions) · [Privacy (RU)](docs/PRIVACY.md) · [Sources and licenses (RU)](docs/THIRD_PARTY_NOTICES.md)
 
-Current release: **1.0.0-beta.1**, app version **1.0.0**, build **1**. This is a prerelease. Automated results are published in Actions; the local model, latency, and LiveContainer installation have not yet been verified on a physical device. Check Releases for the actual IPA and the status of each published version.
+Current release: **1.1.0-beta.1**, app version **1.1.0**, build **2**. This is a prerelease. Automated results are published in Actions; the local model, latency, and LiveContainer installation have not yet been verified on a physical device. Check Releases for the actual IPA and the status of each published version.
 
 The badges use public GitHub metadata: actual build status, published version, stars, and downloads. Downloads counts **all release asset downloads**, not users or installations. Cached badges may update with a delay. There are no visitor trackers or view counters.
 
@@ -40,10 +40,13 @@ Actual iPhone Air Simulator screenshots from automated UI scenarios with demonst
 | Recall watched events | Read a watched episode's summary or ask the assistant. Inspect available source material and links without generation. |
 | Discussion after the ending | Mark a title as finished to use its available full-film material and discuss a recap, ending, motivations, or open questions. Answer quality depends on the sources. |
 | Your own sources | Paste text or import UTF-8 TXT, SRT, and VTT files. Assign a specific episode when importing material for a show. |
-| Ratings and impressions | Rate a movie, an overall show, or a watched episode with ten stars: tap or slide, with selection feedback. Every field and question is optional. |
+| Ratings and impressions | Rate a movie, an overall show, a season, or a watched episode with ten stars: tap or slide, with selection feedback. Every field and question is optional. |
+| Batch episode ratings | Optionally apply a season or show score to watched episodes. Missing scores are filled by default; overwriting requires confirmation, preserves notes, and supports undo. |
+| Language and names | RU/EN, localized metadata, and original text. A title-specific glossary stores confirmed Russian name spellings; the local model can suggest spellings from available Russian sources for your review. |
+| Answer sources | Tap a numbered reference to see the saved original excerpt, available local translation, and publication link. |
 | Prepared Apple suggestions | The local model selects allowed plot excerpts. Choose multiple answers, add your text, or save just a rating. |
 | Series retrospective | Compile saved impressions across watched episodes with the local model. Edit, share, or explicitly save the result in your journal. |
-| Viewing statistics | Title, completion, episode and reflection counts, rating average and distribution. Only the latest rating per title counts; episode ratings are calculated separately. |
+| Viewing statistics | Title, completion, episode and reflection counts, rating average and distribution. Only the latest rating per title counts; season and episode ratings are calculated separately. |
 | Storage | Settings shows library and cache sizes, image-cache cleanup and separate material removal with animated feedback. Personal records and progress remain. |
 | Quick guide | Always available in Settings. Contextual inline tips do not cover controls, can be dismissed and remember their display state locally. |
 | FrameTrail account | Email/password sign-in through Supabase, with an isolated library for each user. |
@@ -58,12 +61,12 @@ Catalogs provide information and links to titles. The app does not contain a vid
 
 Installation requires **iOS 26 or later**. Generation additionally requires an eligible device, enabled Apple Intelligence, a downloaded system model, and a language it supports. The app checks readiness and the selected language on the device before responding. [Apple Intelligence requirements](https://support.apple.com/en-us/121115).
 
-The interface is primarily Russian. On first launch, the response language is **Russian when the primary system language is Russian, otherwise English**. A saved preference takes precedence. Russian responses have two local paths: direct generation when Foundation Models supports Russian on the device, or on-device Apple Translation from Russian to English before source retrieval and from the English model's answer back to Russian. The translation path requires an available language pair and prepared system language packs. Support is checked at runtime; native Russian Foundation Models support is not promised. If the model, language, or packs are unavailable, the app explains the limitation. There is no cloud fallback.
+The complete interface is available in Russian and English. Settings controls the app and new response language. The catalog requests localized metadata, retaining originals when translations are unavailable. On first launch, the language is **Russian when the primary system language is Russian, otherwise English**. A saved preference takes precedence. Russian responses have two local paths: direct generation when Foundation Models supports Russian on the device, or on-device Apple Translation from Russian to English before source retrieval and from the English model's answer back to Russian. The translation path requires an available language pair and prepared system language packs. Support is checked at runtime; native Russian Foundation Models support is not promised. If the model, language, or packs are unavailable, the app explains the limitation. There is no cloud fallback.
 
-1. Open [Releases](https://github.com/eljke/FrameTrail/releases) and download `FrameTrail-1.0.0-beta.1.ipa`. A SHA-256 checksum is provided alongside it.
+1. Open [Releases](https://github.com/eljke/FrameTrail/releases) and download `FrameTrail-1.1.0-beta.1.ipa`. A SHA-256 checksum is provided alongside it.
 2. Install the IPA through AltStore or another compatible tool that applies your own signature. The published IPA is **unsigned**. Your installation tool manages signature refreshes and its installation limits.
 3. In Settings, check the local assistant status and response language. For Russian through translation, prepare the language packs using the system dialog. Their initial download requires a connection.
-4. Find a title in Overview or add one manually. Open it in the library and mark what you have watched.
+4. Find a title in Search or add one manually. Open it in the library and mark what you have watched.
 5. If needed, add material for one episode or a completed movie. Open the discussion and inspect its available sources.
 6. After finishing, save a personal reflection; it appears in the Journal.
 
@@ -77,7 +80,7 @@ Register in Settings → FrameTrail account, confirm your email using the messag
 
 The library synchronizes after changes and when returning to the app. A manual action and visible status are available. The local cache works offline. Concurrent edits to one title require choosing the device or cloud version; choosing replaces that title's progress and reflections together. Deletions propagate on synchronization.
 
-Title metadata, progress, ratings, selected answers and custom impressions synchronize. Conversations, full source texts and episode descriptions stay on the device; selected excerpts belong to saved personal impressions. Statistics derive from the active account's library. Each cloud title record is limited to 512 KiB; the local archive including its sync baseline is limited to 10 MiB per account. Writes require the expected server revision and owner authorization.
+Title metadata, progress, ratings, selected answers, custom impressions and title-specific name glossaries synchronize. Conversations, full source texts and episode descriptions stay on the device; selected excerpts belong to saved personal impressions. Statistics derive from the active account's library. Each cloud title record is limited to 512 KiB; the local archive including its sync baseline is limited to 10 MiB per account. Writes require the expected server revision and owner authorization.
 
 Guest records are never uploaded automatically: export them, sign in, and explicitly import the file to transfer them. Sign-out retains the isolated account cache. Confirmed account deletion removes the user, cloud records and that account's cache on the current device. Independent exports and local discussions on other devices must be removed separately.
 
@@ -85,7 +88,7 @@ Guest records are never uploaded automatically: export them, sign in, and explic
 
 1. Create an account at [TMDB](https://www.themoviedb.org) or use an existing one.
 2. Obtain your application's **API Read Access Token** in [TMDB API settings](https://www.themoviedb.org/settings/api), following TMDB's terms. Paste the token itself without a `Bearer` prefix. This field is not for a password or the short v3 API key.
-3. Open FrameTrail Settings, find the expanded catalog section, paste the token, and save it.
+3. Open FrameTrail Settings, open TMDB, paste the token, and save it.
 4. Tap the TMDB sign-in action. Sign in on the provider's website in the browser and approve the request.
 5. Close the browser after approving access; FrameTrail attempts to complete the connection. If approval has not arrived yet, use **«Я подтвердил вход в TMDB»** (“I approved sign-in on TMDB”) to retry.
 6. Optionally use the TMDB watchlist import action.
@@ -163,10 +166,10 @@ CI runs domain, service, filesystem, and UI checks; retains simulator results an
 
 Record every bug in GitHub Issues before fixing it. See [CONTRIBUTING](CONTRIBUTING.md) for the workflow and verification requirements.
 
-Prepare each version in a retained `release/<version>` branch, currently `release/1.0.0`. Run checks, publish the IPA, and verify the published assets before merging that release branch into `main` through a pull request. IPA files belong in Releases; GitHub Packages is unnecessary because this app does not publish separate dependency packages or containers.
+Prepare each version in a retained `release/<version>` branch, currently `release/1.1.0`. Run checks, publish the IPA, and verify the published assets before merging that release branch into `main` through a pull request. IPA files belong in Releases; GitHub Packages is unnecessary because this app does not publish separate dependency packages or containers.
 
-`VERSION` contains the release's SemVer string, `1.0.0-beta.1`, and is bundled as a resource. Settings shows this value alongside the actual bundle build number. The bundle uses numeric version `1.0.0` and build `1`. Tag `v1.0.0-beta.1` must match `VERSION` exactly. The workflow publishes the prerelease with its IPA and SHA-256 only after successful checks. Stable version tags are not marked as prereleases.
+`VERSION` contains the release's SemVer string, `1.1.0-beta.1`, and is bundled as a resource. Settings shows this value alongside the actual bundle build number. The bundle uses numeric version `1.1.0` and build `2`. Tag `v1.1.0-beta.1` must match `VERSION` exactly. The workflow publishes the prerelease with its IPA and SHA-256 only after successful checks. Stable version tags are not marked as prereleases.
 
-Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), for example `feat: add episode source import`, `fix: preserve library on failed writes`, or `chore: prepare 1.0.0-beta.1`. The beta contract, structure, and acceptance criteria are documented in the [specification](docs/specs/1.0.0-beta.1.md). Keep both README languages aligned when behavior changes. To report a bug, include the iOS version, installation method, steps to reproduce, and expected result. Do not publish tokens, private library exports, or personal conversations in Issues.
+Use [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/), for example `feat: add episode source import`, `fix: preserve library on failed writes`, or `chore: prepare 1.1.0-beta.1`. The beta contract, structure, and acceptance criteria are documented in the [specification](docs/specs/1.1.0-beta.1.md). Keep both README languages aligned when behavior changes. To report a bug, include the iOS version, installation method, steps to reproduce, and expected result. Do not publish tokens, private library exports, or personal conversations in Issues.
 
 The application code and original icon use the [MIT license](LICENSE). MIT does not apply to external texts, posters, metadata, the TMDB logo, or Apple's platform components. See [THIRD_PARTY_NOTICES (RU)](docs/THIRD_PARTY_NOTICES.md) for their terms.

@@ -34,13 +34,17 @@ SupabaseAuthService serializes refreshes and guards credential writes against lo
 
 Views compose domain operations and display current state. They do not implement episode eligibility or deserialize provider payloads. AppModel owns the service instances and account lifecycle. Small native components keep layout consistent without introducing a separate design-system dependency.
 
+Localized catalog presentation keeps stable title and episode identities. Original episode names and summaries remain available for source matching and English evidence retrieval. Language changes invalidate bounded presentation and translation caches without rewriting personal notes. Name placeholders protect recognized names during whole-fragment translation; per-title confirmed spellings are personal synchronized data. Suggested spellings must occur in permitted Russian source text and remain drafts until the user saves them.
+
+Generated answers return paragraphs and evidence identifiers separately. The core rejects unknown references and attaches numbered citations with exact excerpts and URLs. Translation changes prose, not citation identity; old stored messages lose technical markers without acquiring invented references.
+
 ## Quality boundaries
 
 Post-viewing reviews have two distinct boundaries. Wikipedia acquisition checks completion before networking; episode acquisition also matches the article name and rendered episode infobox against series/season/episode. It pins that validated revision and reads only its Plot section. A missing or ambiguous match falls back to existing material, never a broader season article. Retrieved paragraphs remain episode-scoped StoryFacts with revision URLs.
 
 Review scope is narrowed again to exactly one watched episode. The core samples up to twelve excerpts across the allowed source text, including its ending. Guided generation returns only candidate IDs and a closed aspect enum. Resolving those IDs against the original map prevents invented event descriptions from becoming prepared answers; source quotes and provenance survive editing, export and sync. Personal answers are not promoted to story evidence.
 
-Retrospectives select the latest personal reflection for each watched episode. Bounded batches are summarized locally and merged in pairs, with cancellation, progress and explicit shortening notices. The result remains editable and is saved only by user action as a whole-title reflection. Statistics use latest reviews separately for title and episode scopes.
+Retrospectives select the latest personal reflection for each watched episode. Bounded batches are summarized locally and merged in pairs, with cancellation, progress and explicit shortening notices. The result remains editable and is saved only by user action as a whole-title reflection. Statistics use latest nonempty reviews separately for title, season and episode scopes. Episode rating plans affect watched episodes only, preserve notes, and expose an atomic undo that refuses to overwrite subsequent edits.
 
 The Settings storage screen reads actual library/image-cache usage and estimates the source portion without counting it twice. Image URLCache has explicit disk/memory capacities. Confirmed source removal preserves personal records and sync baselines; image cleanup is independent. Native cleanup animations honor Reduce Motion. System model and translation storage belongs to iOS.
 
@@ -56,4 +60,4 @@ Push and PR builds of the same repository/branch share a concurrency group, canc
 
 XcodeGen defines the project. The standalone core is tested before iOS simulator tests, then a device app is built without signing. Packaging validates bundle version and size, produces a standard Payload archive and checksum, and the gated tag workflow publishes an unsigned IPA for AltStore. Prepare each version in a retained release branch; merge into main through a pull request only after checks and published-asset verification. Physical model performance and LiveContainer behavior remain separate acceptance checks.
 
-The maintained behavior contract is [the release canvas](specs/1.0.0-beta.1.md). Changes in requirements update it before implementation; refactoring synchronizes this boundary map with the resulting code.
+The maintained behavior contract is [the release canvas](specs/1.1.0-beta.1.md). Changes in requirements update it before implementation; refactoring synchronizes this boundary map with the resulting code.
