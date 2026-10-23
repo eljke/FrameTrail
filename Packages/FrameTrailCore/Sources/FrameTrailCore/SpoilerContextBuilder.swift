@@ -32,6 +32,15 @@ public struct GroundedContext: Codable, Sendable {
 /// A fact without titleID is assumed to be scoped to the supplied title by its caller.
 /// Importers should assign that scope before combining records from different titles.
 public enum SpoilerContextBuilder {
+    public static func forReview(title: MediaTitle, episodes: [Episode], progress: WatchProgress, facts: [StoryFact], episodeID: String?) -> GroundedContext {
+        var boundary = progress
+        if let episodeID {
+            let allowed: Set<String> = progress.watchedEpisodeIDs.contains(episodeID) ? [episodeID] : []
+            boundary = WatchProgress(watchedEpisodeIDs: allowed)
+        }
+        return build(title: title, episodes: episodes, progress: boundary, facts: facts, question: "", maxCharacters: 30_000)
+    }
+
     public static func build(
         title: MediaTitle,
         episodes: [Episode],

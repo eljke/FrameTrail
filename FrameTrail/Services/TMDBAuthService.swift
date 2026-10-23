@@ -12,6 +12,7 @@ actor TMDBAuthService {
     private let tokenProvider: @Sendable () throws -> String?
     private let sessionProvider: @Sendable () throws -> String?
     private var pendingRequestToken: String?
+    private var authorizationRevision = UUID()
     private let sessionKey = "tmdb.session-id"
     private let accountKey = "tmdb.account"
 
@@ -38,21 +39,28 @@ actor TMDBAuthService {
             let result = try await http.decode(AuthenticationValidation.self, request: HTTPClient.request(url: url, bearer: token))
             guard result.success else { throw ServiceError.http(401) }
         }
+        cancelAuthorization()
         if try KeychainStore.string(for: sessionKey) != nil { try await logout() }
         try KeychainStore.set(token, for: CatalogService.tmdbTokenKey)
         pendingRequestToken = nil
     }
 
     func beginAuthorization() async throws -> URL {
+        let revision = UUID()
+        authorizationRevision = revision
+        pendingRequestToken = nil
         let token = try readToken()
         let url = try HTTPClient.url("https://api.themoviedb.org/3/authentication/token/new")
         let response = try await http.decode(RequestTokenResponse.self, request: HTTPClient.request(url: url, bearer: token))
+        try Task.checkCancellation()
+        guard authorizationRevision == revision else { throw CancellationError() }
         guard response.success, let requestToken = response.request_token, !requestToken.isEmpty else { throw ServiceError.authorizationNotStarted }
         pendingRequestToken = requestToken
         return try HTTPClient.url("https://www.themoviedb.org/authenticate/\(requestToken)")
     }
 
     func completeAuthorization() async throws -> AuthAccount {
+        let revision = authorizationRevision
         guard let requestToken = pendingRequestToken else { throw ServiceError.authorizationNotStarted }
         let token = try readToken()
         let url = try HTTPClient.url("https://api.themoviedb.org/3/authentication/session/new")
@@ -61,6 +69,8 @@ actor TMDBAuthService {
         guard session.success, let sessionID = session.session_id, !sessionID.isEmpty else { throw ServiceError.authorizationNotStarted }
         do {
             let account = try await fetchAccount(sessionID: sessionID, token: token)
+            try Task.checkCancellation()
+            guard authorizationRevision == revision else { throw CancellationError() }
             let accountData = try JSONEncoder().encode(account)
             guard let accountText = String(data: accountData, encoding: .utf8) else { throw ServiceError.invalidResponse }
             try KeychainStore.set(accountText, for: accountKey)
@@ -114,15 +124,22 @@ actor TMDBAuthService {
     }
 
     func logout() async throws {
+        authorizationRevision = UUID()
+        pendingRequestToken = nil
         let session = try KeychainStore.string(for: sessionKey)
         let token = try KeychainStore.string(for: CatalogService.tmdbTokenKey)
+        try localSignOut()
         var revokeFailed = false
         if let session, let token {
             do { try await revoke(sessionID: session, token: token) }
             catch { revokeFailed = true }
         }
-        try localSignOut()
         if revokeFailed { throw ServiceError.signedOutOffline }
+    }
+
+    func cancelAuthorization() {
+        authorizationRevision = UUID()
+        pendingRequestToken = nil
     }
 
     private func localSignOut() throws {

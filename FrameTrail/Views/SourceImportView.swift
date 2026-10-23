@@ -5,6 +5,7 @@ import FrameTrailCore
 struct SourceImportView: View {
     let title: MediaTitle
     let episodes: [Episode]
+    var initialEpisodeID: String? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(LibraryStore.self) private var library
     @State private var text = ""
@@ -32,6 +33,7 @@ struct SourceImportView: View {
                 }
                 Section {
                     TextEditor(text: $text).frame(minHeight: 220).font(.body)
+                        .accessibilityIdentifier("sourceText")
                         .accessibilityLabel("Текст материала")
                         .onChange(of: text) { _, value in if value.count > 40_000 { text = String(value.prefix(40_000)) } }
                     Button { showFilePicker = true } label: { Label("Открыть TXT, SRT или VTT", systemImage: "doc") }
@@ -43,7 +45,7 @@ struct SourceImportView: View {
             .navigationTitle("Материалы")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { save() }.disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) }
+                ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { save() }.disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("saveSource") }
             }
             .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.plainText, .text, .data]) { result in
                 do {
@@ -63,6 +65,9 @@ struct SourceImportView: View {
                 } catch { self.error = error.localizedDescription }
             }
             .onChange(of: library.activeAccountID) { _, _ in dismiss() }
+            .onAppear {
+                if let initialEpisodeID, episodes.contains(where: { $0.id == initialEpisodeID }) { episodeID = initialEpisodeID }
+            }
         }
     }
 

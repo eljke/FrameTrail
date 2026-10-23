@@ -17,7 +17,6 @@ struct SettingsView: View {
     @State private var exporting = false
     @State private var importing = false
     @State private var exportDocument = LibraryDocument(data: Data())
-    @State private var clearMaterials = false
     @State private var translationConfiguration: TranslationSession.Configuration?
     @State private var preparationStep = 0
 
@@ -62,24 +61,28 @@ struct SettingsView: View {
                 Text("Если модель не поддерживает русский напрямую, вопрос и разрешённые источники переводятся на английский, ответ — обратно на русский. Всё выполняется на iPhone. Языки перевода загружаются отдельно, занимают системное место и доступны другим приложениям. Перевод может неточно передать имена и смысл; оригиналы источников сохранены.")
                     .font(.caption).foregroundStyle(.secondary)
             } header: { Text("Помощник на устройстве") }
+            AccountSettingsSection()
             Section {
                 if let account = model.account {
                     Label(account.displayName ?? account.username, systemImage: "person.crop.circle.fill")
                     Text("TMDB · @\(account.username)").font(.caption).foregroundStyle(.secondary)
                     Button("Импортировать список TMDB") { Task { await importWatchlist() } }.disabled(busy)
-                    Button("Выйти из аккаунта", role: .destructive) { Task { busy = true; await model.signOut(library: library); busy = false } }.disabled(busy)
+                    Button("Отключить TMDB", role: .destructive) { Task { busy = true; await model.signOut(library: library); busy = false } }.disabled(busy)
                 } else {
-                    Label("Гостевая библиотека", systemImage: "person.crop.circle")
+                    Label("Импорт из TMDB", systemImage: "list.and.film")
                     Button("Войти через TMDB") { Task { await beginLogin() } }.disabled(busy || !model.hasCatalogToken)
                     if awaitingApproval {
                         Button("Я подтвердил вход в TMDB") { Task { await finishLogin() } }.disabled(busy)
-                        Button("Отменить вход", role: .cancel) { awaitingApproval = false }
+                        Button("Отменить вход", role: .cancel) {
+                            awaitingApproval = false
+                            Task { await model.auth.cancelAuthorization() }
+                        }.disabled(busy)
                     }
                 }
-                Text("Каждый аккаунт имеет отдельную локальную библиотеку. Импорт списка TMDB выполняется по запросу; автоматической облачной синхронизации прогресса и диалогов нет.")
+                Text("TMDB — дополнительное подключение для импорта списка просмотра. Оно не меняет аккаунт FrameTrail или активную библиотеку.")
                     .font(.caption).foregroundStyle(.secondary)
                 if busy { ProgressView() }
-            } header: { Text("Аккаунт") }
+            } header: { Text("Подключение TMDB") }
             Section {
                 Label(model.hasCatalogToken ? "TMDB подключён" : "Работают TVmaze и Wikidata", systemImage: model.hasCatalogToken ? "checkmark.circle" : "globe")
                 SecureField("TMDB API Read Access Token", text: $apiToken)
@@ -91,21 +94,20 @@ struct SettingsView: View {
                     .font(.caption).foregroundStyle(.secondary)
             } header: { Text("Расширенный каталог") }
             Section {
-                LabeledContent("Файлы библиотек", value: ByteCountFormatter.string(fromByteCount: Int64(library.bytesOnDisk), countStyle: .file))
-                LabeledContent("Историй в аккаунте", value: String(library.entries.count))
+                NavigationLink { StorageView() } label: { Label("Память", systemImage: "internaldrive") }
+                    .accessibilityIdentifier("storageSettings")
                 Button("Экспортировать библиотеку") {
                     do { exportDocument = LibraryDocument(data: try library.exportData()); exporting = true }
                     catch { self.error = error.localizedDescription }
                 }
                 Button("Импортировать резервную копию") { importing = true }
-                Button("Очистить загруженные материалы", role: .destructive) { clearMaterials = true }
-                Text("Очистка удаляет тексты и список серий. Прогресс, обсуждения и личные итоги сохраняются. Системная модель Apple хранится отдельно и не включена в приложение.")
-                    .font(.caption).foregroundStyle(.secondary)
             } header: { Text("Данные и место") }
             Section {
+                NavigationLink { QuickGuideView() } label: { Label("Краткий гид по FrameTrail", systemImage: "questionmark.circle") }
+                    .accessibilityIdentifier("openQuickGuide")
                 Label("Диалоги обрабатываются на iPhone", systemImage: "iphone.gen3")
                 Label("Без рекламы и аналитических SDK", systemImage: "hand.raised")
-                Text("Поисковые запросы и обращения за материалами отправляются выбранным каталогам. Текст обсуждения не отправляется в облачный ИИ. Авторизация выполняется на сайте TMDB.")
+                Text("Поисковые запросы отправляются выбранным каталогам. При входе в FrameTrail карточки, прогресс и личные итоги хранятся в Supabase. Текст обсуждения обрабатывается локально. Подключение TMDB подтверждается на его сайте.")
                     .font(.caption).foregroundStyle(.secondary)
                 NavigationLink("Источники и лицензии") { AttributionView() }
                 Link("Исходный код и сообщения об ошибках", destination: URL(string: "https://github.com/eljke/FrameTrail")!)
@@ -120,7 +122,9 @@ struct SettingsView: View {
             if phase == .active { Task { await model.assistant.refreshAvailability() } }
         }
         .translationTask(translationConfiguration) { session in await prepareTranslation(using: session) }
-        .sheet(item: $authorization) { SafariPage(url: $0.url).ignoresSafeArea() }
+        .sheet(item: $authorization, onDismiss: {
+            if awaitingApproval { Task { await finishLogin() } }
+        }) { SafariPage(url: $0.url).ignoresSafeArea() }
         .fileExporter(isPresented: $exporting, document: exportDocument, contentType: .json, defaultFilename: "FrameTrail-library") { result in
             if case .failure(let failure) = result { error = failure.localizedDescription }
         }
@@ -137,12 +141,6 @@ struct SettingsView: View {
                 error = nil
             } catch { self.error = error.localizedDescription }
         }
-        .confirmationDialog("Удалить загруженные тексты и список серий? Личные записи и прогресс останутся.", isPresented: $clearMaterials, titleVisibility: .visible) {
-            Button("Очистить материалы", role: .destructive) {
-                library.clearDownloadedMaterials()
-                URLCache.shared.removeAllCachedResponses()
-            }
-        }
     }
 
     private func saveToken() async {
@@ -152,6 +150,7 @@ struct SettingsView: View {
         do {
             try await model.auth.setTMDBReadToken(apiToken.isEmpty ? nil : apiToken)
             try await model.refreshAccountState(library: library)
+            model.catalogDidChange()
             apiToken = ""
             awaitingApproval = false
             authorization = nil
@@ -213,8 +212,14 @@ struct SettingsView: View {
         busy = true
         error = nil
         defer { busy = false }
-        do { try await model.finishAuthorization(library: library); awaitingApproval = false }
-        catch { self.error = error.localizedDescription }
+        do {
+            try await model.finishAuthorization(library: library)
+            awaitingApproval = false
+            notice = "TMDB подключён. Можно импортировать список просмотра."
+        } catch ServiceError.http(401) {
+            self.error = "TMDB пока не подтвердил вход. Одобри доступ на сайте и нажми «Я подтвердил вход» или начни заново."
+        } catch is CancellationError {
+        } catch { self.error = error.localizedDescription }
     }
 
     private func importWatchlist() async {
@@ -225,8 +230,8 @@ struct SettingsView: View {
         do {
             let titles = try await model.auth.watchlist()
             guard accountID == library.activeAccountID else { return }
-            for title in titles { library.add(title) }
-            notice = "Обработано историй: \(titles.count). Существующие заметки не заменялись. Импорт ограничен первыми 10 страницами каждого типа."
+            let added = try library.addTitles(titles)
+            notice = "Добавлено: \(added), получено: \(titles.count). Существующие записи сохранены. Импорт ограничен первыми 10 страницами каждого типа."
         } catch { self.error = error.localizedDescription }
     }
 }

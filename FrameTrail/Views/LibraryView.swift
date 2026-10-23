@@ -86,7 +86,12 @@ struct JournalView: View {
                                 Spacer()
                                 if let rating = record.reflection.rating { Label("\(rating)/10", systemImage: "star.fill").font(.caption.bold()).foregroundStyle(Theme.accent) }
                             }
+                            if let season = record.reflection.episodeSeason, let number = record.reflection.episodeNumber {
+                                Text("Сезон \(season) · Серия \(number)").font(.caption).foregroundStyle(Theme.accent)
+                            }
                             if !record.reflection.summary.isEmpty { Text(record.reflection.summary).font(.subheadline).lineLimit(5).foregroundStyle(Theme.muted) }
+                            if let liked = record.reflection.allLiked.first { Text("+ " + liked).font(.caption).lineLimit(2).foregroundStyle(Theme.muted) }
+                            if let disliked = record.reflection.allDisliked.first { Text("− " + disliked).font(.caption).lineLimit(2).foregroundStyle(Theme.muted) }
                             Text(record.reflection.createdAt, style: .date).font(.caption2).foregroundStyle(Theme.muted)
                         }.padding(18).background(Theme.card, in: RoundedRectangle(cornerRadius: 18))
                     }.buttonStyle(.plain)

@@ -294,11 +294,226 @@ final class LibraryStoreTests: XCTestCase {
         XCTAssertEqual(try store.exportData(), before)
     }
 
+    func testCloudApplyPreservesLocalMaterialsAndClearsRewoundChat() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        store.switchAccount("supabase-first")
+        var entry = LibraryEntry(title: title("series", kind: .series))
+        entry.episodes = [Episode(id: "ep1", season: 1, number: 1, name: "Pilot", summary: "A meeting.")]
+        entry.facts = [StoryFact(id: "source", text: "A private imported source.", episodeID: "ep1")]
+        entry.progress.watchedEpisodeIDs = ["ep1", "ep2"]
+        entry.chat = [ChatTurn(role: .assistant, text: "A second-episode spoiler.")]
+        store.update(entry)
+        let storedFacts = try XCTUnwrap(store.entry(for: "series")).facts
+        let remote = CloudLibraryItem(
+            title: entry.title, progress: WatchProgress(watchedEpisodeIDs: ["ep1"]),
+            reflections: [Reflection(titleID: "series", summary: "Synced from another device.", rating: 8)]
+        )
+        let record = CloudLibraryRecord(mediaID: "series", payload: remote, revision: 3, deleted: false)
+
+        try store.applyCloudRecord(record)
+
+        let applied = try XCTUnwrap(store.entry(for: "series"))
+        XCTAssertEqual(applied.episodes, entry.episodes)
+        XCTAssertEqual(applied.facts, storedFacts)
+        XCTAssertTrue(applied.chat.isEmpty)
+        XCTAssertEqual(applied.progress, remote.progress)
+        XCTAssertEqual(applied.reflections, remote.reflections)
+        store.switchAccount("guest")
+        store.switchAccount("supabase-first")
+        XCTAssertEqual(store.syncBaseline.records["series"], record)
+        XCTAssertEqual(store.cloudItems(), [remote])
+    }
+
+    func testCloudTombstoneDeletesWithoutCreatingPlaceholder() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        store.switchAccount("supabase-first")
+        store.add(title("film"))
+        let tombstone = CloudLibraryRecord(mediaID: "film", payload: nil, revision: 4, deleted: true)
+
+        try store.applyCloudRecord(tombstone)
+
+        XCTAssertTrue(store.entries.isEmpty)
+        XCTAssertEqual(store.syncBaseline.records["film"], tombstone)
+        store.switchAccount("guest")
+        store.switchAccount("supabase-first")
+        XCTAssertTrue(store.entries.isEmpty)
+        XCTAssertEqual(store.syncBaseline.records["film"], tombstone)
+    }
+
+    func testSyncBaselineIsAccountIsolatedAndExcludedFromExports() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        XCTAssertFalse(store.canSync)
+        let item = CloudLibraryItem(title: title("film"), progress: WatchProgress(), reflections: [])
+        let record = CloudLibraryRecord(mediaID: "film", payload: item, revision: 1, deleted: false)
+        XCTAssertThrowsError(try store.applyCloudRecord(record))
+        store.switchAccount("supabase-first")
+        try store.applyCloudRecord(record)
+        let exported = try store.exportData()
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: exported) as? [String: Any])
+        XCTAssertNil(object["syncBaseline"])
+
+        store.switchAccount("supabase-second")
+        XCTAssertTrue(store.entries.isEmpty)
+        XCTAssertTrue(store.syncBaseline.records.isEmpty)
+        try store.importData(exported)
+        XCTAssertEqual(store.cloudItems(), [item])
+        XCTAssertTrue(store.syncBaseline.records.isEmpty)
+        store.switchAccount("guest")
+        XCTAssertTrue(store.entries.isEmpty)
+        XCTAssertFalse(store.canSync)
+    }
+
+    func testInvalidBaselinePreservesReadableLibraryAndOriginalFile() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        store.switchAccount("supabase-first")
+        store.add(title("film"))
+        let file = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil).first)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: file)) as? [String: Any])
+        object["syncBaseline"] = ["records": "corrupted"]
+        let corruptData = try JSONSerialization.data(withJSONObject: object)
+        try corruptData.write(to: file)
+
+        store.switchAccount("guest")
+        store.switchAccount("supabase-first")
+
+        XCTAssertTrue(store.isReadable)
+        XCTAssertFalse(store.canSync)
+        XCTAssertEqual(store.entries.map(\.id), ["film"])
+        XCTAssertNotNil(store.lastError)
+        XCTAssertNoThrow(try store.exportData())
+        store.remove("film")
+        XCTAssertEqual(store.entries.map(\.id), ["film"])
+        XCTAssertEqual(try Data(contentsOf: file), corruptData)
+    }
+
+    func testFailedCloudCommitPreservesBaselineAndLocalRecords() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        store.switchAccount("supabase-first")
+        let item = CloudLibraryItem(title: title("film"), progress: WatchProgress(), reflections: [])
+        let first = CloudLibraryRecord(mediaID: "film", payload: item, revision: 1, deleted: false)
+        try store.applyCloudRecord(first)
+        let before = store.entries
+        try FileManager.default.removeItem(at: directory)
+        try Data("directory is blocked".utf8).write(to: directory)
+        let deleted = CloudLibraryRecord(mediaID: "film", payload: nil, revision: 2, deleted: true)
+
+        XCTAssertThrowsError(try store.applyCloudRecord(deleted))
+
+        XCTAssertEqual(store.entries, before)
+        XCTAssertEqual(store.syncBaseline.records["film"], first)
+    }
+
+    func testAcknowledgingUploadKeepsNewerOfflineLocalEdits() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        store.switchAccount("supabase-first")
+        store.add(title("film"))
+        let uploaded = try XCTUnwrap(store.cloudItems().first)
+        var changed = try XCTUnwrap(store.entry(for: "film"))
+        changed.progress.finished = true
+        store.update(changed)
+        let acknowledged = CloudLibraryRecord(mediaID: "film", payload: uploaded, revision: 1, deleted: false)
+
+        try store.recordSyncedCloudRecord(acknowledged)
+
+        XCTAssertTrue(try XCTUnwrap(store.entry(for: "film")).progress.finished)
+        XCTAssertEqual(store.syncBaseline.records["film"], acknowledged)
+        let plan = LibrarySyncPlanner.plan(local: store.cloudItems(), remote: [acknowledged], baseline: store.syncBaseline)
+        XCTAssertEqual(plan.uploads.first?.payload?.progress.finished, true)
+        XCTAssertTrue(plan.conflicts.isEmpty)
+    }
+
+    func testPartialBaselineCannotDropAcknowledgedTombstones() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        store.switchAccount("supabase-first")
+        let tombstone = CloudLibraryRecord(mediaID: "deleted", payload: nil, revision: 3, deleted: true)
+        try store.recordSyncedCloudRecord(tombstone)
+
+        XCTAssertThrowsError(try store.commitCloudChanges(applies: [], baseline: LibrarySyncBaseline()))
+
+        XCTAssertEqual(store.syncBaseline.records["deleted"], tombstone)
+        XCTAssertTrue(store.entries.isEmpty)
+    }
+
     private func temporaryDirectory() -> URL {
         FileManager.default.temporaryDirectory.appendingPathComponent("FrameTrailTests-\(UUID().uuidString)", isDirectory: true)
     }
 
+    func testBulkImportPreservesExistingRecordsAndDeduplicates() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        store.add(title("existing"))
+        var entry = try XCTUnwrap(store.entry(for: "existing"))
+        entry.progress.finished = true
+        store.update(entry)
+
+        let added = try store.addTitles([title("existing"), title("new"), title("new")])
+
+        XCTAssertEqual(added, 1)
+        XCTAssertTrue(try XCTUnwrap(store.entry(for: "existing")).progress.finished)
+        XCTAssertEqual(store.entries.count, 2)
+        let reopened = LibraryStore(directory: directory)
+        XCTAssertEqual(reopened.entries, store.entries)
+    }
+
+    func testInvalidBulkImportLeavesArchiveUnchanged() async throws {
+        let directory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        store.add(title("existing"))
+        let before = try store.exportData()
+        var invalid = title("bad")
+        invalid.title = ""
+
+        XCTAssertThrowsError(try store.addTitles([title("new"), invalid]))
+
+        XCTAssertEqual(try store.exportData(), before)
+        XCTAssertEqual(LibraryStore(directory: directory).entries, store.entries)
+    }
+
     private func title(_ id: String, kind: MediaKind = .movie) -> MediaTitle {
         MediaTitle(id: id, title: "Test \(id)", kind: kind, provider: "test", providerID: id)
+    }
+
+    func testEpisodeImpressionsSurviveCloudRoundTripWithoutEpisodeCache() async throws {
+        let firstDirectory = temporaryDirectory()
+        let secondDirectory = temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: firstDirectory); try? FileManager.default.removeItem(at: secondDirectory) }
+        let first = LibraryStore(directory: firstDirectory)
+        first.switchAccount("supabase-first")
+        var entry = LibraryEntry(title: title("show", kind: .series))
+        entry.progress.watchedEpisodeIDs = ["e1"]
+        entry.episodes = [Episode(id: "e1", season: 2, number: 3, name: "Episode")]
+        entry.reflections = [Reflection(titleID: "show", liked: ["Performance"], rating: 8, disliked: ["Pacing"], episodeID: "e1", episodeSeason: 2, episodeNumber: 3)]
+        entry.reflections[0].likedChoices = [ReviewChoice(id: "fact#0:characters", aspect: .characters, text: "Персонажи — решение вернуться", sourceQuote: "The character decides to return home.", sourceID: "fact", sourceURL: URL(string: "https://example.org/episode"), episodeID: "e1")]
+        first.update(entry)
+        let payload = try XCTUnwrap(first.cloudItems().first)
+        let second = LibraryStore(directory: secondDirectory)
+        second.switchAccount("supabase-first")
+
+        try second.applyCloudRecord(CloudLibraryRecord(mediaID: "show", payload: payload, revision: 1, deleted: false))
+
+        let received = try XCTUnwrap(second.entry(for: "show"))
+        XCTAssertTrue(received.episodes.isEmpty)
+        XCTAssertEqual(received.reflections, entry.reflections)
+        XCTAssertEqual(received.reflections.first?.episodeSeason, 2)
+        XCTAssertEqual(LibraryStore(directory: secondDirectory).entries, [])
+        let reopened = LibraryStore(directory: secondDirectory)
+        reopened.switchAccount("supabase-first")
+        XCTAssertEqual(reopened.entries.first?.reflections, entry.reflections)
     }
 }

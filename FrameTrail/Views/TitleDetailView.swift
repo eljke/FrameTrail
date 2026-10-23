@@ -1,5 +1,6 @@
 import SwiftUI
 import FrameTrailCore
+import TipKit
 
 struct TitleDetailView: View {
     let title: MediaTitle
@@ -14,10 +15,17 @@ struct TitleDetailView: View {
     @State private var reflectionEditor = false
     @State private var editingReflection: Reflection?
     @State private var plotInfo: String?
+    @State private var selectedSeason = 1
+    @State private var pendingReflectionRemoval: Reflection?
+    @State private var episodeToReview: Episode?
+    @State private var showRetrospective = false
 
     private var entry: LibraryEntry { library.entry(for: title.id) ?? LibraryEntry(title: title) }
     private var isSaved: Bool { library.entry(for: title.id) != nil }
     private var availableEpisodes: [Episode] { mergeEpisodes(episodes + entry.episodes) }
+    private var seasons: [Int] { Set(availableEpisodes.map(\.season)).sorted() }
+    private var overallReview: Reflection? { Reflection.latest(in: entry.reflections) }
+    private var canReview: Bool { entry.progress.finished || (title.kind == .series && !entry.progress.watchedEpisodeIDs.isEmpty) }
 
     var body: some View {
         ScrollView {
@@ -28,6 +36,7 @@ struct TitleDetailView: View {
                         Text(title.kind == .movie ? "ФИЛЬМ" : "СЕРИАЛ").font(.caption2.bold()).tracking(2).foregroundStyle(Theme.accent)
                         Text(title.title).font(.title2.bold()).textSelection(.enabled)
                         if let year = title.year { Text(String(year)).font(.subheadline).foregroundStyle(Theme.muted) }
+                        if let rating = overallReview?.rating { Label("Моя оценка: \(rating)/10", systemImage: "star.fill").font(.caption).foregroundStyle(Theme.accent) }
                         Button { save(entry) } label: { Label(isSaved ? "В библиотеке" : "В библиотеку", systemImage: isSaved ? "checkmark" : "plus") }
                             .buttonStyle(.bordered).disabled(isSaved)
                     }
@@ -45,6 +54,7 @@ struct TitleDetailView: View {
                         changed.progress.finished = value
                         changed.chat = []
                         save(changed)
+                        if library.lastError == nil { InteractionFeedback.selection() }
                     }))
                     .tint(Theme.accent).accessibilityIdentifier("finishedToggle")
                     if entry.progress.finished {
@@ -58,6 +68,18 @@ struct TitleDetailView: View {
                     episodeSection
                 }
                 if let plotInfo { Text(plotInfo).font(.footnote).foregroundStyle(Theme.muted) }
+                if title.kind == .series && canReview {
+                    if !model.isUITesting && Set(entry.reflections.compactMap(\.episodeID)).intersection(entry.progress.watchedEpisodeIDs).count >= 2 {
+                        TipView(SeriesRetrospectiveTip())
+                    }
+                    Button {
+                        if !model.isUITesting { SeriesRetrospectiveTip().invalidate(reason: .actionPerformed) }
+                        showRetrospective = true
+                    } label: {
+                        Label("Собрать общую картину по сериям", systemImage: "sparkles.rectangle.stack")
+                    }.buttonStyle(.bordered).accessibilityIdentifier("compileSeriesImpressions")
+                    Text("Сводка Apple по сохранённым оценкам и впечатлениям о просмотренных сериях.").font(.caption).foregroundStyle(Theme.muted)
+                }
                 NavigationLink {
                     DiscussionView(title: title, initialEpisodes: availableEpisodes)
                 } label: {
@@ -76,38 +98,49 @@ struct TitleDetailView: View {
                     Text("Сохранено материалов: \(entry.facts.count). Аннотации серий используются только после отметки о просмотре.")
                         .font(.footnote).foregroundStyle(Theme.muted)
                     Button { sourceImport = true } label: { Label("Добавить текст или субтитры", systemImage: "doc.badge.plus") }
+                        .accessibilityIdentifier("importSource")
                     if let source = title.sourceURL { Link("Карточка у источника", destination: source).font(.footnote) }
                 }
-                if entry.progress.finished {
-                    Button { editingReflection = nil; reflectionEditor = true } label: { Label("Сохранить личный итог", systemImage: "square.and.pencil") }
+                if canReview {
+                    if entry.reflections.isEmpty && !model.isUITesting { TipView(FirstReviewTip()) }
+                    Button {
+                        if !model.isUITesting { FirstReviewTip().invalidate(reason: .actionPerformed) }
+                        editingReflection = overallReview; reflectionEditor = true
+                    } label: {
+                        Label(overallReview?.rating == nil ? "Оценить и разобрать впечатления" : "Моя оценка и впечатления", systemImage: "star.bubble")
+                    }.buttonStyle(.bordered).accessibilityIdentifier("rateTitle")
+                    Button {
+                        if !model.isUITesting { FirstReviewTip().invalidate(reason: .actionPerformed) }
+                        editingReflection = nil; reflectionEditor = true
+                    } label: { Label("Сохранить личный итог", systemImage: "square.and.pencil") }
                         .buttonStyle(.borderedProminent).accessibilityIdentifier("writeReflection")
-                    ForEach(entry.reflections.sorted { $0.createdAt > $1.createdAt }) { reflection in
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
-                                Text("Мой итог").font(.headline)
-                                Spacer()
-                                if let rating = reflection.rating { Text("★ \(rating)/10").foregroundStyle(Theme.accent) }
-                                Button {
-                                    editingReflection = reflection
-                                    reflectionEditor = true
-                                } label: { Image(systemName: "pencil") }
-                                    .accessibilityLabel("Изменить личный итог")
-                            }
-                            Text(reflection.summary).font(.subheadline).textSelection(.enabled)
-                            ForEach(Array(reflection.liked.enumerated()), id: \.offset) { item in Text("+ " + item.element).font(.caption).foregroundStyle(Theme.muted) }
-                            ForEach(Array(reflection.questions.enumerated()), id: \.offset) { item in Text("? " + item.element).font(.caption).foregroundStyle(Theme.muted) }
-                            Text(reflection.createdAt, style: .date).font(.caption2).foregroundStyle(Theme.muted)
-                        }.padding(16).background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
-                    }
                 }
+                ForEach(entry.reflections.sorted { $0.createdAt > $1.createdAt }) { reflection in reflectionCard(reflection) }
             }.padding(20)
         }
         .background(Theme.background)
         .navigationTitle(title.title).navigationBarTitleDisplayMode(.inline)
         .task(id: library.activeAccountID) { await loadEpisodes() }
         .onChange(of: library.entry(for: title.id)?.episodes) { _, stored in episodes = stored ?? [] }
+        .onChange(of: seasons, initial: true) { _, values in
+            if !values.contains(selectedSeason), let first = values.first { selectedSeason = first }
+        }
         .sheet(isPresented: $sourceImport) { SourceImportView(title: title, episodes: availableEpisodes) }
         .sheet(isPresented: $reflectionEditor) { ReflectionEditorView(title: title, reflection: editingReflection) }
+        .sheet(item: $episodeToReview) { episode in
+            ReflectionEditorView(title: title, reflection: Reflection.latest(in: entry.reflections, episodeID: episode.id), episode: episode)
+        }
+        .sheet(isPresented: $showRetrospective) { RetrospectiveView(title: title) }
+        .confirmationDialog("Удалить личный итог? После синхронизации он исчезнет и на других устройствах.", isPresented: Binding(get: { pendingReflectionRemoval != nil }, set: { if !$0 { pendingReflectionRemoval = nil } }), titleVisibility: .visible) {
+            Button("Удалить итог", role: .destructive) {
+                if let reflection = pendingReflectionRemoval {
+                    var changed = entry
+                    changed.reflections.removeAll { $0.id == reflection.id }
+                    save(changed)
+                }
+                pendingReflectionRemoval = nil
+            }
+        }
     }
 
     @ViewBuilder private var episodeSection: some View {
@@ -117,7 +150,14 @@ struct TitleDetailView: View {
             if availableEpisodes.isEmpty && !loading {
                 InfoCard(symbol: "rectangle.stack", title: "Список серий пока недоступен", text: "Можно добавить своё описание серии вместе с материалами. Поиск по оригинальному названию и подключение TMDB расширяют покрытие.")
             }
-            ForEach(availableEpisodes) { episode in
+            if seasons.count > 1 {
+                Picker("Сезон", selection: $selectedSeason) {
+                    ForEach(seasons, id: \.self) { season in Text(season == 0 ? "Спецвыпуски" : "Сезон \(season)").tag(season) }
+                }.pickerStyle(.menu)
+            }
+            Text("Просмотрено: \(entry.progress.watchedEpisodeIDs.count) · В списке: \(availableEpisodes.count)")
+                .font(.caption).foregroundStyle(Theme.muted)
+            ForEach(availableEpisodes.filter { $0.season == selectedSeason }) { episode in
                 let watched = entry.progress.watchedEpisodeIDs.contains(episode.id)
                 HStack(alignment: .top, spacing: 12) {
                     Button {
@@ -125,11 +165,15 @@ struct TitleDetailView: View {
                         if watched { changed.progress.watchedEpisodeIDs.remove(episode.id); changed.progress.finished = false; changed.chat = [] }
                         else { changed.progress.watchedEpisodeIDs.insert(episode.id) }
                         save(changed)
+                        if library.lastError == nil { InteractionFeedback.selection() }
                     } label: { Image(systemName: watched ? "checkmark.circle.fill" : "circle").font(.title3).foregroundStyle(watched ? Theme.accent : Theme.muted) }
                     .accessibilityLabel("\(watched ? "Снять просмотр" : "Просмотрено"): сезон \(episode.season), серия \(episode.number)")
                     VStack(alignment: .leading, spacing: 5) {
                         Text("S\(episode.season) · E\(episode.number)").font(.caption.bold()).foregroundStyle(Theme.accent)
                         Text(watched ? episode.name : "Серия \(episode.number)").font(.subheadline)
+                        if watched, let rating = Reflection.latest(in: entry.reflections, episodeID: episode.id)?.rating {
+                            Label("\(rating)/10", systemImage: "star.fill").font(.caption).foregroundStyle(Theme.accent)
+                        }
                         if watched && !episode.summary.isEmpty {
                             DisclosureGroup("Напомнить события") { Text(episode.summary).font(.footnote).foregroundStyle(Theme.muted).padding(.vertical, 6) }
                                 .font(.caption).tint(Theme.muted)
@@ -138,6 +182,11 @@ struct TitleDetailView: View {
                     Spacer(minLength: 0)
                     Menu {
                         Button("Просмотрено всё до этой серии") { markThrough(episode) }
+                        Button("Оценить серию и впечатления") {
+                            if !model.isUITesting { FirstReviewTip().invalidate(reason: .actionPerformed) }
+                            episodeToReview = episode
+                        }.disabled(!watched)
+                        Button("Загрузить подробный сюжет серии") { Task { await loadEpisodePlot(episode) } }.disabled(!watched || loadingPlot)
                     } label: { Image(systemName: "ellipsis").padding(6).foregroundStyle(Theme.muted) }.accessibilityLabel("Действия с серией")
                 }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
             }
@@ -147,6 +196,7 @@ struct TitleDetailView: View {
                 if value { changed.progress.watchedEpisodeIDs.formUnion(availableEpisodes.map(\.id)) }
                 changed.chat = []
                 save(changed)
+                if library.lastError == nil { InteractionFeedback.selection() }
             })).tint(Theme.accent)
         }
     }
@@ -181,6 +231,24 @@ struct TitleDetailView: View {
         var changed = entry
         changed.progress.watchedEpisodeIDs.formUnion(availableEpisodes.filter { $0.season < episode.season || ($0.season == episode.season && $0.number <= episode.number) }.map(\.id))
         save(changed)
+        if library.lastError == nil { InteractionFeedback.selection() }
+    }
+
+    private func loadEpisodePlot(_ episode: Episode) async {
+        loadingPlot = true
+        error = nil
+        defer { loadingPlot = false }
+        let accountID = library.activeAccountID
+        do {
+            let facts = try await model.plots.plot(for: title, episode: episode, progress: entry.progress)
+            try Task.checkCancellation()
+            guard accountID == library.activeAccountID, entry.progress.watchedEpisodeIDs.contains(episode.id) else { return }
+            var changed = entry
+            changed.facts.removeAll { $0.kind == "plot" && $0.episodeID == episode.id }
+            changed.facts.append(contentsOf: facts)
+            save(changed)
+            plotInfo = "Загружен сюжет S\(episode.season) E\(episode.number). Он доступен для обсуждения и вариантов впечатлений."
+        } catch is CancellationError {} catch { self.error = error.localizedDescription }
     }
 
     private func loadPlot() async {
@@ -207,5 +275,39 @@ struct TitleDetailView: View {
             if $0.number != $1.number { return $0.number < $1.number }
             return $0.id < $1.id
         }
+    }
+
+    private func shareText(_ reflection: Reflection) -> String {
+        var lines = [title.title, reflection.summary]
+        if let season = reflection.episodeSeason, let number = reflection.episodeNumber { lines.insert("S\(season) E\(number)", at: 1) }
+        if let rating = reflection.rating { lines.append("★ \(rating)/10") }
+        lines.append(contentsOf: reflection.allLiked.map { "+ " + $0 })
+        lines.append(contentsOf: reflection.allDisliked.map { "− " + $0 })
+        lines.append(contentsOf: reflection.questions.map { "? " + $0 })
+        return lines.filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+
+    private func reflectionCard(_ reflection: Reflection) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Мой итог").font(.headline)
+                Spacer()
+                if let rating = reflection.rating { Text("★ \(rating)/10").foregroundStyle(Theme.accent) }
+                Button { editingReflection = reflection; reflectionEditor = true } label: { Image(systemName: "pencil") }
+                    .accessibilityLabel("Изменить личный итог")
+                Menu {
+                    ShareLink(item: shareText(reflection)) { Label("Поделиться итогом", systemImage: "square.and.arrow.up") }
+                    Button("Удалить итог", role: .destructive) { pendingReflectionRemoval = reflection }
+                } label: { Image(systemName: "ellipsis.circle") }.accessibilityLabel("Действия с итогом")
+            }
+            if let season = reflection.episodeSeason, let number = reflection.episodeNumber {
+                Text("Сезон \(season) · Серия \(number)").font(.caption).foregroundStyle(Theme.accent)
+            }
+            if !reflection.summary.isEmpty { Text(reflection.summary).font(.subheadline).textSelection(.enabled) }
+            ForEach(Array(reflection.allLiked.enumerated()), id: \.offset) { item in Text("+ " + item.element).font(.caption).foregroundStyle(Theme.muted) }
+            ForEach(Array(reflection.allDisliked.enumerated()), id: \.offset) { item in Text("− " + item.element).font(.caption).foregroundStyle(Theme.muted) }
+            ForEach(Array(reflection.questions.enumerated()), id: \.offset) { item in Text("? " + item.element).font(.caption).foregroundStyle(Theme.muted) }
+            Text(reflection.createdAt, style: .date).font(.caption2).foregroundStyle(Theme.muted)
+        }.padding(16).background(Theme.card, in: RoundedRectangle(cornerRadius: 16))
     }
 }

@@ -111,6 +111,33 @@ final class ServicesTests: XCTestCase {
         XCTAssertEqual(titles.first?.year, 2020)
     }
 
+    func testTMDBEpisodeOverviewsBecomeReviewChoicesOnlyInSelectedScope() async throws {
+        ServiceURLProtocol.setHandler { request in
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-read-token")
+            if request.url?.path == "/3/tv/9" { return .json("{\"seasons\":[{\"season_number\":1}]}") }
+            XCTAssertEqual(request.url?.path, "/3/tv/9/season/1")
+            return .json("""
+            {"episodes":[
+              {"id":91,"season_number":1,"episode_number":1,"name":"First","overview":"Walter chooses to return home after avoiding a confrontation."},
+              {"id":92,"season_number":1,"episode_number":2,"name":"Second","overview":"A later revelation changes everything for the family."}
+            ]}
+            """)
+        }
+        let title = MediaTitle(id: "tmdb:tv:9", title: "Series", kind: .series, overview: "Full series premise must not become an episode source.", provider: "TMDB", providerID: "9")
+        let episodes = try await CatalogService(http: client(), tokenProvider: { "test-read-token" }).fetchEpisodes(for: title)
+        let first = try XCTUnwrap(episodes.first)
+        let packet = SpoilerContextBuilder.forReview(title: title, episodes: episodes, progress: WatchProgress(watchedEpisodeIDs: Set(episodes.map(\.id))), facts: [], episodeID: first.id)
+        let passages = ReviewPassages.candidates(in: packet)
+        let passage = try XCTUnwrap(passages.first)
+        let choice = try XCTUnwrap(ReviewPassages.choice(passageID: passage.id, aspect: .characters, candidates: passages))
+        XCTAssertTrue(first.summary.contains(choice.sourceQuote))
+        XCTAssertEqual(choice.sourceURL, first.sourceURL)
+        XCTAssertEqual(choice.episodeID, first.id)
+        XCTAssertFalse(packet.text.contains("later revelation"))
+        XCTAssertFalse(packet.text.contains("Full series premise"))
+        XCTAssertFalse(SpoilerContextBuilder.forReview(title: title, episodes: episodes, progress: WatchProgress(), facts: [], episodeID: first.id).hasEvidence)
+    }
+
     func testAuthorizationUsesExternalTMDBApprovalURL() async throws {
         ServiceURLProtocol.setHandler { request in
             XCTAssertEqual(request.httpMethod, "GET")
@@ -231,6 +258,64 @@ final class ServicesTests: XCTestCase {
         }
     }
 
+    func testEpisodePlotChecksIdentityAndUsesOnlyPinnedPlotSection() async throws {
+        ServiceURLProtocol.setHandler { request in
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            func value(_ name: String) -> String? { query.first(where: { $0.name == name })?.value }
+            if value("action") == "query" {
+                return .json("{\"query\":{\"search\":[{\"pageid\":9,\"title\":\"Pilot (Breaking Bad)\"}]}}")
+            }
+            if value("section") == "0" {
+                return .json("""
+                {"parse":{"revid":123,"text":{"*":"<table class='infobox ib-tv-episode'><tr><td class='infobox-subheader'><i>Breaking Bad</i> episode</td></tr><tr><th>Episode <abbr>no.</abbr></th><td>Season&#160;1<br />Episode 1</td></tr></table><p>INTRO FUTURE SPOILER must not become evidence.</p>"}}}
+                """)
+            }
+            XCTAssertEqual(value("oldid"), "123")
+            XCTAssertNil(value("pageid"))
+            if value("prop") == "sections" {
+                return .json("{\"parse\":{\"sections\":[{\"line\":\"Plot\",\"index\":\"1\"},{\"line\":\"Future impact\",\"index\":\"2\"}]}}")
+            }
+            XCTAssertEqual(value("section"), "1")
+            return .json("{\"parse\":{\"revid\":123,\"text\":{\"*\":\"<p>The pilot ends when Walter returns home.</p>\"}}}")
+        }
+        let title = MediaTitle(id: "show", title: "Breaking Bad", kind: .series, provider: "TMDB", providerID: "1396")
+        let episode = Episode(id: "e1", season: 1, number: 1, name: "Pilot")
+        let facts = try await WikiPlotService(http: client()).plot(for: title, episode: episode, progress: WatchProgress(watchedEpisodeIDs: [episode.id]))
+        XCTAssertTrue(facts.allSatisfy { $0.titleID == title.id && $0.episodeID == episode.id })
+        XCTAssertFalse(facts.map(\.text).joined().contains("FUTURE"))
+        XCTAssertEqual(facts.first?.sourceURL?.absoluteString, "https://en.wikipedia.org/w/index.php?oldid=123")
+    }
+
+    func testEpisodePlotRejectsWrongSeriesSeasonAndEpisode() async throws {
+        let title = MediaTitle(id: "show", title: "Breaking Bad", kind: .series, provider: "TMDB", providerID: "1396")
+        let episode = Episode(id: "e1", season: 1, number: 1, name: "Pilot")
+        for (series, season, number) in [("Another Series", 1, 1), ("Breaking Bad", 2, 1), ("Breaking Bad", 1, 2)] {
+            ServiceURLProtocol.setHandler { request in
+                let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                if query.contains(where: { $0.name == "action" && $0.value == "query" }) {
+                    return .json("{\"query\":{\"search\":[{\"pageid\":9,\"title\":\"Pilot\"}]}}")
+                }
+                XCTAssertTrue(query.contains(where: { $0.name == "section" && $0.value == "0" }), "A mismatched episode must never request plot content")
+                return .json("""
+                {"parse":{"revid":123,"text":{"*":"<table class='infobox ib-tv-episode'><tr><td class='infobox-subheader'>\(series) episode</td></tr><tr><th>Episode no.</th><td>Season \(season)<br />Episode \(number)</td></tr></table>"}}}
+                """)
+            }
+            do {
+                _ = try await WikiPlotService(http: client()).plot(for: title, episode: episode, progress: WatchProgress(watchedEpisodeIDs: [episode.id]))
+                XCTFail("Mismatched episode must not supply a plot")
+            } catch ServiceError.noPlot {}
+        }
+    }
+
+    func testEpisodePlotNeverRequestsUnwatchedContent() async throws {
+        ServiceURLProtocol.setHandler { _ in XCTFail("An unwatched episode must not trigger research"); return .json("{}") }
+        let title = MediaTitle(id: "show", title: "Show", kind: .series, provider: "local", providerID: "show")
+        do {
+            _ = try await WikiPlotService(http: client()).plot(for: title, episode: Episode(id: "future", season: 2, number: 1, name: "Future"), progress: WatchProgress(watchedEpisodeIDs: ["e1"]))
+            XCTFail("The selected episode must be watched")
+        } catch ServiceError.unfinishedTitle {}
+    }
+
     func testTransportSurfacesRateLimitWithoutDecodingBody() async throws {
         ServiceURLProtocol.setHandler { _ in .init(status: 429, headers: ["Retry-After": "12"], data: Data("not JSON".utf8)) }
         do {
@@ -291,6 +376,38 @@ final class ServicesTests: XCTestCase {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [ServiceURLProtocol.self]
         return HTTPClient(session: URLSession(configuration: configuration))
+    }
+
+    func testCancelledApprovalCannotRestoreAccountAndRevokesCreatedSession() async throws {
+        let accountStarted = expectation(description: "account lookup started")
+        let revoked = expectation(description: "abandoned session revoked")
+        defer {
+            try? KeychainStore.set(nil, for: "tmdb.session-id")
+            try? KeychainStore.set(nil, for: "tmdb.account")
+        }
+        ServiceURLProtocol.setHandler { request in
+            switch request.url?.path {
+            case "/3/authentication/token/new": return .json("{\"success\":true,\"request_token\":\"pending\"}")
+            case "/3/authentication/session/new": return .json("{\"success\":true,\"session_id\":\"abandoned\"}")
+            case "/3/account":
+                accountStarted.fulfill()
+                Thread.sleep(forTimeInterval: 0.1)
+                return .json("{\"id\":42,\"username\":\"viewer\"}")
+            case "/3/authentication/session": revoked.fulfill(); return .json("{\"success\":true}")
+            default: throw URLError(.unsupportedURL)
+            }
+        }
+        let service = TMDBAuthService(http: client(), tokenProvider: { "read-token" })
+        _ = try await service.beginAuthorization()
+        let pending = Task { try await service.completeAuthorization() }
+        await fulfillment(of: [accountStarted], timeout: 2)
+        await service.cancelAuthorization()
+        do { _ = try await pending.value; XCTFail("Cancelled approval must not persist an account") }
+        catch is CancellationError {}
+        await fulfillment(of: [revoked], timeout: 2)
+        let cached = try await service.cachedAccount()
+        XCTAssertNil(cached)
+        XCTAssertNil(try KeychainStore.string(for: "tmdb.session-id"))
     }
 }
 

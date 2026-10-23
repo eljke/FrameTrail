@@ -14,19 +14,19 @@ enum ServiceError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidResponse: return "The service returned an unreadable response. Please try again."
-        case .responseTooLarge: return "This response exceeds the app’s download limit."
-        case .http(401), .http(403): return "The service did not authorize this request. Check your TMDB read token or sign in again."
-        case .http(404): return "This title is no longer available from its source."
-        case .http(let code): return "The service is temporarily unavailable (HTTP \(code)). Please try again."
+        case .invalidResponse: return "Не удалось прочитать ответ сервиса. Попробуй ещё раз."
+        case .responseTooLarge: return "Ответ превышает лимит загрузки приложения."
+        case .http(401), .http(403): return "Сервис отклонил запрос. Если это TMDB, проверь API-токен или войди в аккаунт снова."
+        case .http(404): return "Произведение больше не доступно у этого источника."
+        case .http(let code): return "Сервис временно недоступен (HTTP \(code)). Попробуй позже."
         case .rateLimited(let seconds):
-            return seconds.map { "Too many requests. Try again in \($0) seconds." } ?? "Too many requests. Please wait a moment."
-        case .missingTMDBToken: return "Add your TMDB API Read Access Token in Settings before connecting an account."
-        case .invalidTMDBToken: return "Paste the TMDB API Read Access Token itself, without a Bearer prefix or line breaks."
-        case .authorizationNotStarted: return "Start sign-in again, approve access on TMDB, then return to complete it."
-        case .noPlot: return "No matching plot was found. You can import your own notes or subtitles instead."
-        case .unfinishedTitle: return "Full plot research is available only after you mark the film as finished."
-        case .signedOutOffline: return "You are signed out on this device. TMDB could not revoke the session online; remove it from your TMDB account’s connected applications if needed."
+            return seconds.map { "Слишком много запросов. Попробуй через \($0) с." } ?? "Слишком много запросов. Немного подожди."
+        case .missingTMDBToken: return "Перед входом добавь TMDB API Read Access Token в настройках."
+        case .invalidTMDBToken: return "Вставь сам TMDB API Read Access Token, без префикса Bearer и переносов строк."
+        case .authorizationNotStarted: return "Начни вход заново, подтверди доступ на сайте TMDB и вернись в приложение."
+        case .noPlot: return "Подходящий пересказ не найден. Можно добавить свой текст или субтитры."
+        case .unfinishedTitle: return "Полный сюжет доступен после отметки о просмотре фильма или выбранной серии."
+        case .signedOutOffline: return "На устройстве выполнен выход. Отозвать сессию на TMDB не удалось; при необходимости удали её в подключённых приложениях аккаунта TMDB."
         }
     }
 }
@@ -55,15 +55,20 @@ actor HTTPClient {
     }
 
     func data(for request: URLRequest) async throws -> Data {
-        try Task.checkCancellation()
-        let (bytes, response) = try await session.bytes(for: request)
-        guard let response = response as? HTTPURLResponse else { throw ServiceError.invalidResponse }
+        let (data, response) = try await self.response(for: request)
         guard (200..<300).contains(response.statusCode) else {
             if response.statusCode == 429 {
                 throw ServiceError.rateLimited(response.value(forHTTPHeaderField: "Retry-After").flatMap(Int.init))
             }
             throw ServiceError.http(response.statusCode)
         }
+        return data
+    }
+
+    func response(for request: URLRequest) async throws -> (Data, HTTPURLResponse) {
+        try Task.checkCancellation()
+        let (bytes, response) = try await session.bytes(for: request)
+        guard let response = response as? HTTPURLResponse else { throw ServiceError.invalidResponse }
         guard response.expectedContentLength <= Int64(maximumBytes) else { throw ServiceError.responseTooLarge }
         var data = Data()
         data.reserveCapacity(min(maximumBytes, max(0, Int(response.expectedContentLength))))
@@ -72,7 +77,7 @@ actor HTTPClient {
             guard data.count < maximumBytes else { throw ServiceError.responseTooLarge }
             data.append(byte)
         }
-        return data
+        return (data, response)
     }
 
     static func request(url: URL, bearer: String? = nil, method: String = "GET", body: Data? = nil) -> URLRequest {
@@ -80,7 +85,7 @@ actor HTTPClient {
         request.httpMethod = method
         request.httpBody = body
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("FrameTrail/1.0 (iOS; movie companion)", forHTTPHeaderField: "User-Agent")
+        request.setValue("FrameTrail/1.0 (+https://github.com/eljke/FrameTrail)", forHTTPHeaderField: "User-Agent")
         if let bearer { request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization") }
         if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
         return request

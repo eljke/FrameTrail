@@ -1,5 +1,6 @@
 import SwiftUI
 import FrameTrailCore
+import TipKit
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
@@ -17,6 +18,7 @@ struct RootView: View {
             NavigationStack { SettingsView() }
                 .tabItem { Label("Настройки", systemImage: "slider.horizontal.3") }.tag(3)
         }
+        .id(library.activeAccountID)
         .alert("FrameTrail", isPresented: Binding(get: { model.alertMessage != nil || library.lastError != nil }, set: { if !$0 { model.alertMessage = nil; library.dismissError() } })) {
             Button("Понятно") { model.alertMessage = nil; library.dismissError() }
         } message: { Text(model.alertMessage ?? library.lastError ?? "") }
@@ -31,6 +33,7 @@ struct DiscoverView: View {
     @State private var isSearching = false
     @State private var error: String?
     @State private var manualEntry = false
+    @State private var quickGuide = false
 
     var body: some View {
         ScrollView {
@@ -57,6 +60,9 @@ struct DiscoverView: View {
                         }.buttonStyle(.plain)
                     }
                     SectionCaption(eyebrow: "Найди свою историю", title: "Начни с названия")
+                    if library.entries.isEmpty && !model.isUITesting {
+                        TipView(FirstTitleTip()) { _ in quickGuide = true }
+                    }
                     if !model.featured.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(alignment: .top, spacing: 16) {
@@ -84,8 +90,12 @@ struct DiscoverView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "Фильм или сериал")
         .sheet(isPresented: $manualEntry) { ManualTitleView() }
-        .task { await model.loadFeatured() }
-        .task(id: query) {
+        .sheet(isPresented: $quickGuide) { NavigationStack { QuickGuideView() } }
+        .onChange(of: library.entries.isEmpty) { _, empty in
+            if !empty && !model.isUITesting { FirstTitleTip().invalidate(reason: .actionPerformed) }
+        }
+        .task(id: model.catalogRevision) { await model.loadFeatured() }
+        .task(id: query + model.catalogRevision.uuidString) {
             let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !search.isEmpty else { results = []; error = nil; isSearching = false; return }
             isSearching = true
@@ -119,7 +129,7 @@ struct ManualTitleView: View {
                     Picker("Тип", selection: $kind) {
                         Text("Фильм").tag(MediaKind.movie)
                         Text("Сериал").tag(MediaKind.series)
-                    }
+                    }.accessibilityIdentifier("manualTitleKind")
                 }
                 Section { Text("Добавь собственные материалы в карточке произведения. До отметки «Досмотрел» полный сюжет фильма не используется в ответах.").font(.footnote) }
             }

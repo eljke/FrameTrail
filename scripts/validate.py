@@ -17,7 +17,7 @@ SEMVER = re.compile(
     r"(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?"
 )
 EXCLUDED = {".git", ".build", ".swiftpm", "build", "dist", "DerivedData", "FrameTrail.xcodeproj"}
-TEXT_SUFFIXES = {".swift", ".py", ".sh", ".json", ".yml", ".yaml", ".plist", ".md", ".txt", ".xcprivacy"}
+TEXT_SUFFIXES = {".swift", ".py", ".sh", ".json", ".yml", ".yaml", ".plist", ".md", ".txt", ".xcprivacy", ".sql", ".ts", ".toml", ".svg"}
 
 
 def semantic_version(value):
