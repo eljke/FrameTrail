@@ -96,7 +96,7 @@ struct TitleDetailView: View {
                                 } label: { Image(systemName: "pencil") }
                                     .accessibilityLabel("Изменить личный итог")
                                 Menu {
-                                    ShareLink(item: title.title + "\n\n" + reflection.summary + "\n" + reflection.liked.map { "+ " + $0 }.joined(separator: "\n") + "\n" + reflection.questions.map { "? " + $0 }.joined(separator: "\n")) {
+                                    ShareLink(item: shareText(reflection)) {
                                         Label("Поделиться итогом", systemImage: "square.and.arrow.up")
                                     }
                                     Button("Удалить итог", role: .destructive) { pendingReflectionRemoval = reflection }
@@ -236,5 +236,12 @@ struct TitleDetailView: View {
             if $0.number != $1.number { return $0.number < $1.number }
             return $0.id < $1.id
         }
+    }
+
+    private func shareText(_ reflection: Reflection) -> String {
+        var lines = [title.title, reflection.summary]
+        lines.append(contentsOf: reflection.liked.map { "+ " + $0 })
+        lines.append(contentsOf: reflection.questions.map { "? " + $0 })
+        return lines.filter { !$0.isEmpty }.joined(separator: "\n")
     }
 }
