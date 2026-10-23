@@ -17,6 +17,7 @@ struct DiscussionView: View {
     @State private var confirmClear = false
     @State private var showReflection = false
     @State private var reflectionDraft = ""
+    @State private var selectedCitation: AnswerCitation?
 
     private var entry: LibraryEntry { library.entry(for: title.id) ?? LibraryEntry(title: title) }
     private var context: GroundedContext {
@@ -61,7 +62,23 @@ struct DiscussionView: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 Label(turn.role == .user ? "Ты" : "FrameTrail · локально", systemImage: turn.role == .user ? "person.crop.circle" : "sparkles")
                                     .font(.caption.bold()).foregroundStyle(turn.role == .user ? Theme.muted : Theme.accent)
-                                Text(turn.text).font(.body).textSelection(.enabled)
+                                Text(SourceAnswer.visibleText(turn.text)).font(.body).textSelection(.enabled)
+                                if let citations = turn.citations, !citations.isEmpty {
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 8) {
+                                            ForEach(citations) { citation in
+                                                Button { selectedCitation = citation } label: {
+                                                    Label("[\(citation.number)] \(citation.label.isEmpty ? "Источник" : citation.label)", systemImage: "doc.text")
+                                                        .font(.caption).padding(.horizontal, 10).padding(.vertical, 8)
+                                                        .background(Theme.accent.opacity(0.12), in: Capsule())
+                                                }.buttonStyle(.plain).foregroundStyle(Theme.accent)
+                                            }
+                                        }
+                                    }
+                                } else if turn.role == .assistant {
+                                    Text("В старом ответе ссылки не сохранены. Для проверяемых источников задай вопрос ещё раз.")
+                                        .font(.caption).foregroundStyle(Theme.muted)
+                                }
                                 if turn.role == .assistant {
                                     HStack {
                                         ShareLink(item: title.title + "\n\n" + turn.text) { Label("Поделиться", systemImage: "square.and.arrow.up") }
@@ -114,6 +131,7 @@ struct DiscussionView: View {
         .onChange(of: model.localeIdentifier) { _, _ in stopResponse() }
         .onDisappear { stopResponse() }
         .sheet(isPresented: $showReflection) { ReflectionEditorView(title: title, initialSummary: reflectionDraft) }
+        .sheet(item: $selectedCitation) { CitationDetailView(citation: $0) }
         .confirmationDialog("Удалить весь диалог этой истории с устройства?", isPresented: $confirmClear, titleVisibility: .visible) {
             Button("Очистить обсуждение", role: .destructive) { stopResponse(); library.clearChat(for: title.id) }
         }
@@ -198,7 +216,7 @@ struct DiscussionView: View {
                   current.facts == snapshot.facts, current.episodes == snapshot.episodes else { return }
             var changed = current
             changed.chat.append(ChatTurn(role: .user, text: text))
-            changed.chat.append(ChatTurn(role: .assistant, text: response))
+            changed.chat.append(ChatTurn(role: .assistant, text: response.text, citations: response.citations))
             changed.chat = Array(changed.chat.suffix(80))
             changed.updatedAt = Date()
             library.update(changed)

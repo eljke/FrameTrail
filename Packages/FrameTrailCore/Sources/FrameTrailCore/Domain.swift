@@ -121,12 +121,14 @@ public struct ChatTurn: Identifiable, Hashable, Codable, Sendable {
     public var role: ChatRole
     public var text: String
     public var createdAt: Date
+    public var citations: [AnswerCitation]?
 
-    public init(id: UUID = UUID(), role: ChatRole, text: String, createdAt: Date = Date()) {
+    public init(id: UUID = UUID(), role: ChatRole, text: String, createdAt: Date = Date(), citations: [AnswerCitation]? = nil) {
         self.id = id
         self.role = role
         self.text = text
         self.createdAt = createdAt
+        self.citations = citations
     }
 }
 

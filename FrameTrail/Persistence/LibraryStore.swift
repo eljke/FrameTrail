@@ -507,6 +507,14 @@ final class LibraryStore {
                 guard turn.text.count <= 30_000, turn.createdAt.timeIntervalSince1970.isFinite else {
                     throw LibraryStoreError.invalidData("слишком длинное сообщение")
                 }
+                if let citations = turn.citations {
+                    guard citations.count <= 24, Set(citations.map(\.id)).count == citations.count,
+                          Set(citations.map(\.number)).count == citations.count,
+                          citations.allSatisfy({ validIdentifier($0.id, maximum: 512) && (1...24).contains($0.number)
+                              && !$0.quote.isEmpty && $0.quote.count <= 1_200 && validURL($0.sourceURL) }) else {
+                        throw LibraryStoreError.invalidData("некорректные ссылки ответа")
+                    }
+                }
             }
             for reflection in entry.reflections {
                 let choices = reflection.likedChoices + reflection.dislikedChoices
