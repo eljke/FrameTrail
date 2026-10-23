@@ -161,6 +161,8 @@ CI runs domain, service, filesystem, and UI checks; retains simulator results an
 
 ## Versions and contributions
 
+Record every bug in GitHub Issues before fixing it. See [CONTRIBUTING](CONTRIBUTING.md) for the workflow and verification requirements.
+
 Prepare each version in a retained `release/<version>` branch, currently `release/1.0.0`. Run checks, publish the IPA, and verify the published assets before merging that release branch into `main` through a pull request. IPA files belong in Releases; GitHub Packages is unnecessary because this app does not publish separate dependency packages or containers.
 
 `VERSION` contains the release's SemVer string, `1.0.0-beta.1`, and is bundled as a resource. Settings shows this value alongside the actual bundle build number. The bundle uses numeric version `1.0.0` and build `1`. Tag `v1.0.0-beta.1` must match `VERSION` exactly. The workflow publishes the prerelease with its IPA and SHA-256 only after successful checks. Stable version tags are not marked as prereleases.
