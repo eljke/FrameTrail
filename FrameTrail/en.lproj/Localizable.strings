@@ -434,3 +434,4 @@
 "Некорректный словарь имён" = "Invalid name glossary";
 "Перевод не сохранил имена. Показан оригинальный текст." = "Translation could not preserve the names. The original text is shown.";
 "Не удалось сохранить имена при переводе. Попробуй английский язык или уточни словарь." = "Names could not be preserved during translation. Try English or adjust the glossary.";
+"Сезонов с оценкой: %@" = "Rated seasons: %@";

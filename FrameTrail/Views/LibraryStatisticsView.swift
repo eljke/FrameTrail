@@ -19,6 +19,8 @@ struct LibraryStatistics {
     let averageRating: Double?
     let ratedEpisodeCount: Int
     let averageEpisodeRating: Double?
+    let ratedSeasonCount: Int
+    let averageSeasonRating: Double?
     let ratingDistribution: [RatingBucket]
 
     init(entries: [LibraryEntry]) {
@@ -40,6 +42,9 @@ struct LibraryStatistics {
         let episodeRatings = current.filter { $0.episodeID != nil }.compactMap(\.rating)
         ratedEpisodeCount = episodeRatings.count
         averageEpisodeRating = episodeRatings.isEmpty ? nil : Double(episodeRatings.reduce(0, +)) / Double(episodeRatings.count)
+        let seasonRatings = current.filter { $0.seasonNumber != nil }.compactMap(\.rating)
+        ratedSeasonCount = seasonRatings.count
+        averageSeasonRating = seasonRatings.isEmpty ? nil : Double(seasonRatings.reduce(0, +)) / Double(seasonRatings.count)
         let frequencies = Dictionary(grouping: ratings, by: { $0 }).mapValues(\.count)
         ratingDistribution = (1...10).map { RatingBucket(rating: $0, count: frequencies[$0, default: 0]) }
     }
@@ -100,6 +105,15 @@ struct LibraryStatisticsView: View {
                         Text(L10n.text("Серий с оценкой: %@", String(describing: statistics.ratedEpisodeCount)))
                         Spacer()
                         Text(L10n.text("Средняя: %@/10", String(describing: average.formatted(.number.precision(.fractionLength(1)).locale(L10n.locale))))).foregroundStyle(Theme.accent)
+                    }.font(.caption)
+                }
+                if let average = statistics.averageSeasonRating {
+                    Divider()
+                    HStack {
+                        Text(L10n.text("Сезонов с оценкой: %@", String(statistics.ratedSeasonCount)))
+                        Spacer()
+                        Text(L10n.text("Средняя: %@/10", average.formatted(.number.precision(.fractionLength(1)).locale(L10n.locale))))
+                            .foregroundStyle(Theme.accent)
                     }.font(.caption)
                 }
             }

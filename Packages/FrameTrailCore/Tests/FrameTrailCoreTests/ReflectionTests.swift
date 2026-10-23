@@ -3,6 +3,16 @@ import XCTest
 @testable import FrameTrailCore
 
 final class ReflectionTests: XCTestCase {
+    func testSeasonReviewExcludesUnwatchedAndOtherSeasonSources() {
+        let title = MediaTitle(id: "show", title: "Show", kind: .series, provider: "local", providerID: "show")
+        let episodes = [Episode(id: "e1", season: 1, number: 1, name: "First", summary: "Allowed events"), Episode(id: "e2", season: 1, number: 2, name: "Second", summary: "Future events"), Episode(id: "e3", season: 2, number: 1, name: "Third", summary: "Other season")]
+        let context = SpoilerContextBuilder.forReview(title: title, episodes: episodes, progress: WatchProgress(watchedEpisodeIDs: ["e1", "e3"]), facts: [], episodeID: nil, seasonNumber: 1)
+        XCTAssertEqual(context.allowedEpisodeIDs, ["e1"])
+        XCTAssertTrue(context.text.contains("Allowed events"))
+        XCTAssertFalse(context.text.contains("Future events"))
+        XCTAssertFalse(context.text.contains("Other season"))
+    }
+
     func testSeasonRatingDoesNotReplaceOverallOrEpisodeRating() throws {
         let records = [Reflection(titleID: "show", rating: 7), Reflection(titleID: "show", rating: 9, seasonNumber: 1), Reflection(titleID: "show", rating: 4, episodeID: "e1", episodeSeason: 1, episodeNumber: 1)]
         let restored = try JSONDecoder().decode([Reflection].self, from: JSONEncoder().encode(records))
