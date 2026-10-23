@@ -208,7 +208,9 @@ final class FrameTrailSmokeTests: XCTestCase {
         XCTAssertEqual(app.switches["applyRatingToEpisodes"].value as? String, "1")
         toggle(app.switches["overwriteEpisodeRatings"], app: app)
         app.buttons["saveReflection"].tap()
-        app.buttons["confirmRatingOverwrite"].tap()
+        let confirm = app.sheets.buttons["confirmRatingOverwrite"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
         let undo = app.buttons["undoEpisodeRatings"]
         XCTAssertTrue(undo.waitForExistence(timeout: 5))
         reveal(undo, app: app)
