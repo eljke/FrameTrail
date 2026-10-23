@@ -40,7 +40,7 @@ Actual iPhone Air Simulator screenshots from automated UI scenarios with demonst
 | Recall watched events | Read a watched episode's summary or ask the assistant. Inspect available source material and links without generation. |
 | Discussion after the ending | Mark a title as finished to use its available full-film material and discuss a recap, ending, motivations, or open questions. Answer quality depends on the sources. |
 | Your own sources | Paste text or import UTF-8 TXT, SRT, and VTT files. Assign a specific episode when importing material for a show. |
-| Ratings and impressions | Rate a movie, an overall show, or a watched episode from 1–10. Save likes, dislikes and notes; every field and question is optional. |
+| Ratings and impressions | Rate a movie, an overall show, or a watched episode with ten stars: tap or slide, with selection feedback. Every field and question is optional. |
 | Prepared Apple suggestions | The local model selects allowed plot excerpts. Choose multiple answers, add your text, or save just a rating. |
 | Series retrospective | Compile saved impressions across watched episodes with the local model. Edit, share, or explicitly save the result in your journal. |
 | Viewing statistics | Title, completion, episode and reflection counts, rating average and distribution. Only the latest rating per title counts; episode ratings are calculated separately. |
