@@ -103,6 +103,8 @@ struct SettingsView: View {
                 Button("Импортировать резервную копию") { importing = true }
             } header: { Text("Данные и место") }
             Section {
+                NavigationLink { QuickGuideView() } label: { Label("Краткий гид по FrameTrail", systemImage: "questionmark.circle") }
+                    .accessibilityIdentifier("openQuickGuide")
                 Label("Диалоги обрабатываются на iPhone", systemImage: "iphone.gen3")
                 Label("Без рекламы и аналитических SDK", systemImage: "hand.raised")
                 Text("Поисковые запросы отправляются выбранным каталогам. При входе в FrameTrail карточки, прогресс и личные итоги хранятся в Supabase. Текст обсуждения обрабатывается локально. Подключение TMDB подтверждается на его сайте.")

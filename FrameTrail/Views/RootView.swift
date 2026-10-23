@@ -1,5 +1,6 @@
 import SwiftUI
 import FrameTrailCore
+import TipKit
 
 struct RootView: View {
     @Environment(AppModel.self) private var model
@@ -32,6 +33,7 @@ struct DiscoverView: View {
     @State private var isSearching = false
     @State private var error: String?
     @State private var manualEntry = false
+    @State private var quickGuide = false
 
     var body: some View {
         ScrollView {
@@ -58,6 +60,9 @@ struct DiscoverView: View {
                         }.buttonStyle(.plain)
                     }
                     SectionCaption(eyebrow: "Найди свою историю", title: "Начни с названия")
+                    if library.entries.isEmpty && !model.isUITesting {
+                        TipView(FirstTitleTip()) { _ in quickGuide = true }
+                    }
                     if !model.featured.isEmpty {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(alignment: .top, spacing: 16) {
@@ -85,6 +90,10 @@ struct DiscoverView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "Фильм или сериал")
         .sheet(isPresented: $manualEntry) { ManualTitleView() }
+        .sheet(isPresented: $quickGuide) { NavigationStack { QuickGuideView() } }
+        .onChange(of: library.entries.isEmpty) { _, empty in
+            if !empty && !model.isUITesting { FirstTitleTip().invalidate(reason: .actionPerformed) }
+        }
         .task(id: model.catalogRevision) { await model.loadFeatured() }
         .task(id: query + model.catalogRevision.uuidString) {
             let search = query.trimmingCharacters(in: .whitespacesAndNewlines)

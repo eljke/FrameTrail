@@ -64,6 +64,11 @@ final class FrameTrailSmokeTests: XCTestCase {
         tabs.buttons["Настройки"].tap()
         XCTAssertTrue(tabs.buttons["Настройки"].isSelected)
         capture("05-settings", app: app)
+        let guide = app.buttons["openQuickGuide"]
+        reveal(guide, app: app)
+        guide.tap()
+        XCTAssertTrue(app.navigationBars["Краткий гид"].waitForExistence(timeout: 5))
+        app.buttons["closeGuide"].tap()
         let storage = app.buttons["storageSettings"]
         reveal(storage, app: app)
         storage.tap()

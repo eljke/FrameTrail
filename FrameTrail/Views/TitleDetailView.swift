@@ -1,5 +1,6 @@
 import SwiftUI
 import FrameTrailCore
+import TipKit
 
 struct TitleDetailView: View {
     let title: MediaTitle
@@ -68,7 +69,13 @@ struct TitleDetailView: View {
                 }
                 if let plotInfo { Text(plotInfo).font(.footnote).foregroundStyle(Theme.muted) }
                 if title.kind == .series && canReview {
-                    Button { showRetrospective = true } label: {
+                    if !model.isUITesting && Set(entry.reflections.compactMap(\.episodeID)).intersection(entry.progress.watchedEpisodeIDs).count >= 2 {
+                        TipView(SeriesRetrospectiveTip())
+                    }
+                    Button {
+                        if !model.isUITesting { SeriesRetrospectiveTip().invalidate(reason: .actionPerformed) }
+                        showRetrospective = true
+                    } label: {
                         Label("Собрать общую картину по сериям", systemImage: "sparkles.rectangle.stack")
                     }.buttonStyle(.bordered).accessibilityIdentifier("compileSeriesImpressions")
                     Text("Сводка Apple по сохранённым оценкам и впечатлениям о просмотренных сериях.").font(.caption).foregroundStyle(Theme.muted)
@@ -95,10 +102,17 @@ struct TitleDetailView: View {
                     if let source = title.sourceURL { Link("Карточка у источника", destination: source).font(.footnote) }
                 }
                 if canReview {
-                    Button { editingReflection = overallReview; reflectionEditor = true } label: {
+                    if entry.reflections.isEmpty && !model.isUITesting { TipView(FirstReviewTip()) }
+                    Button {
+                        if !model.isUITesting { FirstReviewTip().invalidate(reason: .actionPerformed) }
+                        editingReflection = overallReview; reflectionEditor = true
+                    } label: {
                         Label(overallReview?.rating == nil ? "Оценить и разобрать впечатления" : "Моя оценка и впечатления", systemImage: "star.bubble")
                     }.buttonStyle(.bordered).accessibilityIdentifier("rateTitle")
-                    Button { editingReflection = nil; reflectionEditor = true } label: { Label("Сохранить личный итог", systemImage: "square.and.pencil") }
+                    Button {
+                        if !model.isUITesting { FirstReviewTip().invalidate(reason: .actionPerformed) }
+                        editingReflection = nil; reflectionEditor = true
+                    } label: { Label("Сохранить личный итог", systemImage: "square.and.pencil") }
                         .buttonStyle(.borderedProminent).accessibilityIdentifier("writeReflection")
                 }
                 ForEach(entry.reflections.sorted { $0.createdAt > $1.createdAt }) { reflection in reflectionCard(reflection) }
@@ -168,7 +182,10 @@ struct TitleDetailView: View {
                     Spacer(minLength: 0)
                     Menu {
                         Button("Просмотрено всё до этой серии") { markThrough(episode) }
-                        Button("Оценить серию и впечатления") { episodeToReview = episode }.disabled(!watched)
+                        Button("Оценить серию и впечатления") {
+                            if !model.isUITesting { FirstReviewTip().invalidate(reason: .actionPerformed) }
+                            episodeToReview = episode
+                        }.disabled(!watched)
                         Button("Загрузить подробный сюжет серии") { Task { await loadEpisodePlot(episode) } }.disabled(!watched || loadingPlot)
                     } label: { Image(systemName: "ellipsis").padding(6).foregroundStyle(Theme.muted) }.accessibilityLabel("Действия с серией")
                 }.padding(12).background(Theme.card, in: RoundedRectangle(cornerRadius: 12))
