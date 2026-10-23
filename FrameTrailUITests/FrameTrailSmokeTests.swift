@@ -41,9 +41,10 @@ final class FrameTrailSmokeTests: XCTestCase {
         writeReflection.tap()
 
         let summary = app.textViews["reflectionSummary"]
-        let rating = app.buttons["rating-8"]
+        let rating = app.descendants(matching: .any).matching(identifier: "starRating").firstMatch
         XCTAssertTrue(rating.waitForExistence(timeout: 5))
-        rating.tap()
+        rating.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5)).tap()
+        XCTAssertEqual(app.staticTexts["ratingValue"].label, "8")
         reveal(summary, app: app)
         XCTAssertTrue(summary.exists)
         summary.tap()
@@ -140,9 +141,13 @@ final class FrameTrailSmokeTests: XCTestCase {
         watched.tap()
         app.buttons["Действия с серией"].firstMatch.tap()
         app.buttons["Оценить серию и впечатления"].tap()
-        let rating = app.buttons["rating-9"]
+        let rating = app.descendants(matching: .any).matching(identifier: "starRating").firstMatch
         XCTAssertTrue(rating.waitForExistence(timeout: 5))
-        rating.tap()
+        rating.coordinate(withNormalizedOffset: CGVector(dx: 0.35, dy: 0.5)).tap()
+        XCTAssertEqual(app.staticTexts["ratingValue"].label, "4")
+        rating.coordinate(withNormalizedOffset: CGVector(dx: 0.15, dy: 0.5))
+            .press(forDuration: 0.1, thenDragTo: rating.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.5)))
+        XCTAssertEqual(app.staticTexts["ratingValue"].label, "9")
         capture("08-episode-rating", app: app)
         let disliked = app.textViews["reflectionDisliked"]
         reveal(disliked, app: app)
