@@ -25,7 +25,7 @@ enum ServiceError: LocalizedError {
         case .invalidTMDBToken: return "Вставь сам TMDB API Read Access Token, без префикса Bearer и переносов строк."
         case .authorizationNotStarted: return "Начни вход заново, подтверди доступ на сайте TMDB и вернись в приложение."
         case .noPlot: return "Подходящий пересказ не найден. Можно добавить свой текст или субтитры."
-        case .unfinishedTitle: return "Полный сюжет загружается после отметки о завершении фильма."
+        case .unfinishedTitle: return "Полный сюжет доступен после отметки о просмотре фильма или выбранной серии."
         case .signedOutOffline: return "На устройстве выполнен выход. Отозвать сессию на TMDB не удалось; при необходимости удали её в подключённых приложениях аккаунта TMDB."
         }
     }
