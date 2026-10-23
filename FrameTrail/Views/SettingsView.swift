@@ -158,6 +158,7 @@ struct SettingsView: View {
         do {
             try await model.auth.setTMDBReadToken(apiToken.isEmpty ? nil : apiToken)
             try await model.refreshAccountState(library: library)
+            model.catalogDidChange()
             apiToken = ""
             awaitingApproval = false
             authorization = nil

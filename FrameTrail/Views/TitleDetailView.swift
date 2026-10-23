@@ -242,8 +242,8 @@ struct TitleDetailView: View {
         var lines = [title.title, reflection.summary]
         if let season = reflection.episodeSeason, let number = reflection.episodeNumber { lines.insert("S\(season) E\(number)", at: 1) }
         if let rating = reflection.rating { lines.append("★ \(rating)/10") }
-        lines.append(contentsOf: reflection.liked.map { "+ " + $0 })
-        lines.append(contentsOf: reflection.disliked.map { "− " + $0 })
+        lines.append(contentsOf: reflection.allLiked.map { "+ " + $0 })
+        lines.append(contentsOf: reflection.allDisliked.map { "− " + $0 })
         lines.append(contentsOf: reflection.questions.map { "? " + $0 })
         return lines.filter { !$0.isEmpty }.joined(separator: "\n")
     }
@@ -265,8 +265,8 @@ struct TitleDetailView: View {
                 Text("Сезон \(season) · Серия \(number)").font(.caption).foregroundStyle(Theme.accent)
             }
             if !reflection.summary.isEmpty { Text(reflection.summary).font(.subheadline).textSelection(.enabled) }
-            ForEach(Array(reflection.liked.enumerated()), id: \.offset) { item in Text("+ " + item.element).font(.caption).foregroundStyle(Theme.muted) }
-            ForEach(Array(reflection.disliked.enumerated()), id: \.offset) { item in Text("− " + item.element).font(.caption).foregroundStyle(Theme.muted) }
+            ForEach(Array(reflection.allLiked.enumerated()), id: \.offset) { item in Text("+ " + item.element).font(.caption).foregroundStyle(Theme.muted) }
+            ForEach(Array(reflection.allDisliked.enumerated()), id: \.offset) { item in Text("− " + item.element).font(.caption).foregroundStyle(Theme.muted) }
             ForEach(Array(reflection.questions.enumerated()), id: \.offset) { item in Text("? " + item.element).font(.caption).foregroundStyle(Theme.muted) }
             Text(reflection.createdAt, style: .date).font(.caption2).foregroundStyle(Theme.muted)
         }.padding(16).background(Theme.card, in: RoundedRectangle(cornerRadius: 16))

@@ -16,6 +16,7 @@ final class AppModel {
     var account: AuthAccount?
     var selectedTab = 0
     var featured: [MediaTitle] = []
+    var catalogRevision = UUID()
     var alertMessage: String?
     var hasCatalogToken = false
     var localeIdentifier: String {
@@ -62,8 +63,19 @@ final class AppModel {
 
     func loadFeatured() async {
         guard featured.isEmpty, !isUITesting else { return }
-        do { featured = try await catalog.featured() }
+        let revision = catalogRevision
+        do {
+            let loaded = try await catalog.featured()
+            try Task.checkCancellation()
+            guard revision == catalogRevision else { return }
+            featured = loaded
+        }
         catch is CancellationError {} catch { alertMessage = error.localizedDescription }
+    }
+
+    func catalogDidChange() {
+        featured = []
+        catalogRevision = UUID()
     }
 
     func finishAuthorization(library: LibraryStore) async throws {

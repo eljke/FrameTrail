@@ -50,4 +50,18 @@ final class ReflectionTests: XCTestCase {
         XCTAssertTrue(plan.batches.allSatisfy { $0.count <= 5_000 })
         XCTAssertTrue(plan.batches.joined().contains("S1 E120,"))
     }
+
+    func testPreparedAnswersCannotInventPassagesOrUseOtherEpisodes() throws {
+        let title = MediaTitle(id: "show", title: "Show", kind: .series, provider: "test", providerID: "show")
+        let first = Episode(id: "e1", season: 1, number: 1, name: "First", summary: "Walter avoids a confrontation and returns home safely.")
+        let second = Episode(id: "e2", season: 1, number: 2, name: "Second", summary: "FUTURE EVENT which must not appear in these answers.")
+        let packet = SpoilerContextBuilder.forReview(title: title, episodes: [first, second], progress: WatchProgress(watchedEpisodeIDs: ["e1", "e2"]), facts: [], episodeID: "e1")
+        let candidates = ReviewPassages.candidates(in: packet)
+        let passage = try XCTUnwrap(candidates.first)
+        let choice = try XCTUnwrap(ReviewPassages.choice(passageID: passage.id, aspect: .characters, candidates: candidates))
+        XCTAssertTrue(first.summary.contains(choice.sourceQuote))
+        XCTAssertEqual(choice.episodeID, "e1")
+        XCTAssertFalse(choice.text.contains("FUTURE"))
+        XCTAssertNil(ReviewPassages.choice(passageID: "invented-event", aspect: .story, candidates: candidates))
+    }
 }

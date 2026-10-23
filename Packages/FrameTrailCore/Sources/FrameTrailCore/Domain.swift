@@ -136,6 +136,10 @@ public struct Reflection: Identifiable, Hashable, Codable, Sendable {
     public var summary: String
     public var liked: [String]
     public var disliked: [String]
+    public var likedChoices: [ReviewChoice]
+    public var dislikedChoices: [ReviewChoice]
+    public var allLiked: [String] { likedChoices.map(\.text) + liked }
+    public var allDisliked: [String] { dislikedChoices.map(\.text) + disliked }
     public var questions: [String]
     public var rating: Int?
     public var createdAt: Date
@@ -154,7 +158,9 @@ public struct Reflection: Identifiable, Hashable, Codable, Sendable {
         disliked: [String] = [],
         episodeID: String? = nil,
         episodeSeason: Int? = nil,
-        episodeNumber: Int? = nil
+        episodeNumber: Int? = nil,
+        likedChoices: [ReviewChoice] = [],
+        dislikedChoices: [ReviewChoice] = []
     ) {
         self.id = id
         self.titleID = titleID
@@ -167,6 +173,8 @@ public struct Reflection: Identifiable, Hashable, Codable, Sendable {
         self.episodeID = episodeID
         self.episodeSeason = episodeSeason
         self.episodeNumber = episodeNumber
+        self.likedChoices = likedChoices
+        self.dislikedChoices = dislikedChoices
     }
 
     public static func latest(in records: [Reflection], episodeID: String? = nil) -> Reflection? {
@@ -177,7 +185,7 @@ public struct Reflection: Identifiable, Hashable, Codable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, titleID, summary, liked, disliked, questions, rating, createdAt, episodeID, episodeSeason, episodeNumber
+        case id, titleID, summary, liked, disliked, likedChoices, dislikedChoices, questions, rating, createdAt, episodeID, episodeSeason, episodeNumber
     }
 
     public init(from decoder: Decoder) throws {
@@ -187,6 +195,8 @@ public struct Reflection: Identifiable, Hashable, Codable, Sendable {
         summary = try values.decode(String.self, forKey: .summary)
         liked = try values.decode([String].self, forKey: .liked)
         disliked = try values.decodeIfPresent([String].self, forKey: .disliked) ?? []
+        likedChoices = try values.decodeIfPresent([ReviewChoice].self, forKey: .likedChoices) ?? []
+        dislikedChoices = try values.decodeIfPresent([ReviewChoice].self, forKey: .dislikedChoices) ?? []
         questions = try values.decode([String].self, forKey: .questions)
         rating = try values.decodeIfPresent(Int.self, forKey: .rating)
         createdAt = try values.decode(Date.self, forKey: .createdAt)

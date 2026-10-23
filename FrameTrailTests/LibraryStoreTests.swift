@@ -499,6 +499,7 @@ final class LibraryStoreTests: XCTestCase {
         entry.progress.watchedEpisodeIDs = ["e1"]
         entry.episodes = [Episode(id: "e1", season: 2, number: 3, name: "Episode")]
         entry.reflections = [Reflection(titleID: "show", liked: ["Performance"], rating: 8, disliked: ["Pacing"], episodeID: "e1", episodeSeason: 2, episodeNumber: 3)]
+        entry.reflections[0].likedChoices = [ReviewChoice(id: "fact#0:characters", aspect: .characters, text: "Персонажи — решение вернуться", sourceQuote: "The character decides to return home.", sourceID: "fact", sourceURL: URL(string: "https://example.org/episode"), episodeID: "e1")]
         first.update(entry)
         let payload = try XCTUnwrap(first.cloudItems().first)
         let second = LibraryStore(directory: secondDirectory)

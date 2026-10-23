@@ -85,8 +85,8 @@ struct DiscoverView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: "Фильм или сериал")
         .sheet(isPresented: $manualEntry) { ManualTitleView() }
-        .task { await model.loadFeatured() }
-        .task(id: query) {
+        .task(id: model.catalogRevision) { await model.loadFeatured() }
+        .task(id: query + model.catalogRevision.uuidString) {
             let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !search.isEmpty else { results = []; error = nil; isSearching = false; return }
             isSearching = true

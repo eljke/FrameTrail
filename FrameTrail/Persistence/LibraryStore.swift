@@ -468,6 +468,17 @@ final class LibraryStore {
                 }
             }
             for reflection in entry.reflections {
+                let choices = reflection.likedChoices + reflection.dislikedChoices
+                guard reflection.likedChoices.count <= 30, reflection.dislikedChoices.count <= 30,
+                      Set(reflection.likedChoices.map(\.id)).count == reflection.likedChoices.count,
+                      Set(reflection.dislikedChoices.map(\.id)).count == reflection.dislikedChoices.count,
+                      choices.allSatisfy({ choice in
+                          validIdentifier(choice.id, maximum: 1_024) && validIdentifier(choice.sourceID, maximum: 512)
+                              && !choice.sourceQuote.isEmpty && choice.sourceQuote.count <= 220
+                              && !choice.text.isEmpty && choice.text.count <= 1_000 && validURL(choice.sourceURL)
+                              && (choice.episodeID.map { validIdentifier($0, maximum: 256) } ?? true)
+                              && (reflection.episodeID == nil || choice.episodeID == reflection.episodeID)
+                      }) else { throw LibraryStoreError.invalidData("некорректные варианты впечатлений") }
                 guard reflection.titleID == entry.id, reflection.summary.count <= 30_000,
                       reflection.liked.count <= 100, reflection.disliked.count <= 100, reflection.questions.count <= 100,
                       reflection.liked.allSatisfy({ $0.count <= 5_000 }), reflection.questions.allSatisfy({ $0.count <= 5_000 }),

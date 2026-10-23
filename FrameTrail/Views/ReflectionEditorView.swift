@@ -12,6 +12,8 @@ struct ReflectionEditorView: View {
     @State private var summary = ""
     @State private var liked = ""
     @State private var disliked = ""
+    @State private var likedChoices: [ReviewChoice] = []
+    @State private var dislikedChoices: [ReviewChoice] = []
     @State private var questions = ""
     @State private var rating = 0
     @State private var error: String?
@@ -56,12 +58,16 @@ struct ReflectionEditorView: View {
                 }
                 Section("Что понравилось — по пункту на строку") {
                     if let interview { Text(interview.liked).font(.subheadline).foregroundStyle(Theme.accent).textSelection(.enabled) }
+                    ReviewChoiceList(choices: choiceOptions(positive: true), selected: $likedChoices)
+                    Text("Свой вариант · необязательно").font(.caption).foregroundStyle(.secondary)
                     TextEditor(text: $liked).frame(minHeight: 70)
                         .accessibilityIdentifier("reflectionLiked")
                         .onChange(of: liked) { _, value in if value.count > 30_000 { liked = String(value.prefix(30_000)) } }
                 }
                 Section("Что не понравилось или могло быть лучше?") {
                     if let interview { Text(interview.disliked).font(.subheadline).foregroundStyle(Theme.accent).textSelection(.enabled) }
+                    ReviewChoiceList(choices: choiceOptions(positive: false), selected: $dislikedChoices)
+                    Text("Свой вариант · необязательно").font(.caption).foregroundStyle(.secondary)
                     TextEditor(text: $disliked).frame(minHeight: 70)
                         .accessibilityIdentifier("reflectionDisliked")
                         .onChange(of: disliked) { _, value in if value.count > 30_000 { disliked = String(value.prefix(30_000)) } }
@@ -74,10 +80,11 @@ struct ReflectionEditorView: View {
                 if let error { Section { ErrorNotice(message: error) } }
             }
             .navigationTitle("Личный итог")
+            .scrollContentBackground(.hidden).background(Theme.background)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Сохранить") { save() }.disabled([summary, liked, disliked, questions].allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } && rating == 0)
+                    Button("Сохранить") { save() }.disabled([summary, liked, disliked, questions].allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } && likedChoices.isEmpty && dislikedChoices.isEmpty && rating == 0)
                         .accessibilityIdentifier("saveReflection")
                 }
             }
@@ -86,6 +93,8 @@ struct ReflectionEditorView: View {
                     summary = reflection.summary
                     liked = reflection.liked.joined(separator: "\n")
                     disliked = reflection.disliked.joined(separator: "\n")
+                    likedChoices = reflection.likedChoices
+                    dislikedChoices = reflection.dislikedChoices
                     questions = reflection.questions.joined(separator: "\n")
                     rating = reflection.rating ?? 0
                 } else {
@@ -120,10 +129,10 @@ struct ReflectionEditorView: View {
                 interview = nil
                 skippedInterview = true
             }.disabled(skippedInterview)
-            Text("Можно сохранить только оценку. Впечатления и ответы необязательны; заполненные поля сохранятся в дневнике.")
+            Text("Можно выбрать несколько вариантов, добавить свой или пропустить вопросы и сохранить только оценку. Выбранные ответы сохранятся как твои впечатления.")
                 .font(.caption).foregroundStyle(.secondary)
             Text(model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable
-                 ? "Apple Intelligence предложит вопросы про выбранную историю или серию с учётом оценки и твоих ответов. Сохраняются твои впечатления; вопросы можно пропустить."
+                 ? "Варианты основаны на материалах выбранной истории или серии. Свои впечатления можно вписать ниже."
                  : "Оценки и заметки доступны вручную. Для вопросов помощника подготовь локальную модель и язык в настройках.")
                 .font(.caption).foregroundStyle(.secondary)
         } header: { Text("Разобраться в послевкусии") }
@@ -134,6 +143,12 @@ struct ReflectionEditorView: View {
         generationTask?.cancel()
         generationTask = nil
         generating = false
+    }
+
+    private func choiceOptions(positive: Bool) -> [ReviewChoice] {
+        let options = positive ? interview?.likedChoices ?? [] : interview?.dislikedChoices ?? []
+        let saved = positive ? likedChoices : dislikedChoices
+        return options + saved.filter { existing in !options.contains(where: { $0.id == existing.id }) }
     }
 
     private func startInterview() {
@@ -172,7 +187,9 @@ struct ReflectionEditorView: View {
             disliked: lines(disliked),
             episodeID: scopeID,
             episodeSeason: scopeSeason,
-            episodeNumber: scopeNumber
+            episodeNumber: scopeNumber,
+            likedChoices: likedChoices,
+            dislikedChoices: dislikedChoices
         )
         if let index = entry.reflections.firstIndex(where: { $0.id == saved.id }) {
             entry.reflections[index] = saved

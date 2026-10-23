@@ -21,7 +21,7 @@ public struct ReflectionCompilation: Sendable {
         var packet = ""
         var didShorten = false
         for record in latest {
-            let parts = [record.summary, record.liked.joined(separator: "; "), record.disliked.joined(separator: "; "), record.questions.joined(separator: "; ")]
+            let parts = [record.summary, record.allLiked.joined(separator: "; "), record.allDisliked.joined(separator: "; "), record.questions.joined(separator: "; ")]
             if parts.contains(where: { $0.count > 180 }) { didShorten = true }
             let headings = ["Summary", "Liked", "Disliked", "Open questions"]
             let note = zip(headings, parts).map { "\($0): \(String($1.prefix(180)))" }.joined(separator: "\n")

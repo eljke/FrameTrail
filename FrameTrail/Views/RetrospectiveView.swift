@@ -61,6 +61,7 @@ struct RetrospectiveView: View {
                 if let error { Section { ErrorNotice(message: error) } }
             }
             .navigationTitle("Общая картина")
+            .scrollContentBackground(.hidden).background(Theme.background)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
