@@ -124,17 +124,6 @@ struct ReflectionEditorView: View {
 
     private var interviewSection: some View {
         Section {
-            let context = reviewContext
-            if context.hasEvidence {
-                Label(context.evidence.allSatisfy { ["overview", "summary"].contains($0.kind) } ? "Основа — краткая аннотация" : "Есть дополнительные материалы", systemImage: "text.book.closed")
-                    .font(.subheadline)
-                Text("События просмотренного можно обсуждать открыто. Аннотация может не содержать развязку: варианты затронут только то, что есть в источниках.")
-                    .font(.caption).foregroundStyle(.secondary)
-            } else {
-                Text("Для сюжетных вариантов пока нет материалов. Свои впечатления и оценку можно сохранить сразу.")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Button("Добавить подробности или субтитры") { stopInterview(); importingSource = true }
             Button {
                 skippedInterview = false
                 startInterview()
@@ -149,14 +138,22 @@ struct ReflectionEditorView: View {
                 interview = nil
                 skippedInterview = true
             }.disabled(skippedInterview)
-            Text("Можно выбрать несколько вариантов, добавить свой или пропустить вопросы и сохранить только оценку. Выбранные ответы сохранятся как твои впечатления.")
-                .font(.caption).foregroundStyle(.secondary)
+            DisclosureGroup("Материалы для разбора") {
+                let context = reviewContext
+                Text(context.hasEvidence ? "Есть материалы выбранного фильма или серии." : "Сохранённых материалов пока нет.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Text("Перед разбором попробую найти подробный сюжет Wikipedia. Варианты затронут только доступные источники выбранного просмотренного эпизода или фильма, включая его финал. Другие серии исключены.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Button("Добавить текст или субтитры") { stopInterview(); importingSource = true }
+            }.font(.subheadline)
             if let sourceNotice { Text(sourceNotice).font(.caption).foregroundStyle(.secondary) }
-            Text(model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable
-                 ? "Варианты основаны на материалах выбранной истории или серии. Свои впечатления можно вписать ниже."
-                 : "Оценки и заметки доступны вручную. Для вопросов помощника подготовь локальную модель и язык в настройках.")
-                .font(.caption).foregroundStyle(.secondary)
-        } header: { Text("Разобраться в послевкусии") }
+            if !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable {
+                Text("Оценки и заметки доступны вручную. Для вариантов помощника подготовь модель и язык в настройках.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        } header: { Text("Впечатления с помощником") } footer: {
+            Text("Необязательно: выбери несколько вариантов, добавь свой ответ или сохрани только оценку.")
+        }
     }
 
     private func stopInterview() {
