@@ -30,11 +30,11 @@ struct LibraryStatistics {
         let reflections = entries.flatMap { $0.reflections }
         reflectionCount = reflections.count
         let current: [Reflection] = entries.flatMap { entry in
-            Dictionary(grouping: entry.reflections, by: \.episodeID).values.compactMap { records in
-                Reflection.latest(in: records, episodeID: records[0].episodeID)
+            Dictionary(grouping: entry.reflections, by: \.scope).values.compactMap { records in
+                Reflection.latest(in: records, episodeID: records[0].episodeID, seasonNumber: records[0].seasonNumber)
             }
         }
-        let ratings = current.filter { $0.episodeID == nil }.compactMap(\.rating)
+        let ratings = current.filter { $0.scope == .title }.compactMap(\.rating)
         ratedTitleCount = ratings.count
         averageRating = ratings.isEmpty ? nil : Double(ratings.reduce(0, +)) / Double(ratings.count)
         let episodeRatings = current.filter { $0.episodeID != nil }.compactMap(\.rating)

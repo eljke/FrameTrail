@@ -88,6 +88,8 @@ struct JournalView: View {
                             }
                             if let season = record.reflection.episodeSeason, let number = record.reflection.episodeNumber {
                                 Text("Сезон \(season) · Серия \(number)").font(.caption).foregroundStyle(Theme.accent)
+                            } else if let season = record.reflection.seasonNumber {
+                                Text("Сезон \(season)").font(.caption).foregroundStyle(Theme.accent)
                             }
                             if !record.reflection.summary.isEmpty { Text(record.reflection.summary).font(.subheadline).lineLimit(5).foregroundStyle(Theme.muted) }
                             if let liked = record.reflection.allLiked.first { Text("+ " + liked).font(.caption).lineLimit(2).foregroundStyle(Theme.muted) }

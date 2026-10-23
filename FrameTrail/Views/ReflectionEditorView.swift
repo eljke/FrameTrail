@@ -6,6 +6,7 @@ struct ReflectionEditorView: View {
     var reflection: Reflection? = nil
     var initialSummary: String = ""
     var episode: Episode? = nil
+    var season: Int? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(LibraryStore.self) private var library
     @Environment(AppModel.self) private var model
@@ -28,9 +29,13 @@ struct ReflectionEditorView: View {
     private var scopeID: String? { reflection?.episodeID ?? episode?.id }
     private var scopeSeason: Int? { reflection?.episodeSeason ?? episode?.season }
     private var scopeNumber: Int? { reflection?.episodeNumber ?? episode?.number }
+    private var seasonScope: Int? { reflection?.seasonNumber ?? season }
     private var currentProgress: WatchProgress { library.entry(for: title.id)?.progress ?? WatchProgress() }
     private var canInterview: Bool {
         if let scopeID { return currentProgress.watchedEpisodeIDs.contains(scopeID) }
+        if let seasonScope {
+            return library.entry(for: title.id)?.episodes.contains { $0.season == seasonScope && currentProgress.watchedEpisodeIDs.contains($0.id) } == true
+        }
         return currentProgress.finished || (title.kind == .series && !currentProgress.watchedEpisodeIDs.isEmpty)
     }
     private var canSave: Bool {
@@ -38,12 +43,13 @@ struct ReflectionEditorView: View {
             || [summary, liked, disliked, questions].contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
     private var targetName: String {
+        if let seasonScope { return "\(title.title) · season \(seasonScope), watched episodes only" }
         guard let scopeSeason, let scopeNumber else { return title.title + (title.kind == .movie ? " · whole film" : " · series overall") }
         return "\(title.title) · S\(scopeSeason) E\(scopeNumber) only"
     }
     private var reviewContext: GroundedContext {
         let entry = library.entry(for: title.id) ?? LibraryEntry(title: title)
-        return SpoilerContextBuilder.forReview(title: title, episodes: entry.episodes, progress: entry.progress, facts: entry.facts, episodeID: scopeID)
+        return SpoilerContextBuilder.forReview(title: title, episodes: entry.episodes, progress: entry.progress, facts: entry.facts, episodeID: scopeID, seasonNumber: seasonScope)
     }
 
     var body: some View {
@@ -53,6 +59,8 @@ struct ReflectionEditorView: View {
                     Text(title.title).font(.headline)
                     if let scopeSeason, let scopeNumber {
                         Text("Сезон \(scopeSeason) · Серия \(scopeNumber)").font(.subheadline).foregroundStyle(Theme.accent)
+                    } else if let seasonScope {
+                        Text("Сезон \(seasonScope)").font(.subheadline).foregroundStyle(Theme.accent)
                     } else {
                         Text(title.kind == .movie ? "Фильм целиком" : "Сериал в целом").font(.subheadline).foregroundStyle(Theme.accent)
                     }
@@ -62,7 +70,7 @@ struct ReflectionEditorView: View {
                 Section("Что осталось после просмотра?") {
                     TextEditor(text: $summary).frame(minHeight: 140).accessibilityIdentifier("reflectionSummary")
                         .onChange(of: summary) { _, value in if value.count > 10_000 { summary = String(value.prefix(10_000)) } }
-                    if scopeID == nil, let last = library.entry(for: title.id)?.chat.last(where: { $0.role == .assistant }) {
+                    if scopeID == nil && seasonScope == nil, let last = library.entry(for: title.id)?.chat.last(where: { $0.role == .assistant }) {
                         Button("Взять последний ответ за основу") { summary = String(last.text.prefix(10_000)) }
                     }
                 }
@@ -109,7 +117,7 @@ struct ReflectionEditorView: View {
                     rating = reflection.rating ?? 0
                 } else {
                     summary = String(initialSummary.prefix(10_000))
-                    rating = Reflection.latest(in: library.entry(for: title.id)?.reflections ?? [], episodeID: scopeID)?.rating ?? 0
+                    rating = Reflection.latest(in: library.entry(for: title.id)?.reflections ?? [], episodeID: scopeID, seasonNumber: seasonScope)?.rating ?? 0
                 }
             }
             .task {
@@ -231,7 +239,8 @@ struct ReflectionEditorView: View {
             episodeSeason: scopeSeason,
             episodeNumber: scopeNumber,
             likedChoices: likedChoices,
-            dislikedChoices: dislikedChoices
+            dislikedChoices: dislikedChoices,
+            seasonNumber: seasonScope
         )
         if let index = entry.reflections.firstIndex(where: { $0.id == saved.id }) {
             entry.reflections[index] = saved

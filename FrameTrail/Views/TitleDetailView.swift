@@ -19,6 +19,7 @@ struct TitleDetailView: View {
     @State private var pendingReflectionRemoval: Reflection?
     @State private var episodeToReview: Episode?
     @State private var showRetrospective = false
+    @State private var reviewingSeason = false
 
     private var entry: LibraryEntry { library.entry(for: title.id) ?? LibraryEntry(title: title) }
     private var isSaved: Bool { library.entry(for: title.id) != nil }
@@ -131,6 +132,9 @@ struct TitleDetailView: View {
             ReflectionEditorView(title: title, reflection: Reflection.latest(in: entry.reflections, episodeID: episode.id), episode: episode)
         }
         .sheet(isPresented: $showRetrospective) { RetrospectiveView(title: title) }
+        .sheet(isPresented: $reviewingSeason) {
+            ReflectionEditorView(title: title, reflection: Reflection.latest(in: entry.reflections, seasonNumber: selectedSeason), season: selectedSeason)
+        }
         .confirmationDialog("Удалить личный итог? После синхронизации он исчезнет и на других устройствах.", isPresented: Binding(get: { pendingReflectionRemoval != nil }, set: { if !$0 { pendingReflectionRemoval = nil } }), titleVisibility: .visible) {
             Button("Удалить итог", role: .destructive) {
                 if let reflection = pendingReflectionRemoval {
@@ -157,6 +161,15 @@ struct TitleDetailView: View {
             }
             Text("Просмотрено: \(entry.progress.watchedEpisodeIDs.count) · В списке: \(availableEpisodes.count)")
                 .font(.caption).foregroundStyle(Theme.muted)
+            HStack {
+                Button { reviewingSeason = true } label: { Label("Оценить сезон", systemImage: "star") }
+                    .disabled(!availableEpisodes.contains { $0.season == selectedSeason && entry.progress.watchedEpisodeIDs.contains($0.id) })
+                    .accessibilityIdentifier("rateSeason")
+                Spacer()
+                if let rating = Reflection.latest(in: entry.reflections, seasonNumber: selectedSeason)?.rating {
+                    Text("★ \(rating)/10").foregroundStyle(Theme.accent)
+                }
+            }.font(.subheadline)
             ForEach(availableEpisodes.filter { $0.season == selectedSeason }) { episode in
                 let watched = entry.progress.watchedEpisodeIDs.contains(episode.id)
                 HStack(alignment: .top, spacing: 12) {
@@ -302,6 +315,8 @@ struct TitleDetailView: View {
             }
             if let season = reflection.episodeSeason, let number = reflection.episodeNumber {
                 Text("Сезон \(season) · Серия \(number)").font(.caption).foregroundStyle(Theme.accent)
+            } else if let season = reflection.seasonNumber {
+                Text("Сезон \(season)").font(.caption).foregroundStyle(Theme.accent)
             }
             if !reflection.summary.isEmpty { Text(reflection.summary).font(.subheadline).textSelection(.enabled) }
             ForEach(Array(reflection.allLiked.enumerated()), id: \.offset) { item in Text("+ " + item.element).font(.caption).foregroundStyle(Theme.muted) }

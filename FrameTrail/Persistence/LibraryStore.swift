@@ -493,6 +493,7 @@ final class LibraryStore {
                       reflection.episodeID.map({ validIdentifier($0, maximum: 256) }) ?? true,
                       reflection.episodeSeason.map({ (0...10_000).contains($0) }) ?? true,
                       reflection.episodeNumber.map({ (0...100_000).contains($0) }) ?? true,
+                      reflection.seasonNumber.map({ title.kind == .series && (0...10_000).contains($0) && reflection.episodeID == nil }) ?? true,
                       (reflection.episodeID == nil) == (reflection.episodeSeason == nil && reflection.episodeNumber == nil),
                       reflection.episodeID == nil || (title.kind == .series && reflection.episodeSeason != nil && reflection.episodeNumber != nil),
                       reflection.createdAt.timeIntervalSince1970.isFinite else {

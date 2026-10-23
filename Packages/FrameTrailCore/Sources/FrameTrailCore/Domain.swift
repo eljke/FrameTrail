@@ -130,6 +130,12 @@ public struct ChatTurn: Identifiable, Hashable, Codable, Sendable {
     }
 }
 
+public enum ReflectionScope: Hashable, Sendable {
+    case title
+    case season(Int)
+    case episode(String)
+}
+
 public struct Reflection: Identifiable, Hashable, Codable, Sendable {
     public var id: UUID
     public var titleID: String
@@ -146,6 +152,12 @@ public struct Reflection: Identifiable, Hashable, Codable, Sendable {
     public var episodeID: String?
     public var episodeSeason: Int?
     public var episodeNumber: Int?
+    public var seasonNumber: Int?
+    public var scope: ReflectionScope {
+        if let episodeID { return .episode(episodeID) }
+        if let seasonNumber { return .season(seasonNumber) }
+        return .title
+    }
 
     public init(
         id: UUID = UUID(),
@@ -160,7 +172,8 @@ public struct Reflection: Identifiable, Hashable, Codable, Sendable {
         episodeSeason: Int? = nil,
         episodeNumber: Int? = nil,
         likedChoices: [ReviewChoice] = [],
-        dislikedChoices: [ReviewChoice] = []
+        dislikedChoices: [ReviewChoice] = [],
+        seasonNumber: Int? = nil
     ) {
         self.id = id
         self.titleID = titleID
@@ -175,17 +188,18 @@ public struct Reflection: Identifiable, Hashable, Codable, Sendable {
         self.episodeNumber = episodeNumber
         self.likedChoices = likedChoices
         self.dislikedChoices = dislikedChoices
+        self.seasonNumber = seasonNumber
     }
 
-    public static func latest(in records: [Reflection], episodeID: String? = nil) -> Reflection? {
-        records.filter { $0.episodeID == episodeID }.max {
+    public static func latest(in records: [Reflection], episodeID: String? = nil, seasonNumber: Int? = nil) -> Reflection? {
+        records.filter { $0.episodeID == episodeID && $0.seasonNumber == seasonNumber }.max {
             if $0.createdAt != $1.createdAt { return $0.createdAt < $1.createdAt }
             return $0.id.uuidString < $1.id.uuidString
         }
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, titleID, summary, liked, disliked, likedChoices, dislikedChoices, questions, rating, createdAt, episodeID, episodeSeason, episodeNumber
+        case id, titleID, summary, liked, disliked, likedChoices, dislikedChoices, questions, rating, createdAt, episodeID, episodeSeason, episodeNumber, seasonNumber
     }
 
     public init(from decoder: Decoder) throws {
@@ -203,5 +217,6 @@ public struct Reflection: Identifiable, Hashable, Codable, Sendable {
         episodeID = try values.decodeIfPresent(String.self, forKey: .episodeID)
         episodeSeason = try values.decodeIfPresent(Int.self, forKey: .episodeSeason)
         episodeNumber = try values.decodeIfPresent(Int.self, forKey: .episodeNumber)
+        seasonNumber = try values.decodeIfPresent(Int.self, forKey: .seasonNumber)
     }
 }
