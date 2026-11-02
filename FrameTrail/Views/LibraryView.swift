@@ -94,6 +94,16 @@ struct JournalView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                NavigationLink { TasteStudioView() } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "sparkles.rectangle.stack").font(.title2)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L10n.text("Кинопочерк")).font(.headline)
+                            Text(L10n.text("Твой вкус, связи и рекомендации")).font(.caption).foregroundStyle(Theme.muted)
+                        }
+                        Spacer(); Image(systemName: "chevron.right").font(.caption)
+                    }.padding(12)
+                }.buttonStyle(.glass)
                 DisclosureGroup(L10n.text("Статистика")) { LibraryStatisticsView(entries: library.entries).padding(.top, 12) }
                 if records.isEmpty {
                     EmptyState(symbol: "text.book.closed", title: L10n.text("Пока нет отзывов"), text: L10n.text("После просмотра открой «Итог» в карточке фильма или сериала. Сохрани впечатления, вопросы и оценку."))
