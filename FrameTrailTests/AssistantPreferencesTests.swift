@@ -67,4 +67,20 @@ final class AssistantPreferencesTests: XCTestCase {
         XCTAssertEqual(restored.entry(for: title.id)?.reflections, entry.reflections)
         XCTAssertEqual(LibraryStore(directory: second).activeAccountID, "guest")
     }
+
+    func testWatchingHiddenDiscoveryKeepsNewProgressAndNotes() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = LibraryStore(directory: directory)
+        let title = MediaTitle(id: "movie", title: "Movie", kind: .movie, provider: "TMDB", providerID: "1")
+        store.hideRecommendation(title)
+        var watched = try XCTUnwrap(store.entry(for: title.id))
+        watched.progress.finished = true
+        watched.reflections = [Reflection(titleID: title.id, summary: "Changed my mind", rating: 9)]
+        store.update(watched)
+        XCTAssertEqual(store.visibleEntries.map(\.id), [title.id])
+        store.restoreRecommendation(title.id)
+        XCTAssertEqual(store.entry(for: title.id)?.reflections, watched.reflections)
+        XCTAssertEqual(LibraryStore(directory: directory).entry(for: title.id)?.progress.finished, true)
+    }
 }
