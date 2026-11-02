@@ -135,7 +135,7 @@ struct StoryPulseView: View {
         }
     }
 
-    private func stop() { generation?.cancel(); generation = nil; generating = false; response = nil; error = nil }
+    private func stop() { generation?.cancel(); generation = nil; generating = false; response = nil; citation = nil; error = nil }
 
     private func generate() {
         guard !generating else { return }

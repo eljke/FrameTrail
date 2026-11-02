@@ -136,7 +136,7 @@ struct DiscussionView: View {
             if phase == .active { Task { await model.assistant.refreshAvailability() } }
         }
         .onChange(of: library.activeAccountID) { _, _ in stopResponse() }
-        .onChange(of: entry.progress) { _, _ in stopResponse() }
+        .onChange(of: entry.progress) { _, _ in stopResponse(); selectedCitation = nil }
         .onChange(of: entry.nameAliases) { _, _ in stopResponse() }
         .onChange(of: model.answerLocaleIdentifier) { _, _ in stopResponse() }
         .onDisappear { stopResponse() }

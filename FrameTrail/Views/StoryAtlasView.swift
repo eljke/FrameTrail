@@ -36,6 +36,8 @@ struct StoryAtlasView: View {
                         .disabled(!context.hasEvidence || !model.assistant.availability(localeIdentifier: "en_US").isAvailable)
                 }
                 if !context.hasEvidence { Text(L10n.text("Добавь материалы просмотренных серий в карточке сериала.")).foregroundStyle(Theme.muted) }
+                let status = model.assistant.availability(localeIdentifier: "en_US")
+                if !status.isAvailable { Text(status.message).font(.caption).foregroundStyle(Theme.muted) }
                 if let atlas {
                     if atlas.people.isEmpty { Text(L10n.text("В этих материалах не удалось надёжно выделить персонажей.")) }
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 140))], spacing: 12) {
@@ -58,6 +60,8 @@ struct StoryAtlasView: View {
         .background(Theme.background).navigationTitle(L10n.text("Персонажи")).navigationBarTitleDisplayMode(.inline)
         .task { await model.assistant.refreshAvailability() }
         .onChange(of: entry) { _, _ in invalidate() }
+        .onChange(of: selectedName) { _, _ in cancel(); answer = nil }
+        .onChange(of: question) { _, _ in cancel(); answer = nil }
         .onChange(of: library.activeAccountID) { _, _ in invalidate() }
         .onChange(of: model.answerLocaleIdentifier) { _, _ in invalidate() }
         .onDisappear { cancel() }
@@ -95,7 +99,7 @@ struct StoryAtlasView: View {
     }
 
     private func cancel() { task?.cancel(); task = nil; busy = false }
-    private func invalidate() { cancel(); atlas = nil; answer = nil; selectedName = nil }
+    private func invalidate() { cancel(); atlas = nil; answer = nil; selectedName = nil; citation = nil }
 
     private func build() {
         let snapshot = entry, account = library.activeAccountID, packet = context
