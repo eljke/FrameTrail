@@ -70,7 +70,7 @@ struct StoryPulseView: View {
             .onChange(of: entry.episodes) { _, _ in stop() }
             .onChange(of: entry.nameAliases) { _, _ in stop() }
             .onChange(of: model.localeIdentifier) { _, _ in stop() }
-            .onDisappear { stop() }
+            .onDisappear { generation?.cancel(); generation = nil; generating = false }
             .sheet(item: $citation) { CitationDetailView(citation: $0, aliases: entry.nameAliases ?? []) }
             .sheet(item: $reviewing) { episode in ReflectionEditorView(title: title, reflection: Reflection.latest(in: entry.reflections, episodeID: episode.id), episode: episode) }
             .sheet(isPresented: $retrospective) { RetrospectiveView(title: title, throughEpisodeID: selectedID) }
@@ -78,11 +78,13 @@ struct StoryPulseView: View {
     }
 
     private var chart: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let groups = Dictionary(grouping: entry.reflections.filter { $0.episodeID != nil }, by: { $0.episodeID! })
+        let reviews = groups.compactMapValues { Reflection.latest(in: $0, episodeID: $0[0].episodeID) }
+        return VStack(alignment: .leading, spacing: 12) {
             Text(L10n.text("Как менялось впечатление")).font(.headline)
             Chart {
                 ForEach(Array(watched.enumerated()), id: \.element.id) { index, episode in
-                    if let rating = Reflection.latest(in: entry.reflections, episodeID: episode.id)?.rating {
+                    if let rating = reviews[episode.id]?.rating {
                         BarMark(x: .value(L10n.text("Серия"), index), y: .value(L10n.text("Оценка"), rating))
                             .foregroundStyle(episode.id == selectedID ? Theme.accent : Theme.muted.opacity(0.5)).cornerRadius(4)
                             .accessibilityLabel("S\(episode.season) E\(episode.number)").accessibilityValue("\(rating)/10")
@@ -137,6 +139,7 @@ struct StoryPulseView: View {
         let locale = model.localeIdentifier
         let aliases = entry.nameAliases ?? []
         generating = true
+        response = nil
         error = nil
         generation = Task {
             defer { if !Task.isCancelled { generating = false; generation = nil } }

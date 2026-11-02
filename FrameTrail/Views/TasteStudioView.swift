@@ -81,7 +81,7 @@ struct TasteStudioView: View {
         .onChange(of: library.entries) { _, _ in resetRecommendations() }
         .onChange(of: library.activeAccountID) { _, _ in resetRecommendations() }
         .onChange(of: model.catalogRevision) { _, _ in resetRecommendations() }
-        .onDisappear { stop() }
+        .onDisappear { task?.cancel(); task = nil; busy = false }
         .sheet(item: $citation) { CitationDetailView(citation: $0) }
     }
 

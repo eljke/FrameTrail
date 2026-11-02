@@ -13,8 +13,9 @@ public struct StoryCheckpoint: Sendable {
         }.sorted { ($0.season, $0.number, $0.id) < ($1.season, $1.number, $1.id) }
         self.episodes = allowed
         let ownRecords = records.filter { $0.titleID == title.id }
+        let byEpisode = Dictionary(grouping: ownRecords.filter { $0.episodeID != nil }, by: { $0.episodeID! })
         self.reviews = allowed.compactMap { episode in
-            Reflection.latest(in: ownRecords, episodeID: episode.id)
+            Reflection.latest(in: byEpisode[episode.id] ?? [], episodeID: episode.id)
         }.filter(\.hasContent)
         self.context = SpoilerContextBuilder.build(title: title, episodes: allowed,
             progress: WatchProgress(watchedEpisodeIDs: Set(allowed.map(\.id))), facts: facts,
