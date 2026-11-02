@@ -4,6 +4,8 @@ import FrameTrailCore
 actor CatalogService {
     private let http: HTTPClient
     private let tokenProvider: @Sendable () throws -> String?
+    private var recommendationCache: [String: (Date, [RecommendationCandidate])] = [:]
+    private var cacheRevision = UUID()
     static let tmdbTokenKey = "tmdb.read-token"
 
     init(http: HTTPClient = .shared, tokenProvider: @escaping @Sendable () throws -> String? = {
@@ -15,24 +17,27 @@ actor CatalogService {
 
     func setTMDBReadToken(_ token: String?) throws {
         try KeychainStore.set(SourceText.validatedTMDBToken(token), for: Self.tmdbTokenKey)
+        clearRecommendationCache()
     }
 
     func hasTMDBReadToken() throws -> Bool {
         try tokenProvider() != nil
     }
 
-    func search(query: String, language: String = "en-US") async throws -> [MediaTitle] {
+    func search(query: String, language: String = "en-US", page: Int = 1) async throws -> [MediaTitle] {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return [] }
+        guard !query.isEmpty, (1...500).contains(page) else { return [] }
         if let token = try tokenProvider() {
             let url = try HTTPClient.url("https://api.themoviedb.org/3/search/multi", query: [
                 URLQueryItem(name: "query", value: String(query.prefix(200))),
                 URLQueryItem(name: "include_adult", value: "false"),
+                URLQueryItem(name: "page", value: String(page)),
                 URLQueryItem(name: "language", value: language)
             ])
             let page = try await http.decode(TMDBPage.self, request: HTTPClient.request(url: url, bearer: token))
             return page.results.compactMap(\.mediaTitle)
         }
+        guard page == 1 else { return [] }
         async let series: Result<[MediaTitle], Error> = Result(catching: { try await self.searchSeries(query) })
         async let movies: Result<[MediaTitle], Error> = Result(catching: { try await self.searchMovies(query, displayLanguage: language) })
         let results = await [series, movies]
@@ -41,6 +46,40 @@ actor CatalogService {
             if case .failure(let error) = results[0] { throw error }
         }
         return titles
+    }
+
+    func clearRecommendationCache() { recommendationCache = [:]; cacheRevision = UUID() }
+
+    func recommendationCandidates(language: String, seeds: [MediaTitle], page: Int = 1) async throws -> [RecommendationCandidate] {
+        guard let token = try tokenProvider() else { throw ServiceError.missingTMDBToken }
+        guard (1...500).contains(page) else { return [] }
+        let seeds = Array(seeds.filter { $0.provider == "TMDB" }.prefix(3))
+        let key = language + String(page) + seeds.map(\.id).joined(separator: "|")
+        if let cached = recommendationCache[key], Date().timeIntervalSince(cached.0) < 600 { return cached.1 }
+        let revision = cacheRevision
+        var routes: [(String, MediaKind)] = [("discover/movie", .movie), ("discover/tv", .series)]
+        routes += seeds.map { ("\($0.kind == .movie ? "movie" : "tv")/\($0.providerID)/recommendations", $0.kind) }
+        var results: [RecommendationCandidate] = []
+        for (path, kind) in routes {
+            try Task.checkCancellation()
+            var query: [URLQueryItem] = [.init(name: "language", value: language), .init(name: "page", value: String(page))]
+            if path.hasPrefix("discover") {
+                query += [.init(name: "sort_by", value: "popularity.desc"), .init(name: "include_adult", value: "false"), .init(name: "vote_average.gte", value: "7"), .init(name: "vote_count.gte", value: kind == .movie ? "300" : "150")]
+            }
+            let url = try HTTPClient.url("https://api.themoviedb.org/3/" + path, query: query)
+            let response = try await http.decode(TMDBPage.self, request: HTTPClient.request(url: url, bearer: token))
+            results += response.results.compactMap { item in
+                guard item.adult != true, let title = item.mediaTitle(as: kind), let rating = item.vote_average, let votes = item.vote_count, let popularity = item.popularity else { return nil }
+                return RecommendationCandidate(title: title, rating: rating, votes: votes, popularity: popularity)
+            }
+        }
+        let ranked = Array(RecommendationPool.ranked(results, excluding: []).prefix(60))
+        try Task.checkCancellation()
+        if revision == cacheRevision {
+            if recommendationCache.count >= 4 { recommendationCache = [:] }
+            recommendationCache[key] = (Date(), ranked)
+        }
+        return ranked
     }
 
     func featured(language: String = "en-US") async throws -> [MediaTitle] {
@@ -234,6 +273,10 @@ struct TMDBPage: Decodable, Sendable {
 }
 struct TMDBTitle: Decodable, Sendable {
     let id: Int
+    let adult: Bool?
+    let vote_average: Double?
+    let vote_count: Int?
+    let popularity: Double?
     let media_type: String?
     let title: String?
     let name: String?
