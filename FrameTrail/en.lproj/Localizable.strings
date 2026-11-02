@@ -553,3 +553,5 @@
 "Мой сезон" = "My season";
 "Оценки только просмотренных серий. Отсутствие оценки не считается нулём." = "Only rated, watched episodes are included. Missing ratings do not count as zero.";
 "Средняя оценка серий" = "Average episode rating";
+"Подбор без дополнительных условий: учесть мои оценки, если они есть, и качество по данным каталога." = "No extra conditions: use my ratings when available and the quality of catalog entries.";
+"Текущий запрос" = "Current request";

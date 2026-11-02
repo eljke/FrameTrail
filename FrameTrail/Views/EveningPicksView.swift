@@ -182,7 +182,7 @@ struct EveningPicksView: View {
                 let knownTitles = snapshot.filter { !savedOnly || $0.recommendationHidden == true || $0.progress.finished || !$0.progress.watchedEpisodeIDs.isEmpty }.map(\.title)
                 let candidates = RecommendationPool.ranked(loaded, excluding: excluded, excludingTitles: knownTitles).filter(brief.accepts)
                 var packet = TastePortrait(samples: snapshot.filter { $0.recommendationHidden != true }.map { TasteSample(title: $0.title, progress: $0.progress, reviews: $0.reflections) }).context
-                let requestFact = StoryFact(id: "viewing-request", text: query.isEmpty ? "No specific request. Choose by supported personal ratings if present, otherwise general catalog quality. Do not claim known preferences without evidence." : "Current viewing request: " + query, kind: "viewer-request")
+                let requestFact = StoryFact(id: "viewing-request", text: query.isEmpty ? L10n.text("Подбор без дополнительных условий: учесть мои оценки, если они есть, и качество по данным каталога.") : query, kind: "viewer-request")
                 packet.evidence.insert(requestFact, at: 0)
                 stage = L10n.text("Выбираю и объясняю…")
                 let aliases = Dictionary(uniqueKeysWithValues: snapshot.map { ($0.id, $0.nameAliases ?? []) })

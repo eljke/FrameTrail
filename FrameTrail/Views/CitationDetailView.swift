@@ -6,11 +6,17 @@ struct CitationDetailView: View {
     var aliases: [NameAlias] = []
     @Environment(\.dismiss) private var dismiss
 
+    private var sourceLabel: String {
+        if citation.id == "viewing-request" { return L10n.text("Текущий запрос") }
+        if citation.id.hasPrefix("review:") { return L10n.text("Моя запись") }
+        return citation.label.isEmpty ? L10n.text("Добавленный текст") : citation.label
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    Label(citation.label.isEmpty ? L10n.text("Добавленный текст") : citation.label, systemImage: "doc.text")
+                    Label(sourceLabel, systemImage: "doc.text")
                         .font(.headline).foregroundStyle(Theme.accent)
                     LocalizedSourceText(text: citation.quote, aliases: aliases)
                     Text(L10n.text("Фрагмент сохранён вместе с ответом на языке оригинала."))
