@@ -26,11 +26,16 @@ public struct TranslationProtection: Sendable {
     }
 
     public func accepts(_ result: String) -> Bool {
-        let protected = Dictionary(grouping: segments.filter(\.isProtected), by: \.text)
-        return protected.allSatisfy { name, occurrences in
-            let pattern = "(?<![\\p{L}\\p{N}_])" + NSRegularExpression.escapedPattern(for: name) + "(?![\\p{L}\\p{N}_])"
-            let expression = try! NSRegularExpression(pattern: pattern)
-            return expression.numberOfMatches(in: result, range: NSRange(result.startIndex..., in: result)) == occurrences.count
+        let expected = Dictionary(grouping: segments.filter(\.isProtected), by: \.text).mapValues(\.count)
+        guard !expected.isEmpty else { return true }
+        let names = expected.keys.sorted { $0.count == $1.count ? $0 < $1 : $0.count > $1.count }
+        let pattern = "(?<![\\p{L}\\p{N}_])(?:" + names.map(NSRegularExpression.escapedPattern).joined(separator: "|") + ")(?![\\p{L}\\p{N}_])"
+        let expression = try! NSRegularExpression(pattern: pattern)
+        var actual: [String: Int] = [:]
+        for match in expression.matches(in: result, range: NSRange(result.startIndex..., in: result)) {
+            guard let range = Range(match.range, in: result) else { continue }
+            actual[String(result[range]), default: 0] += 1
         }
+        return actual == expected
     }
 }
