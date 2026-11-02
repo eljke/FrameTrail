@@ -38,6 +38,9 @@ struct DiscoverView: View {
     @State private var error: String?
     @State private var manualEntry = false
     @State private var quickGuide = false
+    @State private var resultPage = 1
+    @State private var loadingMore = false
+    @State private var moreTask: Task<Void, Never>?
 
     var body: some View {
         ScrollView {
@@ -81,6 +84,10 @@ struct DiscoverView: View {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), alignment: .top)], alignment: .leading, spacing: 24) {
                         ForEach(results) { title in NavigationLink(value: title) { TitleCard(title: title) }.buttonStyle(.plain) }
                     }
+                    if model.hasCatalogToken && results.count >= 20 && resultPage < 25 {
+                        Button(L10n.text("Показать ещё")) { loadMore() }.buttonStyle(.glass).disabled(loadingMore || isSearching)
+                        if loadingMore { ProgressView() }
+                    }
                 }
             }.frame(maxWidth: .infinity, alignment: .leading).padding(20)
         }
@@ -101,7 +108,9 @@ struct DiscoverView: View {
             if !empty && !model.isUITesting { FirstTitleTip().invalidate(reason: .actionPerformed) }
         }
         .task(id: model.catalogRevision) { await model.loadFeatured() }
+        .onDisappear { moreTask?.cancel() }
         .task(id: query + model.catalogRevision.uuidString) {
+            moreTask?.cancel(); loadingMore = false; resultPage = 1
             let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !search.isEmpty else { results = []; error = nil; isSearching = false; return }
             isSearching = true
@@ -119,6 +128,25 @@ struct DiscoverView: View {
             }
         }
     }
+    private func loadMore() {
+        guard !loadingMore else { return }
+        let search = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let revision = model.catalogRevision
+        let next = resultPage + 1
+        loadingMore = true
+        moreTask = Task {
+            defer { if !Task.isCancelled { loadingMore = false; moreTask = nil } }
+            do {
+                let found = try await model.catalog.search(query: search, language: model.catalogLanguage, page: next)
+                try Task.checkCancellation()
+                guard revision == model.catalogRevision, search == query.trimmingCharacters(in: .whitespacesAndNewlines) else { return }
+                var ids = Set(results.map(\.id))
+                results += found.filter { ids.insert($0.id).inserted }
+                resultPage = found.isEmpty ? 25 : next
+            } catch is CancellationError {} catch { if !Task.isCancelled { self.error = L10n.error(error) } }
+        }
+    }
+
 }
 
 struct ManualTitleView: View {
