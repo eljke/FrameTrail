@@ -8,7 +8,7 @@ end $setup$;
 set local role authenticated;
 do $test$
 declare
-    item jsonb := '{"title":{"id":"validation:preferences"},"progress":{},"reflections":[],"nameAliases":[{"original":"Walter","russian":"Уолтер"}],"recommendationHidden":true}'::jsonb;
+    item jsonb := '{"title":{"id":"validation:preferences"},"progress":{},"reflections":[],"nameAliases":[{"original":"Walter","russian":"Уолтер"}],"recommendationHidden":true,"recommendationWasSaved":true}'::jsonb;
     received jsonb;
 begin
     select payload into strict received from public.put_library_item('validation:preferences', item, 0, false);
