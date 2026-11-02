@@ -11,7 +11,7 @@ struct LibraryView: View {
     @State private var resume: MediaTitle?
 
     private var entries: [LibraryEntry] {
-        library.entries.filter {
+        library.visibleEntries.filter {
             (filter == 0 || (filter == 1 && !$0.progress.finished && !$0.progress.watchedEpisodeIDs.isEmpty) || (filter == 2 && $0.progress.finished) || (filter == 3 && !$0.progress.finished && $0.progress.watchedEpisodeIDs.isEmpty)) &&
             (query.isEmpty || model.displayTitle($0.title).title.localizedCaseInsensitiveContains(query) || $0.title.title.localizedCaseInsensitiveContains(query) || $0.title.originalTitle?.localizedCaseInsensitiveContains(query) == true)
         }.sorted { $0.updatedAt > $1.updatedAt }
@@ -36,16 +36,19 @@ struct LibraryView: View {
                         }
                     }.padding(20).frame(maxWidth: .infinity, alignment: .leading).background(Theme.card, in: RoundedRectangle(cornerRadius: 24))
                 }
-                if entries.isEmpty && !library.entries.isEmpty {
+                if entries.isEmpty && !library.visibleEntries.isEmpty {
                     ContentUnavailableView.search(text: query)
                 }
-                if library.entries.isEmpty {
+                if library.visibleEntries.isEmpty {
                     EmptyState(symbol: "books.vertical", title: L10n.text("Библиотека пока пуста"), text: L10n.text("Найди фильм в обзоре или добавь свой. Прогресс, материалы и обсуждения сохранятся на устройстве."))
                     Button { model.selectedTab = 0 } label: { Label(L10n.text("Фильм или сериал"), systemImage: "magnifyingglass") }
                         .buttonStyle(.glassProminent).foregroundStyle(Theme.background)
                     Button { manualEntry = true } label: { Label(L10n.text("Добавить фильм или сериал"), systemImage: "plus.circle.fill") }
                         .buttonStyle(.glass).accessibilityIdentifier("libraryAddTitle")
                 }
+                NavigationLink { EveningPicksView() } label: {
+                    Label(L10n.text("Подобрать на вечер"), systemImage: "moon.stars").frame(maxWidth: .infinity).padding(.vertical, 6)
+                }.buttonStyle(.glass).accessibilityIdentifier("openEveningPicks")
                 LazyVStack(spacing: 12) {
                     ForEach(entries) { entry in
                         NavigationLink(value: entry.title) {
@@ -87,7 +90,7 @@ struct JournalView: View {
     @Environment(AppModel.self) private var model
 
     private var records: [(entry: LibraryEntry, reflection: Reflection)] {
-        library.entries.flatMap { entry in entry.reflections.filter(\.hasContent).map { (entry: entry, reflection: $0) } }
+        library.visibleEntries.flatMap { entry in entry.reflections.filter(\.hasContent).map { (entry: entry, reflection: $0) } }
             .sorted { $0.reflection.createdAt > $1.reflection.createdAt }
     }
 
@@ -104,7 +107,10 @@ struct JournalView: View {
                         Spacer(); Image(systemName: "chevron.right").font(.caption)
                     }.padding(12)
                 }.buttonStyle(.glass)
-                DisclosureGroup(L10n.text("Статистика")) { LibraryStatisticsView(entries: library.entries).padding(.top, 12) }
+                NavigationLink { ViewingMemoryView() } label: {
+                    Label(L10n.text("Найти в моих впечатлениях"), systemImage: "text.magnifyingglass").frame(maxWidth: .infinity, alignment: .leading).padding(12)
+                }.buttonStyle(.glass).accessibilityIdentifier("openViewingMemory")
+                DisclosureGroup(L10n.text("Статистика")) { LibraryStatisticsView(entries: library.visibleEntries).padding(.top, 12) }
                 if records.isEmpty {
                     EmptyState(symbol: "text.book.closed", title: L10n.text("Пока нет отзывов"), text: L10n.text("После просмотра открой «Итог» в карточке фильма или сериала. Сохрани впечатления, вопросы и оценку."))
                 }

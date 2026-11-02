@@ -25,7 +25,7 @@ struct TitleDetailView: View {
     @State private var showPulse = false
 
     private var entry: LibraryEntry { library.entry(for: title.id) ?? LibraryEntry(title: title) }
-    private var isSaved: Bool { library.entry(for: title.id) != nil }
+    private var isSaved: Bool { library.entry(for: title.id).map { $0.recommendationHidden != true } ?? false }
     private var availableEpisodes: [Episode] { mergeEpisodes(entry.episodes + episodes) }
     private var displayedTitle: MediaTitle { model.displayTitle(title) }
     private var seasons: [Int] { Set(availableEpisodes.map(\.season)).sorted() }
@@ -46,7 +46,7 @@ struct TitleDetailView: View {
                         if let year = title.year { Text(String(year)).font(.subheadline).foregroundStyle(Theme.muted) }
                         if let rating = overallReview?.rating { Label(L10n.text("Моя оценка: %@/10", String(describing: rating)), systemImage: "star.fill").font(.caption).foregroundStyle(Theme.accent) }
                         if !isSaved {
-                            Button { save(entry) } label: { Label(L10n.text("В библиотеку"), systemImage: "plus") }
+                            Button { var saved = entry; saved.recommendationHidden = nil; saved.recommendationWasSaved = nil; save(saved) } label: { Label(L10n.text("В библиотеку"), systemImage: "plus") }
                                 .buttonStyle(.glass)
                         }
                     }
@@ -67,6 +67,9 @@ struct TitleDetailView: View {
                     }.font(.subheadline).tint(Theme.muted)
                 }
                 if canReview {
+                    NavigationLink { StoryAtlasView(title: title) } label: {
+                        Label(L10n.text("Кто есть кто"), systemImage: "person.2").frame(maxWidth: .infinity)
+                    }.buttonStyle(.glass).accessibilityIdentifier("openStoryAtlas")
                     if entry.reflections.isEmpty && !model.isUITesting { TipView(FirstReviewTip()) }
                     Button {
                         if !model.isUITesting { FirstReviewTip().invalidate(reason: .actionPerformed) }

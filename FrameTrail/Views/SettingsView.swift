@@ -71,6 +71,18 @@ struct SettingsView: View {
                 } label: { Label(L10n.text("TMDB и каталоги"), systemImage: "film.stack") }
             }
             Section {
+                NavigationLink {
+                    List {
+                        if library.hiddenRecommendations.isEmpty { Text(L10n.text("Скрытых рекомендаций пока нет.")) }
+                        ForEach(library.hiddenRecommendations) { item in
+                            HStack {
+                                Text(item.title.title)
+                                Spacer()
+                                Button(L10n.text("Вернуть")) { library.restoreRecommendation(item.id) }
+                            }
+                        }
+                    }.navigationTitle(L10n.text("Скрытые рекомендации"))
+                } label: { Label(L10n.text("Скрытые рекомендации"), systemImage: "eye.slash") }
                 NavigationLink { StorageView() } label: { Label(L10n.text("Память"), systemImage: "internaldrive") }
                     .accessibilityIdentifier("storageSettings")
                 NavigationLink {

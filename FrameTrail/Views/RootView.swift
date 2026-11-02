@@ -46,7 +46,10 @@ struct DiscoverView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 26) {
                 if query.trimmingCharacters(in: .whitespaces).isEmpty {
-                    if let recent = library.entries.sorted(by: { $0.updatedAt > $1.updatedAt }).first {
+                    NavigationLink { EveningPicksView() } label: {
+                        Label(L10n.text("Подобрать на вечер"), systemImage: "moon.stars").frame(maxWidth: .infinity).padding(.vertical, 8)
+                    }.buttonStyle(.glassProminent).accessibilityIdentifier("openEveningPicks")
+                    if let recent = library.visibleEntries.sorted(by: { $0.updatedAt > $1.updatedAt }).first {
                         NavigationLink(value: recent.title) {
                             HStack(spacing: 16) {
                                 PosterView(title: recent.title, width: 65)
@@ -60,7 +63,7 @@ struct DiscoverView: View {
                             }.padding(14).background(Theme.card, in: RoundedRectangle(cornerRadius: 20))
                         }.buttonStyle(.plain)
                     }
-                    if library.entries.isEmpty && !model.isUITesting {
+                    if library.visibleEntries.isEmpty && !model.isUITesting {
                         TipView(FirstTitleTip()) { _ in quickGuide = true }
                     }
                     if !model.featured.isEmpty {
@@ -104,7 +107,7 @@ struct DiscoverView: View {
         }
         .sheet(isPresented: $manualEntry) { ManualTitleView() }
         .sheet(isPresented: $quickGuide) { NavigationStack { QuickGuideView() } }
-        .onChange(of: library.entries.isEmpty) { _, empty in
+        .onChange(of: library.visibleEntries.isEmpty) { _, empty in
             if !empty && !model.isUITesting { FirstTitleTip().invalidate(reason: .actionPerformed) }
         }
         .task(id: model.catalogRevision) { await model.loadFeatured() }
