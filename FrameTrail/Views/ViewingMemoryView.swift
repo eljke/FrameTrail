@@ -31,15 +31,26 @@ struct ViewingMemoryView: View {
                     ForEach(answer.citations) { item in Button("[\(item.number)] " + L10n.text("Моя запись")) { citation = item } }
                 }
                 if let error { ErrorNotice(message: error) }
+                let status = model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier)
+                if context.hasEvidence && !status.isAvailable { Text(status.message).font(.caption).foregroundStyle(Theme.muted) }
                 if !searching && context.evidence.isEmpty {
                     ContentUnavailableView.search(text: query)
                 }
                 ForEach(context.evidence) { fact in
-                    if let entry = library.entry(for: fact.titleID ?? "") {
+                    if let entry = library.entry(for: fact.titleID ?? ""), let record = entry.reflections.first(where: { "review:\($0.id)" == fact.id }) {
                         NavigationLink(value: entry.title) {
                             VStack(alignment: .leading, spacing: 10) {
                                 Text(model.displayTitle(entry.title).title).font(.headline)
-                                Text(fact.text).font(.subheadline).foregroundStyle(Theme.muted).lineLimit(8)
+                                if let season = record.episodeSeason, let number = record.episodeNumber {
+                                    Text(L10n.text("Сезон %@ · Серия %@", String(season), String(number))).font(.caption).foregroundStyle(Theme.accent)
+                                } else if let season = record.seasonNumber {
+                                    Text(L10n.text("Сезон %@", String(season))).font(.caption).foregroundStyle(Theme.accent)
+                                }
+                                if let rating = record.rating { Label("\(rating)/10", systemImage: "star.fill").font(.caption).foregroundStyle(Theme.accent) }
+                                if !record.summary.isEmpty { Text(record.summary).font(.subheadline).foregroundStyle(Theme.muted).lineLimit(5) }
+                                if let liked = record.allLiked.first { Text("+ " + liked).font(.caption).lineLimit(2) }
+                                if let disliked = record.allDisliked.first { Text("− " + disliked).font(.caption).lineLimit(2) }
+                                Text(record.createdAt, style: .date).font(.caption2).foregroundStyle(Theme.muted)
                             }.frame(maxWidth: .infinity, alignment: .leading).padding(18).background(Theme.card, in: RoundedRectangle(cornerRadius: 20))
                         }.buttonStyle(.plain)
                     }
@@ -61,7 +72,10 @@ struct ViewingMemoryView: View {
 
     private func refreshSearch(invalidate: Bool = true) {
         stop(); retrieval?.cancel(); error = nil
-        if invalidate { answer = nil; citation = nil }
+        if invalidate {
+            answer = nil; citation = nil
+            context = GroundedContext(text: "", evidence: [], coverage: "", allowedEpisodeIDs: [])
+        }
         let snapshot = library.entries, account = library.activeAccountID, search = query
         let samples = library.visibleEntries.map { TasteSample(title: $0.title, progress: $0.progress, reviews: $0.reflections) }
         searching = true
