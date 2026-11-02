@@ -32,6 +32,14 @@ final class ViewingAssistantTests: XCTestCase {
         XCTAssertFalse(RecommendationBrief(kind: .series, maximumMinutes: nil, request: "").accepts(short))
     }
 
+    func testRecommendationsRecognizeWatchedTitlesAcrossProvidersWithoutHidingRemakes() {
+        let watched = MediaTitle(id: "tvmaze:169", title: "Breaking Bad", kind: .series, year: 2008, provider: "TVmaze", providerID: "169")
+        let same = MediaTitle(id: "tmdb:tv:1", title: "Во все тяжкие", originalTitle: "Breaking Bad", kind: .series, year: 2008, provider: "TMDB", providerID: "1")
+        let remake = MediaTitle(id: "tmdb:tv:2", title: "Breaking Bad", kind: .series, year: 2030, provider: "TMDB", providerID: "2")
+        let candidates = [same, remake].map { RecommendationCandidate(title: $0, rating: 8, votes: 1000, popularity: 10) }
+        XCTAssertEqual(RecommendationPool.ranked(candidates, excluding: [], excludingTitles: [watched]).map(\.id), [remake.id])
+    }
+
     func testAtlasRejectsInventedNamesAndEvidenceOutsideCheckpoint() {
         let fact = StoryFact(id: "first", text: "Walter calls Jesse to ask for help.", episodeID: "e1")
         let context = GroundedContext(text: "", evidence: [fact], coverage: "", allowedEpisodeIDs: ["e1"])
