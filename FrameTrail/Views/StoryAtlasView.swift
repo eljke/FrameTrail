@@ -85,7 +85,7 @@ struct StoryAtlasView: View {
         Button(L10n.text("Объяснить по источникам"), systemImage: "sparkles") { ask(person) }.buttonStyle(.glass)
             .disabled(busy || question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         if let answer {
-            LocalizedSourceText(text: answer.text, aliases: entry.nameAliases ?? [])
+            LocalizedSourceText(text: answer.text, aliases: entry.nameAliases ?? [], autoTranslate: false)
             ForEach(answer.citations) { item in Button("[\(item.number)] " + L10n.text("Источник")) { citation = item } }
         }
     }

@@ -126,7 +126,7 @@ struct StoryPulseView: View {
             if !model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).isAvailable { Text(model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).message).font(.caption).foregroundStyle(Theme.muted) }
             if let error { ErrorNotice(message: error) }
             if let response {
-                LocalizedSourceText(text: response.text, aliases: entry.nameAliases ?? [])
+                LocalizedSourceText(text: response.text, aliases: entry.nameAliases ?? [], autoTranslate: false)
                 ForEach(response.citations) { item in
                     Button { citation = item } label: { Label("[\(item.number)] " + (item.label.isEmpty ? L10n.text("Источник") : item.label), systemImage: "doc.text") }.buttonStyle(.glass)
                 }

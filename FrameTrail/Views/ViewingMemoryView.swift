@@ -26,7 +26,7 @@ struct ViewingMemoryView: View {
                         .disabled(!context.hasEvidence || query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).isAvailable)
                 }
                 if let answer {
-                    LocalizedSourceText(text: answer.text)
+                    LocalizedSourceText(text: answer.text, autoTranslate: false)
                     ForEach(answer.citations) { item in Button("[\(item.number)] " + L10n.text("Моя запись")) { citation = item } }
                 }
                 if let error { ErrorNotice(message: error) }

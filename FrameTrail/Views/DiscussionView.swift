@@ -64,7 +64,7 @@ struct DiscussionView: View {
                                 Label(turn.role == .user ? L10n.text("Ты") : L10n.text("FrameTrail · локально"), systemImage: turn.role == .user ? "person.crop.circle" : "sparkles")
                                     .font(.caption.bold()).foregroundStyle(turn.role == .user ? Theme.muted : Theme.accent)
                                 if turn.role == .assistant {
-                                    LocalizedSourceText(text: SourceAnswer.visibleText(turn.text), aliases: entry.nameAliases ?? []).font(.body)
+                                    LocalizedSourceText(text: SourceAnswer.visibleText(turn.text), aliases: entry.nameAliases ?? [], autoTranslate: false).font(.body)
                                 } else {
                                     Text(turn.text).font(.body).textSelection(.enabled)
                                 }

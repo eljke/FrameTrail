@@ -40,7 +40,7 @@ struct TasteStudioView: View {
                 if !status.isAvailable { Text(status.message).font(.caption).foregroundStyle(Theme.muted) }
                 if let error { ErrorNotice(message: error) }
                 if let answer {
-                    LocalizedSourceText(text: answer.text)
+                    LocalizedSourceText(text: answer.text, autoTranslate: false)
                     ForEach(answer.citations) { item in
                         Button { citation = item } label: { Label("[\(item.number)] " + L10n.text("Моя запись"), systemImage: "quote.bubble") }.buttonStyle(.glass)
                     }

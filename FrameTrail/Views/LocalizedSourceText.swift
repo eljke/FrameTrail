@@ -5,6 +5,7 @@ import FrameTrailCore
 struct LocalizedSourceText: View {
     let text: String
     var aliases: [NameAlias] = []
+    var autoTranslate = true
     @Environment(AppModel.self) private var model
     @State private var translation: String?
     @State private var showOriginal = false
@@ -32,7 +33,7 @@ struct LocalizedSourceText: View {
         }
         .task(id: model.localeIdentifier + text + aliases.map { $0.original + $0.russian }.joined() + String(model.sourceTranslationEnabled) + String(requested)) {
             translation = nil; notice = nil; showOriginal = false
-            guard needsTranslation, model.sourceTranslationEnabled || requested else { return }
+            guard needsTranslation, (autoTranslate && model.sourceTranslationEnabled) || requested else { return }
             loading = true
             defer { loading = false }
             await model.assistant.translation.refreshReadiness()

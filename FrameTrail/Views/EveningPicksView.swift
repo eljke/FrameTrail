@@ -135,7 +135,7 @@ struct EveningPicksView: View {
                     Spacer(minLength: 0)
                 }
             }.buttonStyle(.plain)
-            LocalizedSourceText(text: pick.explanation.text)
+            LocalizedSourceText(text: pick.explanation.text, autoTranslate: false)
             ForEach(pick.explanation.citations) { item in
                 Button { citation = item } label: { Label(L10n.text("Основание подбора"), systemImage: "quote.bubble") }.font(.caption)
             }
