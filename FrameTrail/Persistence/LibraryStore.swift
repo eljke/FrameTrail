@@ -98,12 +98,13 @@ final class LibraryStore {
         var item = existing ?? LibraryEntry(title: title)
         item.recommendationHidden = true
         item.recommendationWasSaved = existing != nil
-        update(item)
+        replaceEntry(item)
     }
 
     func restoreRecommendation(_ id: String) {
         guard var item = entry(for: id), item.recommendationHidden == true else { return }
-        if item.recommendationWasSaved == true {
+        if item.recommendationWasSaved == true || item.progress.finished || !item.progress.watchedEpisodeIDs.isEmpty
+            || !item.reflections.isEmpty || !item.chat.isEmpty || !item.facts.isEmpty {
             item.recommendationHidden = nil
             item.recommendationWasSaved = nil
             update(item)
@@ -186,6 +187,13 @@ final class LibraryStore {
     }
 
     func update(_ entry: LibraryEntry) {
+        var visible = entry
+        visible.recommendationHidden = nil
+        visible.recommendationWasSaved = nil
+        replaceEntry(visible)
+    }
+
+    private func replaceEntry(_ entry: LibraryEntry) {
         var updated = entry
         updated.updatedAt = Date()
         var next = entries
