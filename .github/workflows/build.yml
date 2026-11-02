@@ -27,6 +27,7 @@ jobs:
         run: |
           python3 scripts/validate.py
           python3 scripts/test_delivery.py
+          python3 scripts/test_xcode_selection.py
       - name: Test core behavior
         run: swift test --package-path Packages/FrameTrailCore
 
