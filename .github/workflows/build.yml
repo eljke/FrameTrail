@@ -77,6 +77,8 @@ jobs:
           -only-testing:FrameTrailTests
           -parallel-testing-enabled NO
           CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES test-without-building
+      - name: Prepare app for UI launch
+        run: xcrun simctl launch --terminate-running-process "$SIMULATOR_ID" io.github.eljke.frametrail --uitesting
       - name: Run UI acceptance tests
         run: >-
           xcodebuild -project FrameTrail.xcodeproj -scheme FrameTrail
