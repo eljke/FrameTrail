@@ -25,7 +25,8 @@ public enum ViewingMemory {
                 let text = [sample.title.title, scope, review.rating.map { "Viewer rating: \($0)/10" } ?? "", review.summary,
                     "Liked: " + review.allLiked.joined(separator: "; "), "Disliked: " + review.allDisliked.joined(separator: "; "),
                     "Questions: " + review.questions.joined(separator: "; ")].joined(separator: "\n")
-                let score = terms.reduce(0) { $0 + (normalized(text).contains($1) ? 1 : 0) }
+                let haystack = normalized(text)
+                let score = terms.reduce(0) { $0 + (haystack.contains($1) ? 1 : 0) }
                 guard terms.isEmpty || score > 0 else { continue }
                 ranked.append((StoryFact(id: "review:\(review.id)", text: String(text.prefix(1200)), kind: "personal-review", titleID: sample.title.id), score, review.createdAt))
             }
