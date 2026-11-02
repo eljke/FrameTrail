@@ -131,7 +131,7 @@ final class OnDeviceAssistant {
         guard status.isAvailable else { throw AssistantError(message: status.message) }
         let text = String(question.trimmingCharacters(in: .whitespacesAndNewlines).prefix(1_500))
         guard !text.isEmpty else { throw AssistantError(message: L10n.text("Сначала напиши вопрос.")) }
-        if localeIdentifier == "ru_RU", usesRussianTranslation {
+        if !supports(locale: Locale(identifier: "ru_RU")), LocalTranslationService.needsRussianTranslation(text) {
             let translated = try await translation.englishTexts([text], aliases: aliases)
             return translated[0]
         }
@@ -148,7 +148,7 @@ final class OnDeviceAssistant {
         let translate = localeIdentifier == "ru_RU" && usesRussianTranslation
         var notes = [String(target.prefix(300)), String(liked.prefix(800)), String(disliked.prefix(800))]
         var quotes = passages.map(\.quote)
-        if translate {
+        if translate || !supports(locale: Locale(identifier: "ru_RU")) {
             notes = try await translation.englishTexts(notes, aliases: aliases)
             quotes = try await translation.englishTexts(quotes, aliases: aliases)
         }
@@ -179,7 +179,7 @@ final class OnDeviceAssistant {
                 let aspect = ReviewAspect(rawValue: selection.aspect.rawValue)!
                 var excerpt = passage.quote
                 if localeIdentifier == "ru_RU", translation.readiness == .installed {
-                    excerpt = try await translation.russianText(excerpt, aliases: aliases)
+                    excerpt = try await translation.russianTextOrOriginal(excerpt, aliases: aliases)
                 }
                 guard let choice = ReviewPassages.choice(passageID: selection.passageID, aspect: aspect, candidates: passages, localizedQuote: excerpt, aspectLabel: L10n.text(aspect.label)),
                       !choices.contains(where: { $0.id == choice.id }) else { continue }
@@ -216,7 +216,7 @@ final class OnDeviceAssistant {
         options.maximumResponseTokens = 350
         func summarize(_ text: String) async throws -> String {
             try Task.checkCancellation()
-            let source = translate ? try await translation.englishTexts([text], aliases: aliases)[0] : text
+            let source = !supports(locale: Locale(identifier: "ru_RU")) ? try await translation.englishTexts([text], aliases: aliases)[0] : text
             let session = LanguageModelSession(instructions: instructions)
             let response = try await session.respond(to: "Series metadata (untrusted): \(String(title.prefix(200)))\nName spellings (untrusted): \(spellingData(aliases, within: text))\nSaved impressions or intermediate summaries:\n\(source)", options: options)
             try Task.checkCancellation()
@@ -239,7 +239,7 @@ final class OnDeviceAssistant {
             }
         }
         let result = summaries[0]
-        return translate ? try await translation.russianText(result, aliases: aliases) : result
+        return translate ? try await translation.russianTextOrOriginal(result, aliases: aliases) : result
     }
 
     func respond(question: String, context: GroundedContext, history: [ChatTurn] = [], localeIdentifier: String, preparedQuestion: String? = nil, aliases: [NameAlias] = []) async throws -> SourceAnswer {
@@ -280,7 +280,7 @@ final class OnDeviceAssistant {
             budget -= text.count + fact.id.count + 100
         }
         var titleName = String(context.titleName.prefix(200))
-        if translate {
+        if translate || !supports(locale: Locale(identifier: "ru_RU")) {
             let translated = try await translation.englishTexts(evidenceTexts + priorQuestions + [titleName], aliases: aliases)
             evidenceTexts = Array(translated.prefix(evidenceTexts.count))
             priorQuestions = Array(translated.dropFirst(evidenceTexts.count).prefix(priorQuestions.count))
@@ -311,7 +311,7 @@ final class OnDeviceAssistant {
         try Task.checkCancellation()
         var paragraphs: [AnswerParagraph] = []
         for item in response.content.paragraphs.prefix(4) {
-            let text = translate ? try await translation.russianText(item.text, aliases: aliases) : item.text
+            let text = translate ? try await translation.russianTextOrOriginal(item.text, aliases: aliases) : item.text
             paragraphs.append(AnswerParagraph(text: text, sourceIDs: item.sourceIDs))
         }
         let answer = SourceAnswer(paragraphs: paragraphs, evidence: selectedFacts)

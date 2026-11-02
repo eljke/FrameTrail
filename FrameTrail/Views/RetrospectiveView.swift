@@ -40,14 +40,14 @@ struct RetrospectiveView: View {
                 }
                 Section {
                     Button(result.isEmpty ? L10n.text("Собрать общую картину") : L10n.text("Собрать заново")) { start() }
-                        .disabled(busy || compilation.episodeCount == 0 || !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable)
+                        .disabled(busy || compilation.episodeCount == 0 || !model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).isAvailable)
                     if busy {
                         ProgressView(value: Double(completed), total: Double(total))
                         Text(L10n.text("Локальная обработка: %@ из %@ этапов. Для длинного сериала потребуется больше времени.", String(describing: completed), String(describing: total))).font(.caption)
                         Button(L10n.text("Остановить"), role: .cancel) { stop() }
                     }
-                    if !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable {
-                        Text(model.assistant.availability(localeIdentifier: model.localeIdentifier).message).font(.footnote).foregroundStyle(.secondary)
+                    if !model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).isAvailable {
+                        Text(model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).message).font(.footnote).foregroundStyle(.secondary)
                     }
                     if compilation.episodeCount == 0 {
                         Text(L10n.text("Сначала оцени просмотренные серии или сохрани о них впечатления через меню серии. Ответы на вопросы необязательны.")).font(.footnote)
@@ -76,7 +76,7 @@ struct RetrospectiveView: View {
             .task { await model.assistant.refreshAvailability() }
             .onChange(of: entry?.progress) { _, _ in stop(); result = "" }
             .onChange(of: library.activeAccountID) { _, _ in dismiss() }
-            .onChange(of: model.localeIdentifier) { _, _ in stop() }
+            .onChange(of: model.answerLocaleIdentifier) { _, _ in stop() }
             .onDisappear { stop() }
         }
     }
@@ -84,7 +84,7 @@ struct RetrospectiveView: View {
     private func start() {
         guard !busy, let snapshot = entry else { return }
         let accountID = library.activeAccountID
-        let locale = model.localeIdentifier
+        let locale = model.answerLocaleIdentifier
         let plan = compilation
         let id = UUID()
         generationID = id
@@ -100,7 +100,7 @@ struct RetrospectiveView: View {
                 }
                 try Task.checkCancellation()
                 guard generationID == id, library.activeAccountID == accountID,
-                      entry?.progress == snapshot.progress, entry?.nameAliases == snapshot.nameAliases, model.localeIdentifier == locale else { return }
+                      entry?.progress == snapshot.progress, entry?.nameAliases == snapshot.nameAliases, model.answerLocaleIdentifier == locale else { return }
                 guard entry?.reflections == snapshot.reflections else {
                     error = L10n.text("За время обработки записи изменились. Запусти сборку сводки ещё раз.")
                     return

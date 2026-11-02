@@ -154,7 +154,7 @@ struct ReflectionEditorView: View {
             .onChange(of: library.activeAccountID) { _, _ in dismiss() }
             .onChange(of: currentProgress) { _, _ in stopInterview(); interview = nil }
             .onChange(of: library.entry(for: title.id)?.nameAliases) { _, _ in stopInterview(); interview = nil }
-            .onChange(of: model.localeIdentifier) { _, _ in stopInterview(); interview = nil }
+            .onChange(of: model.answerLocaleIdentifier) { _, _ in stopInterview(); interview = nil }
             .onDisappear { stopInterview() }
             .confirmationDialog(L10n.text("Заменить оценки просмотренных серий? Заметки сохранятся."), isPresented: $confirmOverwrite, titleVisibility: .visible) {
                 Button(L10n.text("Заменить оценки")) { save() }.accessibilityIdentifier("confirmRatingOverwrite")
@@ -171,7 +171,7 @@ struct ReflectionEditorView: View {
                 skippedInterview = false
                 startInterview()
             } label: { Label(interview == nil ? L10n.text("Подобрать вопросы") : L10n.text("Обновить варианты"), systemImage: "sparkles") }
-                .disabled(generating || !canInterview || !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable)
+                .disabled(generating || !canInterview || !model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).isAvailable)
             if generating {
                 HStack { ProgressView(); Text(L10n.text("Проверяю материалы и готовлю варианты…")).font(.footnote) }
                 Button(L10n.text("Остановить")) { stopInterview() }
@@ -190,7 +190,7 @@ struct ReflectionEditorView: View {
                 Button(L10n.text("Добавить текст или субтитры")) { stopInterview(); importingSource = true }
             }.font(.subheadline)
             if let sourceNotice { Text(sourceNotice).font(.caption).foregroundStyle(.secondary) }
-            if !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable {
+            if !model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).isAvailable {
                 Text(L10n.text("Оценки и заметки доступны вручную. Для вариантов помощника подготовь модель и язык в настройках."))
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -219,7 +219,7 @@ struct ReflectionEditorView: View {
         generating = true
         error = nil
         let accountID = library.activeAccountID
-        let locale = model.localeIdentifier
+        let locale = model.answerLocaleIdentifier
         generationTask = Task {
             defer { if generationID == id { generating = false; generationTask = nil; generationID = nil } }
             do {
@@ -247,7 +247,7 @@ struct ReflectionEditorView: View {
                 let result = try await model.assistant.reviewQuestions(target: targetName, context: packet, rating: rating == 0 ? nil : rating, liked: liked, disliked: disliked, localeIdentifier: locale, aliases: entry.nameAliases ?? [])
                 try Task.checkCancellation()
                 guard generationID == id, library.activeAccountID == accountID,
-                      currentProgress == entry.progress, model.localeIdentifier == locale else { return }
+                      currentProgress == entry.progress, model.answerLocaleIdentifier == locale else { return }
                 interview = result
             } catch is CancellationError {} catch {
                 if generationID == id { self.error = L10n.error(error) }

@@ -55,8 +55,11 @@ final class LocalTranslationService {
         guard !selected.isEmpty else { return texts }
         try requireInstalled()
         let session = TranslationSession(installedSource: russian, target: english)
-        let protected = selected.map { Self.protectedText($0.element, aliases: aliases, toRussian: false) }
-        let requests = zip(selected, protected).map { TranslationSession.Request(sourceText: $0.1.text, clientIdentifier: String($0.0.offset)) }
+        let plans = selected.map { Self.protection($0.element, aliases: aliases, toRussian: false) }
+        let legacy = plans.map(Self.legacyProtection)
+        let requests = plans.enumerated().map { position, plan in
+            Self.request(plan, legacy: legacy[position], identifier: String(selected[position].offset))
+        }
         let responses = try await session.translations(from: requests)
         try Task.checkCancellation()
         var translated = texts
@@ -65,7 +68,7 @@ final class LocalTranslationService {
         for response in responses {
             guard let identifier = response.clientIdentifier, let index = Int(identifier),
                   let position = selected.firstIndex(where: { $0.offset == index }), seen.insert(index).inserted,
-                  let restored = protected[position].restored(response.targetText) else {
+                  let restored = Self.restore(response.targetText, plan: plans[position], legacy: legacy[position]) else {
                 throw AssistantError(message: L10n.text("Не удалось сохранить имена при переводе. Попробуй английский язык или уточни словарь."))
             }
             translated[index] = restored
@@ -81,10 +84,11 @@ final class LocalTranslationService {
         try requireInstalled()
         try Task.checkCancellation()
         let session = TranslationSession(installedSource: english, target: russian)
-        let protected = Self.protectedText(text, aliases: aliases, toRussian: true)
-        let responses = try await session.translations(from: [TranslationSession.Request(sourceText: protected.text)])
+        let plan = Self.protection(text, aliases: aliases, toRussian: true)
+        let legacy = Self.legacyProtection(plan)
+        let responses = try await session.translations(from: [Self.request(plan, legacy: legacy, identifier: nil)])
         try Task.checkCancellation()
-        guard responses.count == 1, let restored = protected.restored(responses[0].targetText) else {
+        guard responses.count == 1, let restored = Self.restore(responses[0].targetText, plan: plan, legacy: legacy) else {
             throw AssistantError(message: L10n.text("Не удалось сохранить имена при переводе. Попробуй английский язык или уточни словарь."))
         }
         cache.setObject(restored as NSString, forKey: key, cost: restored.utf8.count)
@@ -98,11 +102,11 @@ final class LocalTranslationService {
         tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .nameType, options: [.omitWhitespace, .omitPunctuation, .joinNames]) { tag, range in
             if tag == .personalName || tag == .placeName || tag == .organizationName {
                 let name = String(text[range])
-                if name.range(of: "^[A-Za-z][A-Za-z .’'-]{1,79}$", options: .regularExpression) != nil { names.insert(name) }
+                if name.range(of: "^[\\p{L}][\\p{L} .’'-]{1,79}$", options: .regularExpression) != nil { names.insert(name) }
             }
             return names.count < 100
         }
-        if let expression = try? NSRegularExpression(pattern: "\\b[A-Z]{2,6}\\b") {
+        if let expression = try? NSRegularExpression(pattern: "(?<![\\p{L}])[A-ZА-ЯЁ]{2,8}(?![\\p{L}])") {
             for match in expression.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
                 if let range = Range(match.range, in: text) { names.insert(String(text[range])) }
             }
@@ -110,14 +114,44 @@ final class LocalTranslationService {
         return Array(names.sorted().prefix(100))
     }
 
-    private static func protectedText(_ text: String, aliases: [NameAlias], toRussian: Bool) -> ProtectedTranslationText {
+    private static func protection(_ text: String, aliases: [NameAlias], toRussian: Bool) -> TranslationProtection {
         var names = Dictionary(uniqueKeysWithValues: detectedNames(in: text).map { ($0, $0) })
         for segment in translationSegments(text) where segment.isProtected { names[segment.text] = segment.text }
         for alias in aliases {
             if toRussian { names[alias.original] = alias.russian }
             else { names[alias.russian] = alias.original }
         }
-        return ProtectedTranslationText(text: text, names: names)
+        return TranslationProtection(text: text, names: names)
+    }
+
+    private static func legacyProtection(_ plan: TranslationProtection) -> ProtectedTranslationText {
+        let names = Dictionary(plan.segments.filter(\.isProtected).map { ($0.text, $0.text) }, uniquingKeysWith: { first, _ in first })
+        return ProtectedTranslationText(text: plan.segments.map(\.text).joined(), names: names)
+    }
+
+    private static func request(_ plan: TranslationProtection, legacy: ProtectedTranslationText, identifier: String?) -> TranslationSession.Request {
+        if #available(iOS 26.4, *) {
+            var attributed = AttributedString()
+            for segment in plan.segments {
+                var part = AttributedString(segment.text)
+                if segment.isProtected { part.skipsTranslation = true }
+                attributed += part
+            }
+            return TranslationSession.Request(sourceText: attributed, clientIdentifier: identifier)
+        }
+        return TranslationSession.Request(sourceText: legacy.text, clientIdentifier: identifier)
+    }
+
+    private static func restore(_ result: String, plan: TranslationProtection, legacy: ProtectedTranslationText) -> String? {
+        if #available(iOS 26.4, *) { return plan.accepts(result) ? result : nil }
+        guard let text = legacy.restored(result), plan.accepts(text) else { return nil }
+        return text
+    }
+
+    func russianTextOrOriginal(_ text: String, aliases: [NameAlias] = []) async throws -> String {
+        do { return try await russianText(text, aliases: aliases) }
+        catch is CancellationError { throw CancellationError() }
+        catch { try Task.checkCancellation(); return text }
     }
 
     private func requireInstalled() throws {
@@ -127,7 +161,6 @@ final class LocalTranslationService {
     static func needsRussianTranslation(_ text: String) -> Bool {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
         let language = NLLanguageRecognizer.dominantLanguage(for: text)
-        if language == .english { return false }
         return language == .russian || text.range(of: "[\\p{IsCyrillic}]", options: .regularExpression) != nil
     }
 

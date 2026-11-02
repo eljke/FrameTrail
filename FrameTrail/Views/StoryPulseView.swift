@@ -72,7 +72,7 @@ struct StoryPulseView: View {
             .onChange(of: entry.facts) { _, _ in stop() }
             .onChange(of: entry.episodes) { _, _ in stop() }
             .onChange(of: entry.nameAliases) { _, _ in stop() }
-            .onChange(of: model.localeIdentifier) { _, _ in stop() }
+            .onChange(of: model.answerLocaleIdentifier) { _, _ in stop() }
             .onDisappear { generation?.cancel(); generation = nil; generating = false }
             .sheet(item: $citation) { CitationDetailView(citation: $0, aliases: entry.nameAliases ?? []) }
             .sheet(item: $reviewing) { episode in ReflectionEditorView(title: title, reflection: Reflection.latest(in: entry.reflections, episodeID: episode.id), episode: episode) }
@@ -117,10 +117,10 @@ struct StoryPulseView: View {
             } else {
                 Button { generate() } label: { Label(L10n.text("Подготовить напоминание"), systemImage: "sparkles") }
                     .buttonStyle(.glassProminent).tint(Theme.accent).foregroundStyle(Theme.background)
-                    .disabled(!checkpoint.context.hasEvidence || !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable)
+                    .disabled(!checkpoint.context.hasEvidence || !model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).isAvailable)
             }
             if !checkpoint.context.hasEvidence { Text(L10n.text("Добавь материалы просмотренных серий в карточке сериала.")).font(.footnote) }
-            if !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable { Text(model.assistant.availability(localeIdentifier: model.localeIdentifier).message).font(.caption).foregroundStyle(Theme.muted) }
+            if !model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).isAvailable { Text(model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).message).font(.caption).foregroundStyle(Theme.muted) }
             if let error { ErrorNotice(message: error) }
             if let response {
                 LocalizedSourceText(text: response.text, aliases: entry.nameAliases ?? [])
@@ -139,7 +139,7 @@ struct StoryPulseView: View {
         let packet = checkpoint.context
         let prompts = ["Give a concise catch-up before resuming this series: pivotal events and character motivations at this checkpoint. No later developments.", "Identify unresolved conflicts and character goals at this checkpoint. Do not predict resolutions or hint at future twists.", "Recall significant details explicitly present in the supplied material. Explain their meaning at this checkpoint, never their future significance."]
         let prompt = prompts[mode]
-        let locale = model.localeIdentifier
+        let locale = model.answerLocaleIdentifier
         let account = library.activeAccountID
         let snapshot = entry
         let checkpointID = selectedID
@@ -152,7 +152,7 @@ struct StoryPulseView: View {
             do {
                 let result = try await model.assistant.respond(question: prompt, context: packet, history: [], localeIdentifier: locale, preparedQuestion: prompt, aliases: aliases)
                 try Task.checkCancellation()
-                guard account == library.activeAccountID, snapshot == entry, checkpointID == selectedID, locale == model.localeIdentifier else { return }
+                guard account == library.activeAccountID, snapshot == entry, checkpointID == selectedID, locale == model.answerLocaleIdentifier else { return }
                 response = result
             } catch is CancellationError {} catch { if !Task.isCancelled { self.error = L10n.error(error) } }
         }

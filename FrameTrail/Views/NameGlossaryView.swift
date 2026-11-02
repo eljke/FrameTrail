@@ -97,8 +97,8 @@ struct NameGlossaryView: View {
         let aliases = rows.compactMap { row -> NameAlias? in
             let original = row.original.trimmingCharacters(in: .whitespacesAndNewlines)
             let russian = row.russian.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !russian.isEmpty else { return nil }
-            return NameAlias(original: original, russian: russian)
+            guard !original.isEmpty else { return nil }
+            return NameAlias(original: original, russian: russian.isEmpty ? original : russian)
         }
         entry.nameAliases = aliases.isEmpty ? nil : aliases
         library.update(entry)

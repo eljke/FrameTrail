@@ -22,6 +22,19 @@ final class AppModel {
     private var displayedTitles: [String: MediaTitle] = [:]
     private var displayedTitleOrder: [String] = []
     private var titleRequests: [String: UUID] = [:]
+    var answerLanguage = UserDefaults.standard.string(forKey: "assistant.answer-language") ?? "auto" {
+        didSet { UserDefaults.standard.set(answerLanguage, forKey: "assistant.answer-language") }
+    }
+    var sourceTranslationEnabled = UserDefaults.standard.bool(forKey: "sources.translate") {
+        didSet { UserDefaults.standard.set(sourceTranslationEnabled, forKey: "sources.translate") }
+    }
+    var answerLocaleIdentifier: String {
+        switch answerLanguage {
+        case "en": return "en_US"
+        case "ru": return "ru_RU"
+        default: return localeIdentifier
+        }
+    }
     var catalogLanguage: String { localeIdentifier == "ru_RU" ? "ru-RU" : "en-US" }
     var localeIdentifier: String {
         didSet {

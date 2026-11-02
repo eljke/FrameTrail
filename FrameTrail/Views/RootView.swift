@@ -22,7 +22,7 @@ struct RootView: View {
                 NavigationStack { DiscoverView().navigationDestination(for: MediaTitle.self) { TitleDetailView(title: $0) } }
             }
         }
-        .id(library.activeAccountID + model.localeIdentifier)
+        .id(library.activeAccountID + model.localeIdentifier + model.answerLocaleIdentifier)
         .alert("FrameTrail", isPresented: Binding(get: { model.alertMessage != nil || library.lastError != nil }, set: { if !$0 { model.alertMessage = nil; library.dismissError() } })) {
             Button(L10n.text("Понятно")) { model.alertMessage = nil; library.dismissError() }
         } message: { Text(model.alertMessage ?? library.lastError ?? "") }

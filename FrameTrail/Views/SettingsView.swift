@@ -20,7 +20,7 @@ struct SettingsView: View {
     @State private var translationConfiguration: TranslationSession.Configuration?
     @State private var preparationStep = 0
 
-    private var modelStatus: AssistantAvailability { model.assistant.availability(localeIdentifier: model.localeIdentifier) }
+    private var modelStatus: AssistantAvailability { model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier) }
 
     private static var versionLabel: String {
         let bundle = Bundle.main
@@ -48,6 +48,16 @@ struct SettingsView: View {
                     Text(L10n.text("Русский")).tag("ru_RU")
                     Text("English").tag("en_US")
                 }.accessibilityIdentifier("appLanguage")
+            }
+            Section {
+                Picker(L10n.text("Язык ответов"), selection: $model.answerLanguage) {
+                    Text(L10n.text("Как в приложении")).tag("auto")
+                    Text(L10n.text("Русский")).tag("ru")
+                    Text("English").tag("en")
+                }.accessibilityIdentifier("answerLanguage")
+                Toggle(L10n.text("Переводить внешние тексты автоматически"), isOn: $model.sourceTranslationEnabled)
+                Text(L10n.text("Названия и описания берём на выбранном языке из каталога. Машинный перевод источников можно включать отдельно; оригинал всегда доступен."))
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section {
                 NavigationLink {
