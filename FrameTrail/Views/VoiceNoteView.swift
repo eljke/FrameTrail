@@ -42,17 +42,16 @@ struct VoiceNoteView: View {
         busy = true; error = nil
         task = Task {
             defer { if !Task.isCancelled { busy = false; task = nil } }
-            do { try await service.start(); try Task.checkCancellation(); started = true }
+            do { try await service.start(locale: Locale(identifier: model.localeIdentifier)); try Task.checkCancellation(); started = true }
             catch is CancellationError {} catch { if !Task.isCancelled { self.error = L10n.error(error) } }
         }
     }
     private func transcribe() {
         busy = true; error = nil
-        let locale = Locale(identifier: model.localeIdentifier)
         task = Task {
             defer { if !Task.isCancelled { busy = false; task = nil; started = false } }
             do {
-                transcript = try await service.transcribe(locale: locale)
+                transcript = try await service.transcribe()
                 if transcript.isEmpty { error = L10n.text("Речь не распознана. Попробуй записать ещё раз или введи текст.") }
             } catch is CancellationError {} catch { if !Task.isCancelled { self.error = L10n.error(error) } }
         }

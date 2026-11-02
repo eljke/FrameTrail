@@ -8,11 +8,16 @@ final class VoiceNoteService {
     private(set) var recording = false
     private var recorder: AVAudioRecorder?
     private var recordingURL: URL?
+    private var recordedLocale: Locale?
     private var analyzer: SpeechAnalyzer?
     private var resultsTask: Task<String, Error>?
     private var recordingLimit: Task<Void, Never>?
 
-    func start() async throws {
+    func start(locale: Locale) async throws {
+        guard SpeechTranscriber.isAvailable, let supported = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
+            throw AssistantError(message: L10n.text("Локальная расшифровка этого языка недоступна. Заметку можно написать вручную."))
+        }
+        try Task.checkCancellation()
         guard await AVAudioApplication.requestRecordPermission() else {
             throw AssistantError(message: L10n.text("Разреши доступ к микрофону в настройках iPhone или напиши заметку вручную."))
         }
@@ -23,6 +28,7 @@ final class VoiceNoteService {
         try session.setActive(true)
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("viewing-note-\(UUID().uuidString).m4a")
         recordingURL = url
+        recordedLocale = supported
         do {
             let recorder = try AVAudioRecorder(url: url, settings: [AVFormatIDKey: kAudioFormatMPEG4AAC, AVSampleRateKey: 44100, AVNumberOfChannelsKey: 1, AVEncoderBitRateKey: 64000])
             guard recorder.record(forDuration: 90) else { throw AssistantError(message: L10n.text("Не удалось начать запись.")) }
@@ -35,11 +41,10 @@ final class VoiceNoteService {
         } catch { discard(); throw error }
     }
 
-    func transcribe(locale: Locale) async throws -> String {
+    func transcribe() async throws -> String {
         defer { discard() }
         finishRecording()
-        guard let url = recordingURL, SpeechTranscriber.isAvailable,
-              let supported = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
+        guard let url = recordingURL, let supported = recordedLocale else {
             throw AssistantError(message: L10n.text("Локальная расшифровка этого языка недоступна. Заметку можно написать вручную."))
         }
         try Task.checkCancellation()
@@ -77,6 +82,7 @@ final class VoiceNoteService {
         analyzer = nil
         if let url = recordingURL { try? FileManager.default.removeItem(at: url) }
         recordingURL = nil
+        recordedLocale = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
