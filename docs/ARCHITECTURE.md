@@ -60,4 +60,6 @@ Push and PR builds of the same repository/branch share a concurrency group, canc
 
 XcodeGen defines the project. The standalone core is tested before iOS simulator tests, then a device app is built without signing. Packaging validates bundle version and size, produces a standard Payload archive and checksum, and the gated tag workflow publishes an unsigned IPA for AltStore. Prepare each version in a retained release branch; merge into main through a pull request only after checks and published-asset verification. Physical model performance and LiveContainer behavior remain separate acceptance checks.
 
-The maintained behavior contract is [the release canvas](specs/1.1.0-beta.1.md). Changes in requirements update it before implementation; refactoring synchronizes this boundary map with the resulting code.
+The maintained behavior contract is [the release canvas](specs/1.2.0-beta.1.md). Changes in requirements update it before implementation; refactoring synchronizes this boundary map with the resulting code.
+
+StoryCheckpoint narrows explicitly watched IDs by season/episode order before source retrieval or compilation. Unknown checkpoints fail closed. It filters title ownership and selects latest reviews before dropping cleared entries. Series Pulse keeps generated answers temporary, cancels on source/scope/account/language changes and uses the existing structured citation pipeline. Its chart and picker provide equivalent selection paths; glass is reserved for actions and navigation.
