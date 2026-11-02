@@ -104,7 +104,9 @@ final class FrameTrailSmokeTests: XCTestCase {
         let save = app.buttons["saveReflection"]
         XCTAssertTrue(save.isEnabled)
         save.tap()
-        XCTAssertTrue(app.staticTexts[thought].firstMatch.waitForExistence(timeout: 5))
+        let savedThought = app.staticTexts[thought].firstMatch
+        reveal(savedThought, app: app)
+        XCTAssertTrue(savedThought.waitForExistence(timeout: 5))
 
         tabs.buttons["Дневник"].tap()
         XCTAssertTrue(app.staticTexts["Arrival"].firstMatch.waitForExistence(timeout: 5))
@@ -303,6 +305,7 @@ final class FrameTrailSmokeTests: XCTestCase {
         reveal(editor, app: app)
         editor.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.2)).tap()
         editor.typeText(text)
+        XCTAssertEqual(editor.value as? String, text)
     }
 
     @MainActor
