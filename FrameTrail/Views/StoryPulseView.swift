@@ -52,6 +52,9 @@ struct StoryPulseView: View {
                                 Button { reviewing = selected } label: { Label(L10n.text("Оценка и впечатления"), systemImage: "star.bubble") }.buttonStyle(.glass)
                             }.padding(20).frame(maxWidth: .infinity, alignment: .leading).background(Theme.card, in: RoundedRectangle(cornerRadius: 24))
                         }
+                        NavigationLink { StoryAtlasView(title: title, throughEpisodeID: selectedID) } label: {
+                            Label(L10n.text("Персонажи до этой серии"), systemImage: "person.2").frame(maxWidth: .infinity)
+                        }.buttonStyle(.glass)
                         assistantSection
                         Button { retrospective = true } label: { Label(L10n.text("Собрать мои впечатления"), systemImage: "square.stack.3d.up") }
                             .buttonStyle(.glass).disabled(checkpoint.reviews.isEmpty)
