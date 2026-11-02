@@ -548,3 +548,8 @@
 "Что хочется сегодня?" = "What are you in the mood for?";
 "Явных впечатлений или вопросов не нашлось. Исходная заметка уже на месте." = "No clear opinions or questions were found. Your original note is already saved in the editor.";
 "Язык ответов" = "Answer language";
+"Все сезоны" = "All seasons";
+"Любимый эпизод по оценке" = "Highest-rated episode";
+"Мой сезон" = "My season";
+"Оценки только просмотренных серий. Отсутствие оценки не считается нулём." = "Only rated, watched episodes are included. Missing ratings do not count as zero.";
+"Средняя оценка серий" = "Average episode rating";
