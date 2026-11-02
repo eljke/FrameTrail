@@ -62,13 +62,24 @@ jobs:
           -destination "platform=iOS Simulator,id=$SIMULATOR_ID"
           -derivedDataPath build/simulator
           CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES build-for-testing
-      - name: Run simulator tests
+      - name: Run app behavior tests
+        run: >-
+          xcodebuild -project FrameTrail.xcodeproj -scheme FrameTrail
+          -configuration Debug -sdk iphonesimulator
+          -destination "platform=iOS Simulator,id=$SIMULATOR_ID"
+          -derivedDataPath build/simulator
+          -resultBundlePath build/FrameTrailUnitTests.xcresult
+          -only-testing:FrameTrailTests
+          -parallel-testing-enabled NO
+          CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES test-without-building
+      - name: Run UI acceptance tests
         run: >-
           xcodebuild -project FrameTrail.xcodeproj -scheme FrameTrail
           -configuration Debug -sdk iphonesimulator
           -destination "platform=iOS Simulator,id=$SIMULATOR_ID"
           -derivedDataPath build/simulator
           -resultBundlePath build/FrameTrailTests.xcresult
+          -only-testing:FrameTrailUITests
           -parallel-testing-enabled NO
           CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES test-without-building
       - name: Export test screenshots
@@ -86,6 +97,7 @@ jobs:
           name: FrameTrail-tests
           path: |
             build/FrameTrailTests.xcresult
+            build/FrameTrailUnitTests.xcresult
             build/test-attachments
           if-no-files-found: ignore
           retention-days: 14
