@@ -175,7 +175,8 @@ struct EveningPicksView: View {
                     let titles = snapshot.filter { $0.recommendationHidden != true && !$0.progress.finished && $0.progress.watchedEpisodeIDs.isEmpty }.map(\.title)
                     loaded = try await model.catalog.savedCandidates(titles: titles, language: language, page: currentPage)
                 } else { loaded = try await model.catalog.recommendationCandidates(language: language, seeds: seeds, page: currentPage, brief: brief) }
-                let candidates = RecommendationPool.ranked(loaded, excluding: excluded).filter(brief.accepts)
+                let knownTitles = snapshot.filter { !savedOnly || $0.recommendationHidden == true || $0.progress.finished || !$0.progress.watchedEpisodeIDs.isEmpty }.map(\.title)
+                let candidates = RecommendationPool.ranked(loaded, excluding: excluded, excludingTitles: knownTitles).filter(brief.accepts)
                 var packet = TastePortrait(samples: snapshot.filter { $0.recommendationHidden != true }.map { TasteSample(title: $0.title, progress: $0.progress, reviews: $0.reflections) }).context
                 let requestFact = StoryFact(id: "viewing-request", text: query.isEmpty ? "No specific request. Choose by supported personal ratings if present, otherwise general catalog quality. Do not claim known preferences without evidence." : "Current viewing request: " + query, kind: "viewer-request")
                 packet.evidence.insert(requestFact, at: 0)
