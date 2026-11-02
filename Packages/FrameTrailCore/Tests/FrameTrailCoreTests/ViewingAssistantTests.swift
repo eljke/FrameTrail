@@ -16,6 +16,12 @@ final class ViewingAssistantTests: XCTestCase {
         XCTAssertTrue(plan.segments.contains { $0.text.contains("Walterson") && !$0.isProtected })
     }
 
+    func testFullAndShortProtectedNamesDoNotCountEachOtherTwice() {
+        let plan = TranslationProtection(text: "Walter White greets Walter.", names: ["Walter White": "Уолтер Уайт", "Walter": "Уолтер"])
+        XCTAssertTrue(plan.accepts("Уолтер Уайт приветствует Уолтер."))
+        XCTAssertFalse(plan.accepts("Уолтер Уайт приветствует Уолтер. Уолтер."))
+    }
+
     func testRecommendationBriefKeepsHardConditionsAndRejectsUnknownRuntime() {
         let film = MediaTitle(id: "short", title: "Short", kind: .movie, provider: "tmdb", providerID: "1")
         let short = RecommendationCandidate(title: film, rating: 8, votes: 1000, popularity: 10, runtimeMinutes: 95)
