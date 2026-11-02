@@ -10,6 +10,7 @@ final class VoiceNoteService {
     private var recordingURL: URL?
     private var analyzer: SpeechAnalyzer?
     private var resultsTask: Task<String, Error>?
+    private var recordingLimit: Task<Void, Never>?
 
     func start() async throws {
         guard await AVAudioApplication.requestRecordPermission() else {
@@ -27,13 +28,16 @@ final class VoiceNoteService {
             guard recorder.record(forDuration: 90) else { throw AssistantError(message: L10n.text("Не удалось начать запись.")) }
             self.recorder = recorder
             recording = true
+            recordingLimit = Task {
+                do { try await Task.sleep(for: .seconds(90)); finishRecording() }
+                catch is CancellationError {} catch {}
+            }
         } catch { discard(); throw error }
     }
 
     func transcribe(locale: Locale) async throws -> String {
         defer { discard() }
-        recorder?.stop(); recording = false
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        finishRecording()
         guard let url = recordingURL, SpeechTranscriber.isAvailable,
               let supported = await SpeechTranscriber.supportedLocale(equivalentTo: locale) else {
             throw AssistantError(message: L10n.text("Локальная расшифровка этого языка недоступна. Заметку можно написать вручную."))
@@ -66,12 +70,19 @@ final class VoiceNoteService {
     }
 
     func discard() {
+        recordingLimit?.cancel(); recordingLimit = nil
         recorder?.stop(); recorder = nil; recording = false
         resultsTask?.cancel(); resultsTask = nil
         if let analyzer { Task { await analyzer.cancelAndFinishNow() } }
         analyzer = nil
         if let url = recordingURL { try? FileManager.default.removeItem(at: url) }
         recordingURL = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    private func finishRecording() {
+        recordingLimit?.cancel(); recordingLimit = nil
+        recorder?.stop(); recording = false
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 }
