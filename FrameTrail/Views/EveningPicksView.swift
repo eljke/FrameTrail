@@ -18,6 +18,7 @@ struct EveningPicksView: View {
     @State private var citation: AnswerCitation?
     @State private var task: Task<Void, Never>?
     @State private var lastHidden: MediaTitle?
+    @FocusState private var requestFocused: Bool
 
     private var selectedKind: MediaKind? { kind == 1 ? .movie : kind == 2 ? .series : nil }
     private var enabled: Bool { model.hasCatalogToken && model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).isAvailable }
@@ -53,6 +54,7 @@ struct EveningPicksView: View {
             }.padding(20)
         }
         .background(Theme.background).navigationTitle(L10n.text("На вечер")).navigationBarTitleDisplayMode(.inline)
+        .scrollDismissesKeyboard(.interactively)
         .task { await model.assistant.refreshAvailability() }
         .onChange(of: request) { _, value in if value.count > 1200 { request = String(value.prefix(1200)) }; edited() }
         .onChange(of: kind) { _, _ in edited() }
@@ -82,6 +84,7 @@ struct EveningPicksView: View {
     private var controls: some View {
         VStack(alignment: .leading, spacing: 16) {
             TextField(L10n.text("Например: напряжённое, до двух часов, без фантастики"), text: $request, axis: .vertical)
+                .focused($requestFocused)
                 .lineLimit(3...5).padding(16).background(Theme.card, in: RoundedRectangle(cornerRadius: 20))
                 .accessibilityIdentifier("eveningRequest")
             Picker(L10n.text("Тип"), selection: $kind) {
@@ -155,6 +158,7 @@ struct EveningPicksView: View {
 
     private func load() {
         guard !busy, page <= 500 else { return }
+        requestFocused = false
         let snapshot = library.entries, account = library.activeAccountID, locale = model.answerLocaleIdentifier
         let language = model.catalogLanguage, query = request, currentPage = page, savedOnly = watchlistOnly
         let manual = RecommendationBrief(kind: selectedKind, maximumMinutes: minutes == 0 ? nil : minutes, request: query)
