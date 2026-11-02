@@ -27,6 +27,9 @@ The badges use public GitHub metadata: actual build status, published version, s
 
 **Series Pulse** combines an interactive rating timeline, episode impressions and three on-device catch-up modes: events, open threads and details. Rewind to a watched checkpoint: later episodes are excluded from supplied evidence and personal compilations. A continue-watching card and native Liquid Glass actions bring the main tasks closer.
 
+
+**Viewing Signature**, in Journal, offers on-device analysis of personal reviews, unexpected connections and explained recommendations. TMDB candidates require at least 7/10 and 300 movie votes or 150 show votes; ranking accounts for sample size and popularity. The pool combines discovery and recommendations from highly rated completed favorites. More picks loads a new batch and excludes shown titles in the current session. The model selects real catalog entries; explanations are hypotheses, not guarantees. At least two eligible personal entries and an available Apple model are required; new recommendations also need a TMDB token. Search loads up to 25 pages per query rather than downloading the catalog.
+
 ## What the beta does
 
 <p align="center">
