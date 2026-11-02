@@ -19,16 +19,21 @@ A companion for movies and television: recall watched events, discuss an ending,
 
 [Download IPA](https://github.com/eljke/FrameTrail/releases) · [Builds and checks](https://github.com/eljke/FrameTrail/actions) · [Privacy (RU)](docs/PRIVACY.md) · [Sources and licenses (RU)](docs/THIRD_PARTY_NOTICES.md)
 
-Current release: **1.2.0-beta.1**, app version **1.2.0**, build **3**. This is a prerelease. Automated results are published in Actions; the local model, latency, and LiveContainer installation have not yet been verified on a physical device. Check Releases for the actual IPA and the status of each published version.
+Current release: **1.3.0-beta.1**, app version **1.3.0**, build **4**. This is a prerelease. Automated results are published in Actions; the local model, latency, and LiveContainer installation have not yet been verified on a physical device. Check Releases for the actual IPA and the status of each published version.
 
 The badges use public GitHub metadata: actual build status, published version, stars, and downloads. Downloads counts **all release asset downloads**, not users or installations. Cached badges may update with a delay. There are no visitor trackers or view counters.
 
-## New in 1.2
+## New in 1.3
 
-**Series Pulse** combines an interactive rating timeline, episode impressions and three on-device catch-up modes: events, open threads and details. Rewind to a watched checkpoint: later episodes are excluded from supplied evidence and personal compilations. A continue-watching card and native Liquid Glass actions bring the main tasks closer.
+**For tonight** combines a viewing request, type and runtime with catalog or watchlist picks. Refine the mood or ask for more: conditions stay and shown titles are excluded within the open session. Not interested persists with your account and can be undone in Settings. A request is enough to start; written reviews are optional. TMDB candidates need at least 7/10 and 300 movie votes or 150 show votes.
 
+**Who's who** provides character cards with original excerpts and episode references. Series Pulse restricts them to a chosen watched checkpoint. Shared sources indicate co-occurrence; ask separately for a grounded explanation of relationships. Coverage depends on available material.
 
-**Viewing Signature**, in Journal, offers on-device analysis of personal reviews, unexpected connections and explained recommendations. TMDB candidates require at least 7/10 and 300 movie votes or 150 show votes; ranking accounts for sample size and popularity. The pool combines discovery and recommendations from highly rated completed favorites. More picks loads a new batch and excludes shown titles in the current session. The model selects real catalog entries; explanations are hypotheses, not guarantees. At least two eligible personal entries and an available Apple model are required; new recommendations also need a TMDB token. Search loads up to 25 pages per query rather than downloading the catalog.
+**My viewing memories** searches personal records and discusses the results. Dictate up to ninety seconds inside a review and transcribe locally when Apple supports the language. The assistant sorts original sentences without silently rewriting an opinion. My season combines a season's actual rating chart and personal retrospective.
+
+**Independent language controls** allow a Russian interface with English answers and original sources. Automatic source translation is off by default. iOS 26.4+ uses natively protected name ranges; failed output translation keeps the original response. Name recognition and canonical spelling still require device acceptance.
+
+Subjective wishes do not guarantee the absence of sensitive content. Show runtime means episode metadata, not the whole series. No complete story database or model weights are bundled. [Release details](docs/releases/1.3.0-beta.1.md).
 
 ## What the beta does
 
