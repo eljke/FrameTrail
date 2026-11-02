@@ -5,9 +5,31 @@ public struct RecommendationCandidate: Sendable, Identifiable {
     public let rating: Double
     public let votes: Int
     public let popularity: Double
+    public let runtimeMinutes: Int?
     public var id: String { title.id }
-    public init(title: MediaTitle, rating: Double, votes: Int, popularity: Double) {
+    public init(title: MediaTitle, rating: Double, votes: Int, popularity: Double, runtimeMinutes: Int? = nil) {
         self.title = title; self.rating = rating; self.votes = votes; self.popularity = popularity
+        self.runtimeMinutes = runtimeMinutes
+    }
+}
+
+public struct RecommendationBrief: Sendable, Equatable {
+    public var kind: MediaKind?
+    public var maximumMinutes: Int?
+    public var request: String
+
+    public init(kind: MediaKind? = nil, maximumMinutes: Int? = nil, request: String = "") {
+        self.kind = kind
+        self.maximumMinutes = maximumMinutes.map { min(600, max(1, $0)) }
+        self.request = String(request.prefix(1500))
+    }
+
+    public func accepts(_ candidate: RecommendationCandidate) -> Bool {
+        if let kind, candidate.title.kind != kind { return false }
+        if let maximumMinutes {
+            guard let runtime = candidate.runtimeMinutes, runtime > 0, runtime <= maximumMinutes else { return false }
+        }
+        return true
     }
 }
 
