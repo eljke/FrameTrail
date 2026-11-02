@@ -31,6 +31,7 @@ final class VoiceNoteService {
     }
 
     func transcribe(locale: Locale) async throws -> String {
+        defer { discard() }
         recorder?.stop(); recording = false
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         guard let url = recordingURL, SpeechTranscriber.isAvailable,
@@ -60,9 +61,8 @@ final class VoiceNoteService {
             else { await analyzer.cancelAndFinishNow() }
             let text = try await results.value
             try Task.checkCancellation()
-            discard()
             return text
-        } catch { discard(); throw error }
+        } catch { throw error }
     }
 
     func discard() {
