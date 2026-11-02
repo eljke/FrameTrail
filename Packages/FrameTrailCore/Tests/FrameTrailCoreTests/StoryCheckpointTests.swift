@@ -7,7 +7,7 @@ final class StoryCheckpointTests: XCTestCase {
 
     func testRewindExcludesLaterWatchedEpisodesAndReviews() {
         let records = [Reflection(titleID: "show", summary: "My first impression", rating: 8, episodeID: "e1"), Reflection(titleID: "show", summary: "The ending", rating: 2, episodeID: "e3"), Reflection(titleID: "other", summary: "Foreign", episodeID: "e1")]
-        let checkpoint = StoryCheckpoint(title: title, episodes: episodes.reversed(), progress: WatchProgress(finished: true, watchedEpisodeIDs: ["e1", "e3"]), facts: [StoryFact(id: "future", text: "Ending", episodeID: "e3")], records: records, through: "e1")
+        let checkpoint = StoryCheckpoint(title: title, episodes: Array(episodes.reversed()), progress: WatchProgress(finished: true, watchedEpisodeIDs: ["e1", "e3"]), facts: [StoryFact(id: "future", text: "Ending", episodeID: "e3")], records: records, through: "e1")
         XCTAssertEqual(checkpoint.episodes.map(\.id), ["e1"])
         XCTAssertEqual(checkpoint.context.allowedEpisodeIDs, ["e1"])
         XCTAssertFalse(checkpoint.context.text.contains("Ending"))
