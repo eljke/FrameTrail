@@ -41,7 +41,9 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Select stable Xcode
-        run: echo "DEVELOPER_DIR=$(python3 scripts/select_xcode.py)" >> "$GITHUB_ENV"
+        run: |
+          SELECTED_XCODE="$(python3 scripts/select_xcode.py)"
+          echo "DEVELOPER_DIR=$SELECTED_XCODE" >> "$GITHUB_ENV"
       - name: Show toolchain
         run: xcodebuild -version
       - name: Install XcodeGen
@@ -55,7 +57,9 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
       - name: Select iPhone simulator
-        run: echo "SIMULATOR_ID=$(python3 scripts/select_simulator.py)" >> "$GITHUB_ENV"
+        run: |
+          SELECTED_SIMULATOR="$(python3 scripts/select_simulator.py)"
+          echo "SIMULATOR_ID=$SELECTED_SIMULATOR" >> "$GITHUB_ENV"
       - name: Build simulator tests
         run: >-
           xcodebuild -project FrameTrail.xcodeproj -scheme FrameTrail
