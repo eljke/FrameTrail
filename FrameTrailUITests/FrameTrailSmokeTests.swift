@@ -304,8 +304,15 @@ final class FrameTrailSmokeTests: XCTestCase {
     private func enter(_ text: String, in editor: XCUIElement, app: XCUIApplication) {
         reveal(editor, app: app)
         editor.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.2)).tap()
-        editor.typeText(text)
-        XCTAssertEqual(editor.value as? String, text)
+        var entered = ""
+        for word in text.split(separator: " ", omittingEmptySubsequences: false) {
+            let chunk = entered.isEmpty ? String(word) : " " + word
+            editor.typeText(chunk)
+            entered += chunk
+            let received = NSPredicate(format: "value == %@", entered)
+            let accepted = XCTNSPredicateExpectation(predicate: received, object: editor)
+            XCTAssertEqual(XCTWaiter.wait(for: [accepted], timeout: 3), .completed)
+        }
     }
 
     @MainActor
