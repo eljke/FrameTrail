@@ -35,7 +35,7 @@ struct TasteStudioView: View {
                 }
                 if busy { HStack { ProgressView(); Button(L10n.text("Остановить")) { stop() } } }
                 else {
-                    Button { if mode == 2 { recommend() } else { generate() } } label: { Label(mode == 2 ? L10n.text("Ещё варианты") : L10n.text("Разобрать мои впечатления"), systemImage: "sparkles") }
+                    Button { if mode == 2 { recommend() } else { generate() } } label: { Label(mode == 2 ? (page == 1 ? L10n.text("Подобрать для меня") : L10n.text("Ещё варианты")) : L10n.text("Разобрать мои впечатления"), systemImage: "sparkles") }
                         .buttonStyle(.glassProminent).tint(Theme.accent).foregroundStyle(Theme.background)
                         .disabled(packet.evidence.count < 2 || !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable || (mode == 2 && (!model.hasCatalogToken || page > 500)))
                 }
@@ -65,6 +65,10 @@ struct TasteStudioView: View {
                             }
                             Button(L10n.text("Не интересно")) { recommendations.removeAll { $0.id == match.id } }.font(.caption)
                         }.padding(20).background(Theme.card, in: RoundedRectangle(cornerRadius: 24))
+                    }
+                    if !recommendations.isEmpty {
+                        if busy { HStack { ProgressView(); Button(L10n.text("Остановить")) { stop() } } }
+                        else { Button(L10n.text("Ещё варианты")) { recommend() }.buttonStyle(.glassProminent).tint(Theme.accent).foregroundStyle(Theme.background).disabled(page > 500) }
                     }
                 }
                 if let error { ErrorNotice(message: error) }
