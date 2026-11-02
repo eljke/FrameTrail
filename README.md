@@ -135,7 +135,7 @@
 
 ## Сборка и проверки
 
-Нужны macOS, стабильный Xcode 26 или новее с iOS SDK, Python 3.11+ и [XcodeGen](https://github.com/yonaskolb/XcodeGen). Сторонних runtime-пакетов и секретов для компиляции нет. Проект Xcode генерируется из `project.yml`.
+Нужны macOS, стабильный Xcode 26.4 или новее с iOS SDK, Python 3.11+ и [XcodeGen](https://github.com/yonaskolb/XcodeGen). Сторонних runtime-пакетов и секретов для компиляции нет. Проект Xcode генерируется из `project.yml`.
 
 Рабочая копия для разработки на Windows расположена в `C:\Projects\iOS\FrameTrail`. На Mac клонируйте репозиторий и выполняйте следующие команды из его корня; Windows подходит для редактирования, а iOS-приложение собирается в Xcode или GitHub Actions.
 

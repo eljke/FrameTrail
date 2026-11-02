@@ -135,7 +135,7 @@ Clearing downloaded materials removes source texts, including imported material,
 
 ## Build and test
 
-You need macOS, stable Xcode 26 or later with an iOS SDK, Python 3.11+, and [XcodeGen](https://github.com/yonaskolb/XcodeGen). Compilation needs no third-party runtime packages or secrets. `project.yml` generates the Xcode project.
+You need macOS, stable Xcode 26.4 or later with an iOS SDK, Python 3.11+, and [XcodeGen](https://github.com/yonaskolb/XcodeGen). Compilation needs no third-party runtime packages or secrets. `project.yml` generates the Xcode project.
 
 This development checkout is located at `C:\Projects\iOS\FrameTrail` on Windows. On a Mac, clone the repository and run the following commands from its root. Windows can be used for editing; the iOS app builds with Xcode or GitHub Actions.
 
