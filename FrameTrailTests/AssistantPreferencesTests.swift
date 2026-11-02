@@ -46,4 +46,25 @@ final class AssistantPreferencesTests: XCTestCase {
         store.switchAccount("guest")
         XCTAssertTrue(store.hiddenRecommendations.isEmpty)
     }
+
+    func testRestoringSyncedHiddenWatchlistItemKeepsItsNotes() throws {
+        let first = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let second = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: first); try? FileManager.default.removeItem(at: second) }
+        let source = LibraryStore(directory: first)
+        source.switchAccount("supabase:test")
+        let title = MediaTitle(id: "movie", title: "Movie", kind: .movie, provider: "TMDB", providerID: "1")
+        var entry = LibraryEntry(title: title)
+        entry.reflections = [Reflection(titleID: title.id, summary: "A note to keep")]
+        source.update(entry)
+        source.hideRecommendation(title)
+        let payload = try XCTUnwrap(source.cloudItems().first)
+        let restored = LibraryStore(directory: second)
+        restored.switchAccount("supabase:test")
+        try restored.applyCloudRecord(CloudLibraryRecord(mediaID: title.id, payload: payload, revision: 1, deleted: false))
+        restored.restoreRecommendation(title.id)
+        XCTAssertEqual(restored.visibleEntries.map(\.id), [title.id])
+        XCTAssertEqual(restored.entry(for: title.id)?.reflections, entry.reflections)
+        XCTAssertEqual(LibraryStore(directory: second).activeAccountID, "guest")
+    }
 }
