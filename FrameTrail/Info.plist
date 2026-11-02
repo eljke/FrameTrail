@@ -39,6 +39,8 @@
     <string>public.app-category.entertainment</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Record a short viewing note. Audio stays on your iPhone and is deleted after transcription or closing the recorder.</string>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>

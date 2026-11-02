@@ -24,7 +24,7 @@ struct DiscussionView: View {
         SpoilerContextBuilder.build(title: title, episodes: entry.episodes, progress: entry.progress,
                                     facts: entry.facts, question: strict ? sourceSearch : question, maxCharacters: 9_000)
     }
-    private var availability: AssistantAvailability { model.assistant.availability(localeIdentifier: model.localeIdentifier) }
+    private var availability: AssistantAvailability { model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier) }
 
     var body: some View {
         ScrollViewReader { proxy in
@@ -46,7 +46,7 @@ struct DiscussionView: View {
                             Button(L10n.text("Открыть настройки помощника")) { model.selectedTab = 3 }
                                 .font(.footnote).foregroundStyle(Theme.accent)
                         }
-                        Text(L10n.text("Язык ответа: %@. Модель может ошибиться или вспомнить сведения вне источников. Для строгого режима открой «Источники».", String(describing: model.localeIdentifier == "ru_RU" ? L10n.text("русский") : "English")))
+                        Text(L10n.text("Язык ответа: %@. Модель может ошибиться или вспомнить сведения вне источников. Для строгого режима открой «Источники».", String(describing: model.answerLocaleIdentifier == "ru_RU" ? L10n.text("русский") : "English")))
                             .font(.caption).foregroundStyle(Theme.muted)
                         if entry.chat.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
@@ -64,7 +64,7 @@ struct DiscussionView: View {
                                 Label(turn.role == .user ? L10n.text("Ты") : L10n.text("FrameTrail · локально"), systemImage: turn.role == .user ? "person.crop.circle" : "sparkles")
                                     .font(.caption.bold()).foregroundStyle(turn.role == .user ? Theme.muted : Theme.accent)
                                 if turn.role == .assistant {
-                                    LocalizedSourceText(text: SourceAnswer.visibleText(turn.text), aliases: entry.nameAliases ?? []).font(.body)
+                                    LocalizedSourceText(text: SourceAnswer.visibleText(turn.text), aliases: entry.nameAliases ?? [], autoTranslate: false).font(.body)
                                 } else {
                                     Text(turn.text).font(.body).textSelection(.enabled)
                                 }
@@ -136,9 +136,9 @@ struct DiscussionView: View {
             if phase == .active { Task { await model.assistant.refreshAvailability() } }
         }
         .onChange(of: library.activeAccountID) { _, _ in stopResponse() }
-        .onChange(of: entry.progress) { _, _ in stopResponse() }
+        .onChange(of: entry.progress) { _, _ in stopResponse(); selectedCitation = nil }
         .onChange(of: entry.nameAliases) { _, _ in stopResponse() }
-        .onChange(of: model.localeIdentifier) { _, _ in stopResponse() }
+        .onChange(of: model.answerLocaleIdentifier) { _, _ in stopResponse() }
         .onDisappear { stopResponse() }
         .sheet(isPresented: $showReflection) { ReflectionEditorView(title: title, initialSummary: reflectionDraft) }
         .sheet(item: $selectedCitation) { CitationDetailView(citation: $0, aliases: entry.nameAliases ?? []) }
@@ -148,7 +148,7 @@ struct DiscussionView: View {
     }
 
     private var suggestions: [String] {
-        if model.localeIdentifier == "ru_RU" {
+        if model.answerLocaleIdentifier == "ru_RU" {
             return entry.progress.finished ? [L10n.text("Кратко резюмируй историю"), L10n.text("Объясни концовку, отделяя факты от интерпретаций"), L10n.text("Какие вопросы стоит обсудить после просмотра?")] : [L10n.text("Напомни важные события просмотренных серий"), L10n.text("Что известно о мотивах героев на этом этапе?")]
         }
         return entry.progress.finished ? ["Summarize the story briefly", "Explain the ending; separate facts from interpretation", "What questions are worth discussing after watching?"] : ["Remind me of the important events so far", "What do we know about the characters' motives so far?"]
@@ -208,12 +208,12 @@ struct DiscussionView: View {
         }
         guard let snapshot = prepareEntry() else { return }
         let accountID = library.activeAccountID
-        let localeIdentifier = model.localeIdentifier
+        let localeIdentifier = model.answerLocaleIdentifier
         do {
             let prepared = try await model.assistant.prepareQuestion(question: text, localeIdentifier: localeIdentifier, aliases: snapshot.nameAliases ?? [])
             try Task.checkCancellation()
             guard activeRequestID == requestID, accountID == library.activeAccountID,
-                  localeIdentifier == model.localeIdentifier, let afterTranslation = library.entry(for: title.id),
+                  localeIdentifier == model.answerLocaleIdentifier, let afterTranslation = library.entry(for: title.id),
                   afterTranslation.progress == snapshot.progress, afterTranslation.chat == snapshot.chat,
                   afterTranslation.facts == snapshot.facts, afterTranslation.episodes == snapshot.episodes else { return }
             let packet = SpoilerContextBuilder.build(title: title, episodes: snapshot.episodes, progress: snapshot.progress, facts: snapshot.facts, question: text + "\n" + prepared, maxCharacters: 9_000)
@@ -221,7 +221,7 @@ struct DiscussionView: View {
             let response = try await model.assistant.respond(question: text, context: packet, history: snapshot.chat, localeIdentifier: localeIdentifier, preparedQuestion: prepared, aliases: snapshot.nameAliases ?? [])
             try Task.checkCancellation()
             guard activeRequestID == requestID, accountID == library.activeAccountID,
-                  localeIdentifier == model.localeIdentifier, let current = library.entry(for: title.id),
+                  localeIdentifier == model.answerLocaleIdentifier, let current = library.entry(for: title.id),
                   current.progress == snapshot.progress, current.chat == snapshot.chat,
                   current.facts == snapshot.facts, current.episodes == snapshot.episodes else { return }
             var changed = current

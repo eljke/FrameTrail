@@ -13,6 +13,8 @@ struct LibraryEntry: Identifiable, Codable, Hashable {
     var reflections: [Reflection]
     var updatedAt: Date
     var episodeLanguage: String?
+    var recommendationHidden: Bool?
+    var recommendationWasSaved: Bool?
     var nameAliases: [NameAlias]?
 
     init(title: MediaTitle) {
@@ -87,6 +89,28 @@ final class LibraryStore {
         }
     }
 
+    var visibleEntries: [LibraryEntry] { entries.filter { $0.recommendationHidden != true } }
+    var hiddenRecommendations: [LibraryEntry] { entries.filter { $0.recommendationHidden == true } }
+
+    func hideRecommendation(_ title: MediaTitle) {
+        let existing = entry(for: title.id)
+        guard existing?.recommendationHidden != true else { return }
+        var item = existing ?? LibraryEntry(title: title)
+        item.recommendationHidden = true
+        item.recommendationWasSaved = existing != nil
+        replaceEntry(item)
+    }
+
+    func restoreRecommendation(_ id: String) {
+        guard var item = entry(for: id), item.recommendationHidden == true else { return }
+        if item.recommendationWasSaved == true || item.progress.finished || !item.progress.watchedEpisodeIDs.isEmpty
+            || !item.reflections.isEmpty || !item.chat.isEmpty || !item.facts.isEmpty {
+            item.recommendationHidden = nil
+            item.recommendationWasSaved = nil
+            update(item)
+        } else { remove(id) }
+    }
+
     var isReadable: Bool { !unreadableAccountIDs.contains(activeAccountID) }
     var canSync: Bool {
         activeAccountID != "guest" && isReadable && !unreadableBaselineAccountIDs.contains(activeAccountID)
@@ -137,7 +161,12 @@ final class LibraryStore {
     }
 
     func add(_ title: MediaTitle) {
-        guard entry(for: title.id) == nil else { return }
+        if var existing = entry(for: title.id) {
+            if existing.recommendationHidden == true {
+                existing.recommendationHidden = nil; existing.recommendationWasSaved = nil; update(existing)
+            }
+            return
+        }
         commit(entries + [LibraryEntry(title: title)])
     }
 
@@ -158,6 +187,13 @@ final class LibraryStore {
     }
 
     func update(_ entry: LibraryEntry) {
+        var visible = entry
+        visible.recommendationHidden = nil
+        visible.recommendationWasSaved = nil
+        replaceEntry(visible)
+    }
+
+    private func replaceEntry(_ entry: LibraryEntry) {
         var updated = entry
         updated.updatedAt = Date()
         var next = entries
@@ -241,7 +277,7 @@ final class LibraryStore {
     }
 
     func cloudItems() -> [CloudLibraryItem] {
-        entries.map { CloudLibraryItem(title: $0.title, progress: $0.progress, reflections: $0.reflections, nameAliases: $0.nameAliases) }
+        entries.map { CloudLibraryItem(title: $0.title, progress: $0.progress, reflections: $0.reflections, nameAliases: $0.nameAliases, recommendationHidden: $0.recommendationHidden, recommendationWasSaved: $0.recommendationWasSaved) }
     }
 
     func applyCloudRecord(_ record: CloudLibraryRecord) throws {
@@ -281,6 +317,8 @@ final class LibraryStore {
                     entry.progress = item.progress
                     entry.reflections = item.reflections
                     entry.nameAliases = item.nameAliases
+                    entry.recommendationHidden = item.recommendationHidden
+                    entry.recommendationWasSaved = item.recommendationWasSaved
                     entry.updatedAt = Date()
                     if let index = next.firstIndex(where: { $0.id == item.id }) { next[index] = entry }
                     else { next.append(entry) }
@@ -453,6 +491,8 @@ final class LibraryStore {
             entry.progress = item.progress
             entry.reflections = item.reflections
             entry.nameAliases = item.nameAliases
+            entry.recommendationHidden = item.recommendationHidden
+            entry.recommendationWasSaved = item.recommendationWasSaved
             try validate([entry])
         }
     }

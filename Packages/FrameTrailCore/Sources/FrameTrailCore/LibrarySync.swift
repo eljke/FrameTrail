@@ -5,13 +5,17 @@ public struct CloudLibraryItem: Identifiable, Codable, Hashable, Sendable {
     public var title: MediaTitle
     public var progress: WatchProgress
     public var reflections: [Reflection]
+    public var recommendationHidden: Bool?
+    public var recommendationWasSaved: Bool?
     public var nameAliases: [NameAlias]?
 
-    public init(title: MediaTitle, progress: WatchProgress, reflections: [Reflection], nameAliases: [NameAlias]? = nil) {
+    public init(title: MediaTitle, progress: WatchProgress, reflections: [Reflection], nameAliases: [NameAlias]? = nil, recommendationHidden: Bool? = nil, recommendationWasSaved: Bool? = nil) {
         self.title = title
         self.progress = progress
         self.reflections = reflections
         self.nameAliases = nameAliases
+        self.recommendationHidden = recommendationHidden
+        self.recommendationWasSaved = recommendationWasSaved
     }
 }
 

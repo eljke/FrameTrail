@@ -29,6 +29,8 @@ struct ReflectionEditorView: View {
     @State private var overwriteEpisodeRatings = false
     @State private var confirmOverwrite = false
     @State private var showImpressions = false
+    @State private var voiceNote = false
+    @State private var organizeNote = false
 
     private var scopeID: String? { reflection?.episodeID ?? episode?.id }
     private var scopeSeason: Int? { reflection?.episodeSeason ?? episode?.season }
@@ -85,6 +87,12 @@ struct ReflectionEditorView: View {
                     } footer: { Text(L10n.text("Только просмотренные серии выбранного сезона или сериала. Действие можно отменить в карточке.")) }
                 }
                 Section(L10n.text("Заметки")) {
+                    HStack {
+                        Button(L10n.text("Надиктовать"), systemImage: "mic") { voiceNote = true }.accessibilityIdentifier("recordImpression")
+                        Spacer()
+                        Button(L10n.text("Разобрать заметку"), systemImage: "sparkles") { organizeNote = true }
+                            .disabled(summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !model.assistant.availability(localeIdentifier: "en_US").isAvailable)
+                    }
                     TextEditor(text: $summary).frame(minHeight: 90).accessibilityIdentifier("reflectionSummary")
                         .onChange(of: summary) { _, value in if value.count > 10_000 { summary = String(value.prefix(10_000)) } }
                     if scopeID == nil && seasonScope == nil, let last = library.entry(for: title.id)?.chat.last(where: { $0.role == .assistant }) {
@@ -154,10 +162,21 @@ struct ReflectionEditorView: View {
             .onChange(of: library.activeAccountID) { _, _ in dismiss() }
             .onChange(of: currentProgress) { _, _ in stopInterview(); interview = nil }
             .onChange(of: library.entry(for: title.id)?.nameAliases) { _, _ in stopInterview(); interview = nil }
-            .onChange(of: model.localeIdentifier) { _, _ in stopInterview(); interview = nil }
+            .onChange(of: model.answerLocaleIdentifier) { _, _ in stopInterview(); interview = nil }
             .onDisappear { stopInterview() }
             .confirmationDialog(L10n.text("Заменить оценки просмотренных серий? Заметки сохранятся."), isPresented: $confirmOverwrite, titleVisibility: .visible) {
                 Button(L10n.text("Заменить оценки")) { save() }.accessibilityIdentifier("confirmRatingOverwrite")
+            }
+            .sheet(isPresented: $voiceNote) {
+                VoiceNoteView { text in summary = String(([summary, text].filter { !$0.isEmpty }.joined(separator: "\n")).prefix(10000)) }
+            }
+            .sheet(isPresented: $organizeNote) {
+                ImpressionOrganizerView(text: summary, aliases: library.entry(for: title.id)?.nameAliases ?? []) { result in
+                    liked = String(([liked] + result.liked).filter { !$0.isEmpty }.joined(separator: "\n").prefix(30000))
+                    disliked = String(([disliked] + result.disliked).filter { !$0.isEmpty }.joined(separator: "\n").prefix(30000))
+                    questions = String(([questions] + result.questions).filter { !$0.isEmpty }.joined(separator: "\n").prefix(30000))
+                    showImpressions = true
+                }
             }
             .sheet(isPresented: $importingSource) {
                 SourceImportView(title: title, episodes: library.entry(for: title.id)?.episodes ?? [], initialEpisodeID: scopeID)
@@ -171,7 +190,7 @@ struct ReflectionEditorView: View {
                 skippedInterview = false
                 startInterview()
             } label: { Label(interview == nil ? L10n.text("Подобрать вопросы") : L10n.text("Обновить варианты"), systemImage: "sparkles") }
-                .disabled(generating || !canInterview || !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable)
+                .disabled(generating || !canInterview || !model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).isAvailable)
             if generating {
                 HStack { ProgressView(); Text(L10n.text("Проверяю материалы и готовлю варианты…")).font(.footnote) }
                 Button(L10n.text("Остановить")) { stopInterview() }
@@ -190,7 +209,7 @@ struct ReflectionEditorView: View {
                 Button(L10n.text("Добавить текст или субтитры")) { stopInterview(); importingSource = true }
             }.font(.subheadline)
             if let sourceNotice { Text(sourceNotice).font(.caption).foregroundStyle(.secondary) }
-            if !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable {
+            if !model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier).isAvailable {
                 Text(L10n.text("Оценки и заметки доступны вручную. Для вариантов помощника подготовь модель и язык в настройках."))
                     .font(.caption).foregroundStyle(.secondary)
             }
@@ -219,7 +238,7 @@ struct ReflectionEditorView: View {
         generating = true
         error = nil
         let accountID = library.activeAccountID
-        let locale = model.localeIdentifier
+        let locale = model.answerLocaleIdentifier
         generationTask = Task {
             defer { if generationID == id { generating = false; generationTask = nil; generationID = nil } }
             do {
@@ -247,7 +266,7 @@ struct ReflectionEditorView: View {
                 let result = try await model.assistant.reviewQuestions(target: targetName, context: packet, rating: rating == 0 ? nil : rating, liked: liked, disliked: disliked, localeIdentifier: locale, aliases: entry.nameAliases ?? [])
                 try Task.checkCancellation()
                 guard generationID == id, library.activeAccountID == accountID,
-                      currentProgress == entry.progress, model.localeIdentifier == locale else { return }
+                      currentProgress == entry.progress, model.answerLocaleIdentifier == locale else { return }
                 interview = result
             } catch is CancellationError {} catch {
                 if generationID == id { self.error = L10n.error(error) }

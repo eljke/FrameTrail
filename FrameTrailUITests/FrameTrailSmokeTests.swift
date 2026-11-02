@@ -2,6 +2,28 @@ import XCTest
 
 final class FrameTrailSmokeTests: XCTestCase {
     @MainActor
+    func testEveningPicksAndIndependentAnswerLanguage() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting"]
+        app.launch()
+        let evening = app.buttons["openEveningPicks"].firstMatch
+        XCTAssertTrue(evening.waitForExistence(timeout: 15))
+        evening.tap()
+        XCTAssertTrue(app.navigationBars["На вечер"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["moreEveningPicks"].exists)
+        XCTAssertFalse(app.buttons["moreEveningPicks"].isEnabled)
+        capture("15-evening-picks", app: app)
+        app.tabBars.buttons["Настройки"].tap()
+        let language = app.buttons["answerLanguage"]
+        reveal(language, app: app)
+        language.tap()
+        app.buttons["English"].tap()
+        XCTAssertTrue(app.tabBars.buttons["Библиотека"].waitForExistence(timeout: 5))
+        capture("16-independent-languages", app: app)
+    }
+
+    @MainActor
     func testTasteStudioExplainsMissingReviews() {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -82,7 +104,9 @@ final class FrameTrailSmokeTests: XCTestCase {
         let save = app.buttons["saveReflection"]
         XCTAssertTrue(save.isEnabled)
         save.tap()
-        XCTAssertTrue(app.staticTexts[thought].firstMatch.waitForExistence(timeout: 5))
+        let savedThought = app.staticTexts[thought].firstMatch
+        reveal(savedThought, app: app)
+        XCTAssertTrue(savedThought.waitForExistence(timeout: 5))
 
         tabs.buttons["Дневник"].tap()
         XCTAssertTrue(app.staticTexts["Arrival"].firstMatch.waitForExistence(timeout: 5))
@@ -238,11 +262,21 @@ final class FrameTrailSmokeTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["The final scene felt rushed"].firstMatch.waitForExistence(timeout: 5))
         capture("13-story-pulse", app: app)
         app.buttons["closeStoryPulse"].tap()
+        let atlas = app.buttons["openStoryAtlas"]
+        reveal(atlas, app: app)
+        atlas.tap()
+        XCTAssertTrue(app.navigationBars["Персонажи"].waitForExistence(timeout: 5))
+        capture("17-story-atlas", app: app)
         app.tabBars.buttons["Дневник"].tap()
         XCTAssertTrue(app.staticTexts["Сезон 1 · Серия 1"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["− The final scene felt rushed"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["9/10"].firstMatch.exists)
         capture("07-episode-review", app: app)
+        let memory = app.buttons["openViewingMemory"]
+        reveal(memory, app: app)
+        memory.tap()
+        XCTAssertTrue(app.navigationBars["Мои воспоминания"].waitForExistence(timeout: 5))
+        capture("18-viewing-memory", app: app)
     }
 
     @MainActor
@@ -270,7 +304,15 @@ final class FrameTrailSmokeTests: XCTestCase {
     private func enter(_ text: String, in editor: XCUIElement, app: XCUIApplication) {
         reveal(editor, app: app)
         editor.coordinate(withNormalizedOffset: CGVector(dx: 0.1, dy: 0.2)).tap()
-        editor.typeText(text)
+        var entered = ""
+        for word in text.split(separator: " ", omittingEmptySubsequences: false) {
+            let chunk = entered.isEmpty ? String(word) : " " + word
+            editor.typeText(chunk)
+            entered += chunk
+            let received = NSPredicate(format: "value == %@", entered)
+            let accepted = XCTNSPredicateExpectation(predicate: received, object: editor)
+            XCTAssertEqual(XCTWaiter.wait(for: [accepted], timeout: 3), .completed)
+        }
     }
 
     @MainActor

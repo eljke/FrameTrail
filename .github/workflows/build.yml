@@ -15,16 +15,35 @@ concurrency:
   cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
 
 jobs:
+  core:
+    if: "!startsWith(github.ref, 'refs/tags/')"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate repository and delivery
+        run: |
+          python3 scripts/validate.py
+          python3 scripts/test_delivery.py
+          python3 scripts/test_xcode_selection.py
+      - name: Test core behavior
+        run: swift test --package-path Packages/FrameTrailCore
+
   build:
     if: "!startsWith(github.ref, 'refs/tags/')"
+    needs: core
     runs-on: macos-26
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Select stable Xcode
-        run: echo "DEVELOPER_DIR=$(python3 scripts/select_xcode.py)" >> "$GITHUB_ENV"
+        run: |
+          SELECTED_XCODE="$(python3 scripts/select_xcode.py)"
+          echo "DEVELOPER_DIR=$SELECTED_XCODE" >> "$GITHUB_ENV"
       - name: Show toolchain
         run: xcodebuild -version
       - name: Install XcodeGen
@@ -35,25 +54,44 @@ jobs:
             brew install xcodegen
           fi
           xcodegen --version
-      - name: Validate repository
-        run: |
-          python3 scripts/validate.py
-          python3 scripts/test_delivery.py
-      - name: Test core behavior
-        run: swift test --package-path Packages/FrameTrailCore
       - name: Generate Xcode project
         run: xcodegen generate
       - name: Select iPhone simulator
-        run: echo "SIMULATOR_ID=$(python3 scripts/select_simulator.py)" >> "$GITHUB_ENV"
-      - name: Build and test on simulator
+        run: |
+          SELECTED_SIMULATOR="$(python3 scripts/select_simulator.py)"
+          echo "SIMULATOR_ID=$SELECTED_SIMULATOR" >> "$GITHUB_ENV"
+      - name: Build simulator tests
+        run: >-
+          xcodebuild -project FrameTrail.xcodeproj -scheme FrameTrail
+          -configuration Debug -sdk iphonesimulator
+          -destination "platform=iOS Simulator,id=$SIMULATOR_ID"
+          -derivedDataPath build/simulator
+          CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES build-for-testing
+      - name: Run app behavior tests
+        run: >-
+          xcodebuild -project FrameTrail.xcodeproj -scheme FrameTrail
+          -configuration Debug -sdk iphonesimulator
+          -destination "platform=iOS Simulator,id=$SIMULATOR_ID"
+          -derivedDataPath build/simulator
+          -resultBundlePath build/FrameTrailUnitTests.xcresult
+          -only-testing:FrameTrailTests
+          -parallel-testing-enabled NO
+          CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES test-without-building
+      - name: Prepare app for UI launch
+        run: |
+          xcrun simctl bootstatus "$SIMULATOR_ID" -b
+          xcrun simctl install "$SIMULATOR_ID" build/simulator/Build/Products/Debug-iphonesimulator/FrameTrail.app
+          xcrun simctl launch --terminate-running-process "$SIMULATOR_ID" io.github.eljke.frametrail --uitesting
+      - name: Run UI acceptance tests
         run: >-
           xcodebuild -project FrameTrail.xcodeproj -scheme FrameTrail
           -configuration Debug -sdk iphonesimulator
           -destination "platform=iOS Simulator,id=$SIMULATOR_ID"
           -derivedDataPath build/simulator
           -resultBundlePath build/FrameTrailTests.xcresult
+          -only-testing:FrameTrailUITests
           -parallel-testing-enabled NO
-          CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES test
+          CODE_SIGN_IDENTITY=- CODE_SIGNING_ALLOWED=YES test-without-building
       - name: Export test screenshots
         if: always()
         continue-on-error: true
@@ -69,6 +107,7 @@ jobs:
           name: FrameTrail-tests
           path: |
             build/FrameTrailTests.xcresult
+            build/FrameTrailUnitTests.xcresult
             build/test-attachments
           if-no-files-found: ignore
           retention-days: 14
@@ -97,7 +136,7 @@ jobs:
 
   release:
     if: always() && startsWith(github.ref, 'refs/tags/')
-    needs: build
+    needs: [core, build]
     runs-on: ubuntu-latest
     permissions:
       contents: write

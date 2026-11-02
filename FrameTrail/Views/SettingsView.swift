@@ -20,7 +20,7 @@ struct SettingsView: View {
     @State private var translationConfiguration: TranslationSession.Configuration?
     @State private var preparationStep = 0
 
-    private var modelStatus: AssistantAvailability { model.assistant.availability(localeIdentifier: model.localeIdentifier) }
+    private var modelStatus: AssistantAvailability { model.assistant.availability(localeIdentifier: model.answerLocaleIdentifier) }
 
     private static var versionLabel: String {
         let bundle = Bundle.main
@@ -50,6 +50,16 @@ struct SettingsView: View {
                 }.accessibilityIdentifier("appLanguage")
             }
             Section {
+                Picker(L10n.text("Язык ответов"), selection: $model.answerLanguage) {
+                    Text(L10n.text("Как в приложении")).tag("auto")
+                    Text(L10n.text("Русский")).tag("ru")
+                    Text("English").tag("en")
+                }.accessibilityIdentifier("answerLanguage")
+                Toggle(L10n.text("Переводить внешние тексты автоматически"), isOn: $model.sourceTranslationEnabled)
+                Text(L10n.text("Названия и описания берём на выбранном языке из каталога. Машинный перевод источников можно включать отдельно; оригинал всегда доступен."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
                 NavigationLink {
                     Form { AccountSettingsSection() }.navigationTitle(L10n.text("Аккаунт FrameTrail"))
                 } label: { Label(L10n.text("Аккаунт FrameTrail"), systemImage: "person.crop.circle") }
@@ -61,6 +71,18 @@ struct SettingsView: View {
                 } label: { Label(L10n.text("TMDB и каталоги"), systemImage: "film.stack") }
             }
             Section {
+                NavigationLink {
+                    List {
+                        if library.hiddenRecommendations.isEmpty { Text(L10n.text("Скрытых рекомендаций пока нет.")) }
+                        ForEach(library.hiddenRecommendations) { item in
+                            HStack {
+                                Text(item.title.title)
+                                Spacer()
+                                Button(L10n.text("Вернуть")) { library.restoreRecommendation(item.id) }
+                            }
+                        }
+                    }.navigationTitle(L10n.text("Скрытые рекомендации"))
+                } label: { Label(L10n.text("Скрытые рекомендации"), systemImage: "eye.slash") }
                 NavigationLink { StorageView() } label: { Label(L10n.text("Память"), systemImage: "internaldrive") }
                     .accessibilityIdentifier("storageSettings")
                 NavigationLink {

@@ -3,6 +3,23 @@ import FrameTrailCore
 @testable import FrameTrail
 
 final class ServicesTests: XCTestCase {
+    func testRecommendationRuntimeIsCheckedAgainstDetailsAndBriefCachesSeparately() async throws {
+        ServiceURLProtocol.setHandler { request in
+            if request.url!.path.contains("discover") {
+                XCTAssertEqual(request.url!.path, "/3/discover/movie")
+                let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+                XCTAssertTrue(query.contains { $0.name == "with_runtime.lte" && $0.value == "100" })
+                return .json("{\"results\":[{\"id\":42,\"title\":\"Short\",\"vote_average\":8.2,\"vote_count\":3000,\"popularity\":20},{\"id\":43,\"title\":\"Unknown\",\"vote_average\":8,\"vote_count\":2000,\"popularity\":10}]}")
+            }
+            if request.url!.path == "/3/movie/42" { return .json("{\"id\":42,\"title\":\"Short\",\"runtime\":95,\"vote_average\":8.2,\"vote_count\":3000,\"popularity\":20}") }
+            return .json("{\"id\":43,\"title\":\"Unknown\",\"runtime\":0,\"vote_average\":8,\"vote_count\":2000,\"popularity\":10}")
+        }
+        let service = CatalogService(http: client(), tokenProvider: { "token" })
+        let result = try await service.recommendationCandidates(language: "en-US", seeds: [], brief: RecommendationBrief(kind: .movie, maximumMinutes: 100))
+        XCTAssertEqual(result.map(\.id), ["tmdb:movie:42"])
+        XCTAssertEqual(result.first?.runtimeMinutes, 95)
+    }
+
     func testRecommendationCatalogPreservesQualityMetrics() async throws {
         ServiceURLProtocol.setHandler { request in
             XCTAssertTrue(request.url!.path.contains("discover"))
@@ -276,7 +293,10 @@ final class ServicesTests: XCTestCase {
             if query?.first(where: { $0.name == "action" })?.value == "query" {
                 return .json("{\"query\":{\"search\":[{\"pageid\":7,\"title\":\"Sample Film Returns\"},{\"pageid\":8,\"title\":\"Sample Film (2024 film)\"}]}}")
             }
-            XCTAssertEqual(query?.first(where: { $0.name == "pageid" })?.value, "8")
+            XCTAssertTrue(query?.contains(where: { ($0.name == "pageid" && $0.value == "8") || ($0.name == "oldid" && $0.value == "123456") }) == true)
+            if query?.first(where: { $0.name == "section" })?.value == "0" {
+                return .json("{\"parse\":{\"revid\":123456,\"text\":{\"*\":\"<table class='infobox vevent'><th class='infobox-above'>Sample Film</th><tr><th>Release date</th><td>2024</td></tr></table>\"}}}")
+            }
             if query?.first(where: { $0.name == "prop" })?.value == "sections" {
                 return .json("{\"parse\":{\"sections\":[{\"line\":\"Cast\",\"index\":\"1\"},{\"line\":\"Plot\",\"index\":\"2\"}]}}")
             }
@@ -288,6 +308,27 @@ final class ServicesTests: XCTestCase {
         XCTAssertEqual(facts.map(\.text).joined(separator: " ").split(whereSeparator: \.isWhitespace).joined(separator: " "), "A character returns home.")
         XCTAssertTrue(facts.allSatisfy { $0.sourceURL?.absoluteString == "https://en.wikipedia.org/w/index.php?oldid=123456" })
         XCTAssertTrue(facts.allSatisfy { $0.titleID == title.id })
+    }
+
+    func testMoviePlotRejectsMismatchedPageIdentity() async throws {
+        ServiceURLProtocol.setHandler { request in
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            if query.contains(where: { $0.name == "action" && $0.value == "query" }) {
+                return .json("{\"query\":{\"search\":[{\"pageid\":8,\"title\":\"Sample Film (2024 film)\"}]}}")
+            }
+            if query.contains(where: { $0.name == "section" && $0.value == "0" }) {
+                return .json("{\"parse\":{\"revid\":123456,\"text\":{\"*\":\"<table class='infobox vevent'><th class='infobox-above'>Another Film</th><tr><th>Release date</th><td>2024</td></tr></table>\"}}}")
+            }
+            if query.contains(where: { $0.name == "prop" && $0.value == "sections" }) {
+                return .json("{\"parse\":{\"sections\":[{\"line\":\"Plot\",\"index\":\"2\"}]}}")
+            }
+            return .json("{\"parse\":{\"revid\":123456,\"text\":{\"*\":\"<p>An unrelated plot.</p>\"}}}")
+        }
+        let title = MediaTitle(id: "movie", title: "Sample Film", kind: .movie, year: 2024, provider: "test", providerID: "1")
+        do {
+            _ = try await WikiPlotService(http: client()).plot(for: title, finished: true)
+            XCTFail("Search title alone must not establish movie identity")
+        } catch ServiceError.noPlot {}
     }
 
     func testPlotResearchNeverDownloadsAnUnfinishedFilm() async throws {

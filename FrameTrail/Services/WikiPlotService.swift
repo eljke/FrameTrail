@@ -23,8 +23,14 @@ actor WikiPlotService {
             return candidate == normalizedName || candidate == "\(normalizedName) film"
                 || title.year.map { candidate.hasPrefix("\(normalizedName) \($0) ") } == true
         }
-        guard let match = candidates.max(by: { score($0.title, year: title.year) < score($1.title, year: title.year) }) else { throw ServiceError.noPlot }
-        return try await loadPlot(pageID: match.pageid, titleID: title.id)
+        for match in candidates.sorted(by: { score($0.title, year: title.year) > score($1.title, year: title.year) }).prefix(3) {
+            try Task.checkCancellation()
+            let introURL = try parseURL(pageID: match.pageid, properties: "text|revid", section: "0")
+            let intro = try await http.decode(WikiText.self, request: HTTPClient.request(url: introURL))
+            guard matchesMovie(intro.parse.text.html, name: name, year: title.year) else { continue }
+            return try await loadPlot(pageID: match.pageid, titleID: title.id, revision: intro.parse.revid)
+        }
+        throw ServiceError.noPlot
     }
 
     func plot(for title: MediaTitle, episode: Episode, progress: WatchProgress) async throws -> [StoryFact] {
@@ -50,6 +56,15 @@ actor WikiPlotService {
             return try await loadPlot(pageID: match.pageid, titleID: title.id, episodeID: episode.id, revision: intro.parse.revid)
         }
         throw ServiceError.noPlot
+    }
+
+    private func matchesMovie(_ html: String, name: String, year: Int?) -> Bool {
+        guard let box = capture("(?is)<table\\b[^>]*class=[\"'][^\"']*\\binfobox\\b[^\"']*\\bvevent\\b[^\"']*[\"'][^>]*>(.*?)</table>", in: html),
+              let heading = capture("(?is)<th\\b[^>]*class=[\"'][^\"']*infobox-above[^\"']*[\"'][^>]*>(.*?)</th>", in: box),
+              normalized(SourceText.plain(heading)) == normalized(name) else { return false }
+        guard let year else { return true }
+        guard let released = capture("(?is)<tr\\b[^>]*>\\s*<th\\b[^>]*>\\s*Release\\s*dates?\\b.*?</th>\\s*<td\\b[^>]*>(.*?)</td>", in: box) else { return false }
+        return SourceText.plain(released).range(of: "\\b\(year)\\b", options: .regularExpression) != nil
     }
 
     private func matchesEpisode(_ html: String, series: String, episode: Episode) -> Bool {
