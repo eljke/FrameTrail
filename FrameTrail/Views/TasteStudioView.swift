@@ -65,38 +65,38 @@ struct TasteStudioView: View {
 
     private var recommendationSection: some View {
         VStack(alignment: .leading, spacing: 20) {
-                    Text(L10n.text("TMDB: от 7/10, минимум 300 голосов для фильмов и 150 для сериалов. Популярность учитывается после отбора. Показанное не повторяется в этой подборке.")).font(.caption).foregroundStyle(Theme.muted)
-                    if !model.hasCatalogToken {
-                        Button(L10n.text("Подключить TMDB в настройках")) { model.selectedTab = 3 }.buttonStyle(.glass)
-                    }
-                    ForEach(recommendations) { match in recommendationCard(match) }
-                    if !recommendations.isEmpty {
-                        if busy { HStack { ProgressView(); Button(L10n.text("Остановить")) { stop() } } }
-                        else { Button(L10n.text("Ещё варианты")) { recommend() }.buttonStyle(.glassProminent).tint(Theme.accent).foregroundStyle(Theme.background).disabled(page > 500) }
-                    }
+            Text(L10n.text("TMDB: от 7/10, минимум 300 голосов для фильмов и 150 для сериалов. Популярность учитывается после отбора. Показанное не повторяется в этой подборке.")).font(.caption).foregroundStyle(Theme.muted)
+            if !model.hasCatalogToken {
+                Button(L10n.text("Подключить TMDB в настройках")) { model.selectedTab = 3 }.buttonStyle(.glass)
+            }
+            ForEach(recommendations) { match in recommendationCard(match) }
+            if !recommendations.isEmpty {
+                if busy { HStack { ProgressView(); Button(L10n.text("Остановить")) { stop() } } }
+                else { Button(L10n.text("Ещё варианты")) { recommend() }.buttonStyle(.glassProminent).tint(Theme.accent).foregroundStyle(Theme.background).disabled(page > 500) }
+            }
         }
     }
 
     private func recommendationCard(_ match: PersonalRecommendation) -> some View {
-                        VStack(alignment: .leading, spacing: 14) {
-                            NavigationLink(value: match.candidate.title) {
-                                HStack(spacing: 14) {
-                                    PosterView(title: match.candidate.title, width: 56)
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text(match.candidate.title.title).font(.headline)
-                                        Text([match.candidate.title.kind == .movie ? L10n.text("Фильм") : L10n.text("Сериал"), match.candidate.title.year.map(String.init) ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")).font(.caption).foregroundStyle(Theme.muted)
-                                        Text("TMDB \(match.candidate.rating, format: .number.precision(.fractionLength(1)))/10 · \(match.candidate.votes)").font(.caption).foregroundStyle(Theme.accent)
-                                        Text(L10n.text("Голоса TMDB · не личная оценка")).font(.caption2).foregroundStyle(Theme.muted)
-                                    }
-                                    Spacer(); Image(systemName: "chevron.right")
-                                }
-                            }.buttonStyle(.plain)
-                            LocalizedSourceText(text: match.explanation.text)
-                            ForEach(match.explanation.citations) { item in
-                                Button { citation = item } label: { Label("[\(item.number)] " + L10n.text("Почему мне"), systemImage: "quote.bubble") }.buttonStyle(.glass)
-                            }
-                            Button(L10n.text("Не интересно")) { recommendations.removeAll { $0.id == match.id } }.font(.caption)
-                        }.padding(20).background(Theme.card, in: RoundedRectangle(cornerRadius: 24))
+        VStack(alignment: .leading, spacing: 14) {
+            NavigationLink(value: match.candidate.title) {
+                HStack(spacing: 14) {
+                    PosterView(title: match.candidate.title, width: 56)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(match.candidate.title.title).font(.headline)
+                        Text([match.candidate.title.kind == .movie ? L10n.text("Фильм") : L10n.text("Сериал"), match.candidate.title.year.map(String.init) ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")).font(.caption).foregroundStyle(Theme.muted)
+                        Text("TMDB \(match.candidate.rating, format: .number.precision(.fractionLength(1)))/10 · \(match.candidate.votes)").font(.caption).foregroundStyle(Theme.accent)
+                        Text(L10n.text("Голоса TMDB · не личная оценка")).font(.caption2).foregroundStyle(Theme.muted)
+                    }
+                    Spacer(); Image(systemName: "chevron.right")
+                }
+            }.buttonStyle(.plain)
+            LocalizedSourceText(text: match.explanation.text)
+            ForEach(match.explanation.citations) { item in
+                Button { citation = item } label: { Label("[\(item.number)] " + L10n.text("Почему мне"), systemImage: "quote.bubble") }.buttonStyle(.glass)
+            }
+            Button(L10n.text("Не интересно")) { recommendations.removeAll { $0.id == match.id } }.font(.caption)
+        }.padding(20).background(Theme.card, in: RoundedRectangle(cornerRadius: 24))
     }
 
     private func resetRecommendations() {
