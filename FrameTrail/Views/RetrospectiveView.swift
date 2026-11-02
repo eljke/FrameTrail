@@ -3,6 +3,7 @@ import FrameTrailCore
 
 struct RetrospectiveView: View {
     let title: MediaTitle
+    var throughEpisodeID: String? = nil
     @Environment(\.dismiss) private var dismiss
     @Environment(LibraryStore.self) private var library
     @Environment(AppModel.self) private var model
@@ -17,7 +18,11 @@ struct RetrospectiveView: View {
 
     private var entry: LibraryEntry? { library.entry(for: title.id) }
     private var compilation: ReflectionCompilation {
-        ReflectionCompilation(records: entry?.reflections ?? [], watchedEpisodeIDs: entry?.progress.watchedEpisodeIDs ?? [])
+        let records: [Reflection]
+        if let throughEpisodeID, let entry {
+            records = StoryCheckpoint(title: title, episodes: entry.episodes, progress: entry.progress, facts: [], records: entry.reflections, through: throughEpisodeID).reviews
+        } else { records = entry?.reflections ?? [] }
+        return ReflectionCompilation(records: records, watchedEpisodeIDs: entry?.progress.watchedEpisodeIDs ?? [])
     }
 
     var body: some View {

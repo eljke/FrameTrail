@@ -98,7 +98,7 @@ struct ReflectionEditorView: View {
                     interviewSection
                 Section(L10n.text("Что понравилось")) {
                     if let interview { Text(interview.liked).font(.subheadline).foregroundStyle(Theme.accent).textSelection(.enabled) }
-                    ReviewChoiceList(choices: choiceOptions(positive: true), selected: $likedChoices)
+                    if !choiceOptions(positive: true).isEmpty { ReviewChoiceList(choices: choiceOptions(positive: true), selected: $likedChoices) }
                     Text(L10n.text("Свой вариант · необязательно")).font(.caption).foregroundStyle(.secondary)
                     TextEditor(text: $liked).frame(minHeight: 70)
                         .accessibilityIdentifier("reflectionLiked")
@@ -106,7 +106,7 @@ struct ReflectionEditorView: View {
                 }
                 Section(L10n.text("Что не понравилось")) {
                     if let interview { Text(interview.disliked).font(.subheadline).foregroundStyle(Theme.accent).textSelection(.enabled) }
-                    ReviewChoiceList(choices: choiceOptions(positive: false), selected: $dislikedChoices)
+                    if !choiceOptions(positive: false).isEmpty { ReviewChoiceList(choices: choiceOptions(positive: false), selected: $dislikedChoices) }
                     Text(L10n.text("Свой вариант · необязательно")).font(.caption).foregroundStyle(.secondary)
                     TextEditor(text: $disliked).frame(minHeight: 70)
                         .accessibilityIdentifier("reflectionDisliked")

@@ -2,6 +2,20 @@ import XCTest
 
 final class FrameTrailSmokeTests: XCTestCase {
     @MainActor
+    func testTasteStudioExplainsMissingReviews() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Дневник"].waitForExistence(timeout: 15))
+        app.tabBars.buttons["Дневник"].tap()
+        app.buttons["tasteStudio"].tap()
+        XCTAssertTrue(app.navigationBars["Кинопочерк"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Нужно немного впечатлений"].firstMatch.exists)
+        capture("14-taste-studio", app: app)
+    }
+
+    @MainActor
     func testSwitchApplicationLanguage() {
         continueAfterFailure = false
         let app = XCUIApplication()
@@ -217,6 +231,13 @@ final class FrameTrailSmokeTests: XCTestCase {
         undo.tap()
         XCTAssertTrue(app.staticTexts["9/10"].firstMatch.exists)
         capture("12-season-batch-rating", app: app)
+        let pulse = app.buttons["openStoryPulse"]
+        reveal(pulse, app: app)
+        pulse.tap()
+        XCTAssertTrue(app.navigationBars["Пульс сериала"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["The final scene felt rushed"].firstMatch.waitForExistence(timeout: 5))
+        capture("13-story-pulse", app: app)
+        app.buttons["closeStoryPulse"].tap()
         app.tabBars.buttons["Дневник"].tap()
         XCTAssertTrue(app.staticTexts["Сезон 1 · Серия 1"].firstMatch.waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["− The final scene felt rushed"].waitForExistence(timeout: 5))

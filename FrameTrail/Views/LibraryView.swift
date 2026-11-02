@@ -8,6 +8,7 @@ struct LibraryView: View {
     @State private var query = ""
     @State private var manualEntry = false
     @State private var pendingRemoval: LibraryEntry?
+    @State private var resume: MediaTitle?
 
     private var entries: [LibraryEntry] {
         library.entries.filter {
@@ -25,12 +26,25 @@ struct LibraryView: View {
                     Text(L10n.text("Смотрю")).tag(1)
                     Text(L10n.text("Досмотрел")).tag(2)
                 }.pickerStyle(.segmented)
-                if entries.isEmpty {
+                if filter == 0 && query.isEmpty, let recent = entries.first(where: { $0.title.kind == .series && !$0.progress.finished && !$0.progress.watchedEpisodeIDs.isEmpty }) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Label(L10n.text("Продолжить просмотр"), systemImage: "play.circle").font(.caption).foregroundStyle(Theme.muted)
+                        Text(model.displayTitle(recent.title).title).font(.title3.bold())
+                        HStack {
+                            NavigationLink(value: recent.title) { Text(L10n.text("Открыть сериал")) }.buttonStyle(.glass)
+                            Button { resume = recent.title } label: { Label(L10n.text("Вспомнить сюжет"), systemImage: "sparkles") }.buttonStyle(.glassProminent).tint(Theme.accent).foregroundStyle(Theme.background)
+                        }
+                    }.padding(20).frame(maxWidth: .infinity, alignment: .leading).background(Theme.card, in: RoundedRectangle(cornerRadius: 24))
+                }
+                if entries.isEmpty && !library.entries.isEmpty {
+                    ContentUnavailableView.search(text: query)
+                }
+                if library.entries.isEmpty {
                     EmptyState(symbol: "books.vertical", title: L10n.text("Библиотека пока пуста"), text: L10n.text("Найди фильм в обзоре или добавь свой. Прогресс, материалы и обсуждения сохранятся на устройстве."))
                     Button { model.selectedTab = 0 } label: { Label(L10n.text("Фильм или сериал"), systemImage: "magnifyingglass") }
-                        .buttonStyle(.borderedProminent).foregroundStyle(Theme.background)
+                        .buttonStyle(.glassProminent).foregroundStyle(Theme.background)
                     Button { manualEntry = true } label: { Label(L10n.text("Добавить фильм или сериал"), systemImage: "plus.circle.fill") }
-                        .buttonStyle(.bordered).accessibilityIdentifier("libraryAddTitle")
+                        .buttonStyle(.glass).accessibilityIdentifier("libraryAddTitle")
                 }
                 LazyVStack(spacing: 12) {
                     ForEach(entries) { entry in
@@ -60,6 +74,7 @@ struct LibraryView: View {
         .navigationTitle(L10n.text("Библиотека")).navigationBarTitleDisplayMode(.inline)
         .searchable(text: $query, prompt: L10n.text("Поиск в библиотеке"))
         .toolbar { Button { manualEntry = true } label: { Image(systemName: "plus") }.accessibilityLabel(L10n.text("Добавить фильм или сериал")) }
+        .sheet(item: $resume) { StoryPulseView(title: $0) }
         .sheet(isPresented: $manualEntry) { ManualTitleView() }
         .confirmationDialog(L10n.text("Удалить историю, её обсуждение и заметки?"), isPresented: Binding(get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }), titleVisibility: .visible) {
             Button(L10n.text("Удалить"), role: .destructive) { if let entry = pendingRemoval { library.remove(entry.id) }; pendingRemoval = nil }
@@ -79,6 +94,16 @@ struct JournalView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
+                NavigationLink { TasteStudioView() } label: {
+                    HStack(spacing: 14) {
+                        Image(systemName: "sparkles.rectangle.stack").font(.title2)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L10n.text("Кинопочерк")).font(.headline)
+                            Text(L10n.text("Твой вкус, связи и рекомендации")).font(.caption).foregroundStyle(Theme.muted)
+                        }
+                        Spacer(); Image(systemName: "chevron.right").font(.caption)
+                    }.padding(12)
+                }.buttonStyle(.glass)
                 DisclosureGroup(L10n.text("Статистика")) { LibraryStatisticsView(entries: library.entries).padding(.top, 12) }
                 if records.isEmpty {
                     EmptyState(symbol: "text.book.closed", title: L10n.text("Пока нет отзывов"), text: L10n.text("После просмотра открой «Итог» в карточке фильма или сериала. Сохрани впечатления, вопросы и оценку."))
@@ -107,5 +132,6 @@ struct JournalView: View {
         }
         .background(Theme.background)
         .navigationTitle(L10n.text("Дневник")).navigationBarTitleDisplayMode(.inline)
+        .toolbar { NavigationLink { TasteStudioView() } label: { Image(systemName: "sparkles.rectangle.stack") }.accessibilityLabel(L10n.text("Кинопочерк")).accessibilityIdentifier("tasteStudio") }
     }
 }

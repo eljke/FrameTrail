@@ -3,6 +3,18 @@ import FrameTrailCore
 @testable import FrameTrail
 
 final class ServicesTests: XCTestCase {
+    func testRecommendationCatalogPreservesQualityMetrics() async throws {
+        ServiceURLProtocol.setHandler { request in
+            XCTAssertTrue(request.url!.path.contains("discover"))
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)!.queryItems!
+            XCTAssertTrue(query.contains { $0.name == "sort_by" && $0.value == "popularity.desc" })
+            return .json("{\"results\":[{\"id\":42,\"title\":\"Trusted\",\"name\":\"Trusted\",\"vote_average\":8.2,\"vote_count\":3000,\"popularity\":20}]}")
+        }
+        let candidates = try await CatalogService(http: client(), tokenProvider: { "token" }).recommendationCandidates(language: "en-US", seeds: [])
+        XCTAssertEqual(candidates.count, 2)
+        XCTAssertTrue(candidates.allSatisfy { $0.rating == 8.2 && $0.votes == 3000 && $0.popularity == 20 })
+    }
+
     func testLocalizedEpisodeKeepsOriginalNameForPlotResearch() async throws {
         ServiceURLProtocol.setHandler { request in
             if request.url?.path == "/3/tv/9" { return .json("{\"seasons\":[{\"season_number\":1}]}") }
