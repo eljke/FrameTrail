@@ -29,6 +29,8 @@ struct ReflectionEditorView: View {
     @State private var overwriteEpisodeRatings = false
     @State private var confirmOverwrite = false
     @State private var showImpressions = false
+    @State private var voiceNote = false
+    @State private var organizeNote = false
 
     private var scopeID: String? { reflection?.episodeID ?? episode?.id }
     private var scopeSeason: Int? { reflection?.episodeSeason ?? episode?.season }
@@ -85,6 +87,12 @@ struct ReflectionEditorView: View {
                     } footer: { Text(L10n.text("Только просмотренные серии выбранного сезона или сериала. Действие можно отменить в карточке.")) }
                 }
                 Section(L10n.text("Заметки")) {
+                    HStack {
+                        Button(L10n.text("Надиктовать"), systemImage: "mic") { voiceNote = true }.accessibilityIdentifier("recordImpression")
+                        Spacer()
+                        Button(L10n.text("Разобрать заметку"), systemImage: "sparkles") { organizeNote = true }
+                            .disabled(summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !model.assistant.availability(localeIdentifier: "en_US").isAvailable)
+                    }
                     TextEditor(text: $summary).frame(minHeight: 90).accessibilityIdentifier("reflectionSummary")
                         .onChange(of: summary) { _, value in if value.count > 10_000 { summary = String(value.prefix(10_000)) } }
                     if scopeID == nil && seasonScope == nil, let last = library.entry(for: title.id)?.chat.last(where: { $0.role == .assistant }) {
@@ -158,6 +166,17 @@ struct ReflectionEditorView: View {
             .onDisappear { stopInterview() }
             .confirmationDialog(L10n.text("Заменить оценки просмотренных серий? Заметки сохранятся."), isPresented: $confirmOverwrite, titleVisibility: .visible) {
                 Button(L10n.text("Заменить оценки")) { save() }.accessibilityIdentifier("confirmRatingOverwrite")
+            }
+            .sheet(isPresented: $voiceNote) {
+                VoiceNoteView { text in summary = String(([summary, text].filter { !$0.isEmpty }.joined(separator: "\n")).prefix(10000)) }
+            }
+            .sheet(isPresented: $organizeNote) {
+                ImpressionOrganizerView(text: summary, aliases: library.entry(for: title.id)?.nameAliases ?? []) { result in
+                    liked = String(([liked] + result.liked).filter { !$0.isEmpty }.joined(separator: "\n").prefix(30000))
+                    disliked = String(([disliked] + result.disliked).filter { !$0.isEmpty }.joined(separator: "\n").prefix(30000))
+                    questions = String(([questions] + result.questions).filter { !$0.isEmpty }.joined(separator: "\n").prefix(30000))
+                    showImpressions = true
+                }
             }
             .sheet(isPresented: $importingSource) {
                 SourceImportView(title: title, episodes: library.entry(for: title.id)?.episodes ?? [], initialEpisodeID: scopeID)
