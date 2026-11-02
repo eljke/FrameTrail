@@ -19,6 +19,7 @@ struct TasteStudioView: View {
     }
 
     var body: some View {
+        let packet = portrait.context
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 Image(systemName: "sparkles.rectangle.stack").font(.largeTitle).foregroundStyle(Theme.accent).accessibilityHidden(true)
@@ -29,14 +30,14 @@ struct TasteStudioView: View {
                     Text(L10n.text("Связи")).tag(1)
                     Text(L10n.text("Что смотреть")).tag(2)
                 }.pickerStyle(.segmented)
-                if portrait.context.evidence.count < 2 {
+                if packet.evidence.count < 2 {
                     ContentUnavailableView(L10n.text("Нужно немного впечатлений"), systemImage: "text.bubble", description: Text(L10n.text("Оставь хотя бы два отзыва о просмотренном. Чем конкретнее заметки, тем интереснее разбор.")))
                 }
                 if busy { HStack { ProgressView(); Button(L10n.text("Остановить")) { stop() } } }
                 else {
                     Button { if mode == 2 { recommend() } else { generate() } } label: { Label(mode == 2 ? L10n.text("Ещё варианты") : L10n.text("Разобрать мои впечатления"), systemImage: "sparkles") }
                         .buttonStyle(.glassProminent).tint(Theme.accent).foregroundStyle(Theme.background)
-                        .disabled(portrait.context.evidence.count < 2 || !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable || (mode == 2 && (!model.hasCatalogToken || page > 500)))
+                        .disabled(packet.evidence.count < 2 || !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable || (mode == 2 && (!model.hasCatalogToken || page > 500)))
                 }
                 if !model.assistant.availability(localeIdentifier: model.localeIdentifier).isAvailable { Text(model.assistant.availability(localeIdentifier: model.localeIdentifier).message).font(.caption).foregroundStyle(Theme.muted) }
                 if mode == 2 {
@@ -131,12 +132,15 @@ struct TasteStudioView: View {
             ? "Read these personal viewing notes. Propose two or three tentative patterns in what the viewer enjoys or dislikes. Explain with concrete examples from supplied reviews. Avoid personality judgments, plot details and claims about films absent from these notes. Say when notes are too sparse."
             : "Find a surprising thematic connection or tension between the viewer's opinions about different titles. Compare specific notes or a score with its review text. Present it as a question or hypothesis, not a fact about personality. Do not invent preferences or story events. If no meaningful connection is supported, say so."
         let locale = model.localeIdentifier
+        let snapshot = library.entries
+        let account = library.activeAccountID
         busy = true; answer = nil; error = nil
         task = Task {
             defer { if !Task.isCancelled { busy = false; task = nil } }
             do {
                 let result = try await model.assistant.respond(question: prompt, context: packet, history: [], localeIdentifier: locale, preparedQuestion: prompt)
                 try Task.checkCancellation()
+                guard account == library.activeAccountID, snapshot == library.entries, locale == model.localeIdentifier else { return }
                 answer = result
             } catch is CancellationError {} catch { if !Task.isCancelled { self.error = L10n.error(error) } }
         }

@@ -69,7 +69,10 @@ actor CatalogService {
             let url = try HTTPClient.url("https://api.themoviedb.org/3/" + path, query: query)
             let response = try await http.decode(TMDBPage.self, request: HTTPClient.request(url: url, bearer: token))
             results += response.results.compactMap { item in
-                guard item.adult != true, let title = item.mediaTitle(as: kind), let rating = item.vote_average, let votes = item.vote_count, let popularity = item.popularity else { return nil }
+                guard item.adult != true, var title = item.mediaTitle(as: kind), let rating = item.vote_average, let votes = item.vote_count, let popularity = item.popularity else { return nil }
+                title.title = String(title.title.prefix(300))
+                title.originalTitle = title.originalTitle.map { String($0.prefix(300)) }
+                title.overview = String(title.overview.prefix(800))
                 return RecommendationCandidate(title: title, rating: rating, votes: votes, popularity: popularity)
             }
         }

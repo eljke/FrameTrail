@@ -61,7 +61,10 @@ struct StoryPulseView: View {
             .background(Theme.background)
             .navigationTitle(L10n.text("Пульс сериала")).navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.text("Готово")) { dismiss() }.accessibilityIdentifier("closeStoryPulse") } }
-            .task { selectedID = watched.last?.id ?? ""; await model.assistant.refreshAvailability() }
+            .task {
+                if !watched.contains(where: { $0.id == selectedID }) { selectedID = watched.last?.id ?? "" }
+                await model.assistant.refreshAvailability()
+            }
             .onChange(of: selectedID) { _, _ in stop() }
             .onChange(of: mode) { _, _ in stop() }
             .onChange(of: library.activeAccountID) { _, _ in stop(); dismiss() }
@@ -137,6 +140,9 @@ struct StoryPulseView: View {
         let prompts = ["Give a concise catch-up before resuming this series: pivotal events and character motivations at this checkpoint. No later developments.", "Identify unresolved conflicts and character goals at this checkpoint. Do not predict resolutions or hint at future twists.", "Recall significant details explicitly present in the supplied material. Explain their meaning at this checkpoint, never their future significance."]
         let prompt = prompts[mode]
         let locale = model.localeIdentifier
+        let account = library.activeAccountID
+        let snapshot = entry
+        let checkpointID = selectedID
         let aliases = entry.nameAliases ?? []
         generating = true
         response = nil
@@ -146,6 +152,7 @@ struct StoryPulseView: View {
             do {
                 let result = try await model.assistant.respond(question: prompt, context: packet, history: [], localeIdentifier: locale, preparedQuestion: prompt, aliases: aliases)
                 try Task.checkCancellation()
+                guard account == library.activeAccountID, snapshot == entry, checkpointID == selectedID, locale == model.localeIdentifier else { return }
                 response = result
             } catch is CancellationError {} catch { if !Task.isCancelled { self.error = L10n.error(error) } }
         }
