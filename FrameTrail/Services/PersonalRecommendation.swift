@@ -27,7 +27,8 @@ extension OnDeviceAssistant {
         var notes = facts.map(\.text)
         let translating = localeIdentifier == "ru_RU" && usesRussianTranslation
         if translating { notes = try await translation.englishTexts(notes) }
-        let pool = Array(candidates.prefix(12))
+        let pool = Array(candidates.filter { $0.title.kind == .movie }.prefix(6))
+            + Array(candidates.filter { $0.title.kind == .series }.prefix(6))
         let reviews = notes.enumerated().map { "R\($0.offset + 1): \($0.element)" }.joined(separator: "\n")
         let optionsText = pool.enumerated().map { index, item in
             "C\(index + 1): \(String(item.title.title.prefix(100))) (\(item.title.kind.rawValue), \(item.title.year.map(String.init) ?? "")), rating \(item.rating), votes \(item.votes). Catalog synopsis: \(String(item.title.overview.prefix(160)))"

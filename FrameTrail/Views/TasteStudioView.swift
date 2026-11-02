@@ -52,6 +52,7 @@ struct TasteStudioView: View {
                                     PosterView(title: match.candidate.title, width: 56)
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text(match.candidate.title.title).font(.headline)
+                                        Text([match.candidate.title.kind == .movie ? L10n.text("Фильм") : L10n.text("Сериал"), match.candidate.title.year.map(String.init) ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")).font(.caption).foregroundStyle(Theme.muted)
                                         Text("TMDB \(match.candidate.rating, format: .number.precision(.fractionLength(1)))/10 · \(match.candidate.votes)").font(.caption).foregroundStyle(Theme.accent)
                                         Text(L10n.text("Голоса TMDB · не личная оценка")).font(.caption2).foregroundStyle(Theme.muted)
                                     }
