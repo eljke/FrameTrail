@@ -2,6 +2,20 @@ import XCTest
 
 final class FrameTrailSmokeTests: XCTestCase {
     @MainActor
+    func testTasteStudioExplainsMissingReviews() {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--uitesting"]
+        app.launch()
+        XCTAssertTrue(app.tabBars.buttons["Дневник"].waitForExistence(timeout: 15))
+        app.tabBars.buttons["Дневник"].tap()
+        app.buttons["tasteStudio"].tap()
+        XCTAssertTrue(app.navigationBars["Кинопочерк"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Нужно немного впечатлений"].firstMatch.exists)
+        capture("14-taste-studio", app: app)
+    }
+
+    @MainActor
     func testSwitchApplicationLanguage() {
         continueAfterFailure = false
         let app = XCUIApplication()

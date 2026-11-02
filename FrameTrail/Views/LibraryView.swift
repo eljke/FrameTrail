@@ -122,5 +122,6 @@ struct JournalView: View {
         }
         .background(Theme.background)
         .navigationTitle(L10n.text("Дневник")).navigationBarTitleDisplayMode(.inline)
+        .toolbar { NavigationLink { TasteStudioView() } label: { Image(systemName: "sparkles.rectangle.stack") }.accessibilityLabel(L10n.text("Кинопочерк")).accessibilityIdentifier("tasteStudio") }
     }
 }
